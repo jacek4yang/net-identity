@@ -1,0 +1,12 @@
+# Keep line endings identical everywhere: LF in the repository and in every working
+# tree. Prettier is configured with `endOfLine: "lf"`, so a Windows checkout with
+# CRLF would otherwise fail `npm run format:check` without any real change.
+* text=auto eol=lf
+
+# Binary assets must never be converted or merged as text.
+*.png binary
+*.zip binary
+
+# GitHub linguist: keep the generated icons and lockfile out of statistics.
+package-lock.json linguist-generated=true
+public/icons/*.png linguist-generated=true

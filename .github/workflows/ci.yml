@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # One primary job on purpose: the checks are fast and sequential, so parallel jobs
+  # would only duplicate setup. This job name is the required status check on main.
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # format check, ESLint, TypeScript, unit tests, build and web-ext lint.
+      - name: Run checks
+        run: npm run check
+
+      - name: Verify packaging
+        run: npm run package
+
+      - name: Upload the packaged extension
+        uses: actions/upload-artifact@v7
+        with:
+          name: net-identity-package
+          path: artifacts/*.zip
+          if-no-files-found: error

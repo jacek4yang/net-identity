@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Net Identity — Profiles</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <h1>Net Identity — Profiles</h1>
+      <p class="subtitle">
+        A profile binds one network identity together: proxy, public egress IP, geolocation,
+        timezone and WebRTC policy. Firefox only.
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Profiles</h2>
+          <button id="new-profile" type="button">New profile</button>
+        </div>
+        <ul id="profile-list" class="profile-list"></ul>
+        <p id="list-empty" class="empty">
+          No profiles yet. Create one to define a network identity.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2 id="form-title">New profile</h2>
+          <span id="form-badge" class="badge" hidden></span>
+        </div>
+
+        <form id="profile-form" novalidate>
+          <label class="field">
+            <span class="field-label">Name</span>
+            <input id="field-name" type="text" maxlength="64" autocomplete="off" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Proxy type</span>
+            <select id="field-proxy-type">
+              <option value="direct">direct</option>
+              <option value="http">http</option>
+              <option value="https">https</option>
+              <option value="socks4">socks4</option>
+              <option value="socks5">socks5</option>
+            </select>
+          </label>
+
+          <div class="grid" id="proxy-address-fields">
+            <label class="field">
+              <span class="field-label">Proxy host</span>
+              <input id="field-proxy-host" type="text" autocomplete="off" placeholder="127.0.0.1" />
+            </label>
+            <label class="field">
+              <span class="field-label">Proxy port</span>
+              <input id="field-proxy-port" type="number" min="1" max="65535" step="1" />
+            </label>
+          </div>
+
+          <div class="grid">
+            <label class="field">
+              <span class="field-label">Proxy username</span>
+              <input id="field-proxy-username" type="text" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span class="field-label">Proxy password</span>
+              <input id="field-password" type="password" autocomplete="new-password" />
+            </label>
+          </div>
+          <p class="hint">Stored only for the current Firefox session.</p>
+
+          <label class="checkbox">
+            <input id="field-remove-credentials" type="checkbox" />
+            <span>Remove the stored session credentials for this profile</span>
+          </label>
+
+          <label class="checkbox">
+            <input id="field-proxy-dns" type="checkbox" />
+            <span>Resolve DNS names through the proxy (Firefox applies this to SOCKS proxies)</span>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Bypass hosts (one per line)</span>
+            <textarea id="field-bypass" rows="4" spellcheck="false"></textarea>
+          </label>
+
+          <fieldset class="field">
+            <legend class="field-label">Identity</legend>
+            <label class="radio">
+              <input type="radio" name="identityMode" value="auto" id="field-mode-auto" />
+              <span>Automatic — observe the public egress IP through the proxy</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="identityMode" value="manual" id="field-mode-manual" />
+              <span>Manual — set coordinates, accuracy and timezone yourself</span>
+            </label>
+          </fieldset>
+
+          <div class="grid" id="manual-fields">
+            <label class="field">
+              <span class="field-label">Latitude</span>
+              <input id="field-latitude" type="number" step="any" min="-90" max="90" />
+            </label>
+            <label class="field">
+              <span class="field-label">Longitude</span>
+              <input id="field-longitude" type="number" step="any" min="-180" max="180" />
+            </label>
+            <label class="field">
+              <span class="field-label">Accuracy (metres)</span>
+              <input id="field-accuracy" type="number" min="1" step="1" />
+            </label>
+            <label class="field">
+              <span class="field-label">Timezone (IANA)</span>
+              <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field-label">WebRTC IP handling policy</span>
+            <select id="field-webrtc">
+              <option value="default">default</option>
+              <option value="default_public_interface_only">default_public_interface_only</option>
+              <option value="disable_non_proxied_udp">disable_non_proxied_udp</option>
+              <option value="proxy_only">proxy_only (strictest)</option>
+            </select>
+          </label>
+
+          <p id="form-errors" class="errors" hidden></p>
+
+          <div class="actions">
+            <button id="save" type="submit" class="primary">Save</button>
+            <button id="activate" type="button">Activate</button>
+            <button id="duplicate" type="button">Duplicate</button>
+            <button id="delete" type="button" class="danger">Delete</button>
+            <button id="deactivate" type="button">Deactivate</button>
+          </div>
+        </form>
+
+        <ul id="hints" class="hints"></ul>
+      </section>
+    </main>
+
+    <section class="panel status-panel">
+      <div class="panel-header">
+        <h2>Current state</h2>
+        <button id="refresh-identity" type="button">Refresh Identity</button>
+      </div>
+      <div id="options-status" class="status"></div>
+    </section>
+
+    <footer class="page-footer">
+      <p>
+        Automatic profiles request the active proxy egress IP from a third-party GeoIP provider
+        (ipwho.is) over HTTPS. That provider sees the proxy's public IP, never this browser's real
+        one. No telemetry, no analytics and no remotely loaded code.
+      </p>
+      <p>
+        Page-level geolocation and timezone changes are compatibility shims. They are observable by
+        sophisticated page scripts and are not a claim of fingerprinting invisibility.
+      </p>
+    </footer>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
