@@ -494,6 +494,66 @@ describe("background restart", () => {
     });
   });
 
+  it("reads a missing snapshot once, then still activates and deactivates", async () => {
+    const harness = createHarness();
+    let reads = 0;
+    const originalLoad = harness.targetStore.load.bind(harness.targetStore);
+    harness.targetStore.load = async () => {
+      reads += 1;
+      return originalLoad();
+    };
+
+    expect(await harness.controller.decideProxyForRequest("https://example.com/")).toEqual({
+      type: "direct",
+    });
+    expect(await harness.controller.decideProxyForRequest("https://example.com/again")).toEqual({
+      type: "direct",
+    });
+    expect(reads).toBe(1);
+
+    const profile = makeProfile({ id: "profile-0023" });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+    const active = await harness.controller.decideProxyForRequest("https://example.com/");
+    expect(active.type).toBe("http");
+    expect(active.host).toBe("127.0.0.1");
+
+    await harness.controller.deactivate();
+    const readsAfterDeactivate = reads;
+    expect(await harness.controller.decideProxyForRequest("https://example.com/")).toEqual({
+      type: "direct",
+    });
+    expect(await harness.controller.decideProxyForRequest("https://example.com/later")).toEqual({
+      type: "direct",
+    });
+    expect(reads).toBe(readsAfterDeactivate);
+  });
+
+  it("restores an active snapshot once and reuses it for later requests", async () => {
+    const harness = createHarness();
+    const profile = makeProfile({ id: "profile-0024" });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+
+    const restarted = createHarness({
+      localArea: harness.localArea,
+      sessionArea: harness.sessionArea,
+    });
+    let reads = 0;
+    const originalLoad = restarted.targetStore.load.bind(restarted.targetStore);
+    restarted.targetStore.load = async () => {
+      reads += 1;
+      return originalLoad();
+    };
+
+    const first = await restarted.controller.decideProxyForRequest("https://example.com/");
+    const second = await restarted.controller.decideProxyForRequest("https://example.org/");
+    expect(first.type).toBe("http");
+    expect(second.type).toBe("http");
+    expect(second.host).toBe("127.0.0.1");
+    expect(reads).toBe(1);
+  });
+
   it("performs a full activation on a fresh browser session", async () => {
     const first = createHarness();
     const profile = makeProfile({ id: "profile-0022" });
