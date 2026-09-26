@@ -134,8 +134,9 @@ validate profile
    (`Result<T>`), never cast.
 7. Provider responses are untrusted: `parseIpWhoIsResponse` validates each field.
 8. Only this extension may talk to the background (`sender.id` check).
-9. `webRequest.onAuthRequired` answers only when `isProxy` is true _and_ the challenger
-   matches the active proxy (host or port).
+9. `webRequest.onAuthRequired` answers only when `isProxy` is true and the challenger
+   host **and** port both match the active HTTP/HTTPS proxy. A missing field or a
+   second challenge for the same request id fails closed.
 10. `docs/SECURITY.md` is the authoritative list — update it with any change here.
 
 Storage layout:

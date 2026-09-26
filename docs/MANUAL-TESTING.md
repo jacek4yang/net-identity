@@ -78,7 +78,10 @@ node scripts/dev-proxy.mjs --port 8080 --require-auth user:pass
 
 1. Create an HTTP proxy profile with username `user`, password `pass`; activate it.
 2. Requests should succeed **without** a Firefox authentication prompt appearing. The
-   proxy log shows the request; the audit shows no proxy error.
+   proxy log shows the request; the audit shows no proxy error. A wrong password must
+   not produce a stream of repeated `407` lines for the same request: the extension
+   answers that challenge at most once. `npm run e2e:proxy-auth` checks the successful
+   path in Firefox.
 3. Remove the credentials (leave the password field empty and save, or tick _Remove the
    stored session credentials_), then press **Refresh Identity**. Firefox may now show
    its own authentication prompt — that is the expected fallback, and it proves the

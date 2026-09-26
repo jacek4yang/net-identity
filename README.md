@@ -78,7 +78,8 @@ Full details, including why each Firefox API is used the way it is, are in
    `{ ns, generation, latitude, longitude, accuracy, timezone }`.
 4. Provider responses are untrusted input and are validated field by field.
 5. Proxy credentials are answered to `webRequest.onAuthRequired` only when Firefox
-   reports a _proxy_ challenge (`isProxy`) and the challenger matches the active proxy.
+   reports a _proxy_ challenge (`isProxy`) whose host and port both match the active
+   proxy, and only once per request.
 6. The extension never rewrites Firefox's global proxy settings, so `about:preferences`
    stays under your control and everything is reversible.
 
@@ -262,7 +263,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 243 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 245 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract.
@@ -275,6 +276,9 @@ tests/            vitest unit tests (no browser required)
   geolocation coordinates matching the provider with the coarse accuracy).
 - `npm run e2e:websocket` – launches real Firefox with a local HTTP proxy profile and
   asserts that `ws`/`wss` reach that proxy while a loopback WebSocket stays bypassed.
+- `npm run e2e:proxy-auth` – launches real Firefox against the bundled authenticating
+  proxy and checks that a correct password is accepted without a 407 loop, and a wrong
+  password is challenged only a bounded number of times.
 
 Manual proxy verification (including `407` authentication) uses the bundled test proxy:
 
