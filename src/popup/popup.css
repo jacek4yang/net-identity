@@ -1,0 +1,246 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --panel: #f7f7f9;
+  --fg: #15141a;
+  --fg-dim: #5b5b66;
+  --border: #d9d9e0;
+  --accent: #0060df;
+  --accent-fg: #ffffff;
+  --ok: #157a3a;
+  --warn: #9a5b00;
+  --bad: #b3261e;
+  --pending: #6b6b76;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1b22;
+    --panel: #26252d;
+    --fg: #fbfbfe;
+    --fg-dim: #b1b1bb;
+    --border: #41414b;
+    --accent: #0df;
+    --accent-fg: #1c1b22;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --bad: #ff8a80;
+    --pending: #a1a1ad;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  margin: 0;
+  padding: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    13px/1.45 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.chips {
+  display: flex;
+  gap: 4px;
+}
+
+.chip {
+  border-radius: 10px;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.chip-muted {
+  color: var(--fg-dim);
+}
+
+.chip[data-tone="ok"] {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.chip[data-tone="warn"] {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.chip[data-tone="bad"] {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.chip[data-tone="pending"] {
+  color: var(--pending);
+}
+
+.block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.label {
+  color: var(--fg-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.value {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.value-strong {
+  font-weight: 600;
+  text-align: left;
+  font-size: 13px;
+}
+
+.value-dim {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.checks {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.checks li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+  border-top: 1px solid transparent;
+}
+
+.checks .check-label {
+  color: var(--fg);
+}
+
+.checks .check-status {
+  font-size: 11px;
+  color: var(--fg-dim);
+  text-align: right;
+}
+
+.checks li[data-status="ok"] .check-status {
+  color: var(--ok);
+}
+
+.checks li[data-status="pending"] .check-status,
+.checks li[data-status="manual"] .check-status,
+.checks li[data-status="not_configured"] .check-status {
+  color: var(--pending);
+}
+
+.checks li[data-status="stale"] .check-status,
+.checks li[data-status="unavailable"] .check-status,
+.checks li[data-status="provider_error"] .check-status,
+.checks li[data-status="controlled_by_other_extension"] .check-status {
+  color: var(--warn);
+}
+
+.checks li[data-status="error"] .check-status {
+  color: var(--bad);
+}
+
+.error {
+  border: 1px solid var(--bad);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--bad);
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.field {
+  display: block;
+  margin-bottom: 8px;
+}
+
+select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+button {
+  flex: 1 1 auto;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+.note {
+  color: var(--fg-dim);
+  font-size: 11px;
+  margin: 8px 0 0;
+}

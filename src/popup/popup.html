@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Net Identity</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>Net Identity</h1>
+      <span class="chips">
+        <span id="status-chip" class="chip">Loading</span>
+        <span id="verdict-chip" class="chip chip-muted">Unknown</span>
+      </span>
+    </header>
+
+    <section class="block">
+      <div class="label">Active profile</div>
+      <div id="active-profile" class="value value-strong">Loading…</div>
+      <div id="proxy-summary" class="value value-dim"></div>
+    </section>
+
+    <section class="block">
+      <div class="row">
+        <span class="label">Public IP</span>
+        <span id="public-ip" class="value">—</span>
+      </div>
+      <div class="row">
+        <span class="label">Country / Region / City</span>
+        <span id="location" class="value">—</span>
+      </div>
+      <div class="row">
+        <span class="label">Timezone</span>
+        <span id="timezone" class="value">—</span>
+      </div>
+      <div class="row">
+        <span class="label">Approx. coordinates</span>
+        <span id="coordinates" class="value">—</span>
+      </div>
+      <div class="row">
+        <span class="label">WebRTC policy</span>
+        <span id="webrtc" class="value">—</span>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="label">Identity consistency</div>
+      <ul id="audit-checks" class="checks"></ul>
+    </section>
+
+    <p id="error-box" class="error" hidden></p>
+
+    <footer class="footer">
+      <label class="field">
+        <span class="label">Change profile</span>
+        <select id="profile-select"></select>
+      </label>
+      <div class="buttons">
+        <button id="activate" type="button">Activate</button>
+        <button id="refresh" type="button">Refresh Identity</button>
+        <button id="manage" type="button" class="primary">Manage Profiles</button>
+      </div>
+    </footer>
+
+    <p class="note">
+      Proxy passwords are stored only for the current Firefox session. Automatic profiles contact a
+      third-party GeoIP provider through the active proxy.
+    </p>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
