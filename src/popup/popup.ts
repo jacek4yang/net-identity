@@ -6,6 +6,7 @@
  * before use.
  */
 import type { AuditCheckStatus, AuditVerdict } from "../shared/audit";
+import { GUIDE, describeRouting, explainRuntimeError, showFirstRun } from "../shared/onboarding";
 import { clear, el, formatAccuracy, formatCoordinates, requireElement } from "../shared/dom";
 import {
   parseMutationResponse,
@@ -39,6 +40,10 @@ const elements = {
   activateButton: requireElement<HTMLButtonElement>("#activate"),
   refreshButton: requireElement<HTMLButtonElement>("#refresh"),
   manageButton: requireElement<HTMLButtonElement>("#manage"),
+  firstRun: requireElement<HTMLElement>("#first-run"),
+  firstRunCopy: requireElement<HTMLElement>("#first-run-copy"),
+  createProfile: requireElement<HTMLButtonElement>("#create-profile"),
+  aboutBody: requireElement<HTMLElement>("#about-body"),
 };
 
 const LIFECYCLE_LABELS: Record<RuntimeStatus, string> = {
@@ -180,6 +185,7 @@ function renderProfiles(profiles: ProfilesResponse | null): void {
 
   const selected = elements.profileSelect.value;
   elements.activateButton.disabled = selected === "" || selected === profiles.activeProfileId;
+  elements.firstRun.hidden = !showFirstRun(profiles.profiles.length);
 }
 
 function renderState(state: RuntimeState): void {
@@ -194,13 +200,20 @@ function renderState(state: RuntimeState): void {
   elements.activeProfile.textContent = state.activeProfileName ?? "No profile active";
 
   const proxy = state.proxy;
-  elements.proxySummary.textContent = proxy.configured
-    ? `${proxy.type.toUpperCase()} ${proxy.host ?? "?"}:${proxy.port ?? "?"}`
-    : "Direct connection";
+  elements.proxySummary.textContent = describeRouting(
+    proxy.configured,
+    proxy.type,
+    proxy.host,
+    proxy.port,
+  );
 
   renderIdentity(state);
   renderAudit(state);
-  renderError(state.lastError === undefined ? null : state.lastError.message);
+  renderError(
+    state.lastError === undefined
+      ? null
+      : explainRuntimeError(state.lastError.code, state.lastError.message),
+  );
   elements.refreshButton.disabled = state.activeProfileId === null;
 }
 
@@ -283,6 +296,15 @@ elements.refreshButton.addEventListener("click", () => {
 elements.manageButton.addEventListener("click", () => {
   void openOptionsPage();
 });
+
+elements.createProfile.addEventListener("click", () => {
+  void openOptionsPage();
+});
+
+elements.firstRunCopy.textContent = GUIDE[0]?.body ?? "";
+for (const section of GUIDE) {
+  elements.aboutBody.append(el("h2", { text: section.title }), el("p", { text: section.body }));
+}
 
 elements.profileSelect.addEventListener("change", () => {
   void loadProfiles();

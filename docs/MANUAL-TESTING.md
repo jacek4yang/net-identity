@@ -17,9 +17,10 @@ Keep the browser console open (web-ext prints it with `--browser-console`).
 ## 1. Extension loads
 
 1. `npm run dev` starts Firefox with the extension installed.
-2. Open the popup. A fresh install has no active profile until you create and activate
-   one. After activation it should show a public IP, a country/region/city, a timezone
-   and coordinates.
+2. Open the popup. A fresh install shows **Get started** and does not contact a location
+   service. Create a profile from **Manage Profiles** or **Create a profile**, then
+   activate it. After activation the popup should show a public IP, a country/region/city,
+   a timezone and coordinates. Browser routing does not override a proxy set in Firefox.
 3. The audit should be _consistent_ once a page is open (the page-shim row turns ok).
 4. Resize/close freely: no console errors mentioning net-identity.
 

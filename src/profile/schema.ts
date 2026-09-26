@@ -103,7 +103,7 @@ export function createProfile(
 
 /** Human-readable one-line proxy summary. Contains no credentials. */
 export function describeProxy(proxy: ProxyConfig): string {
-  if (proxy.type === "direct") return "Direct connection";
+  if (proxy.type === "direct") return "Browser routing (does not override Firefox's proxy)";
   const host = proxy.host ?? "?";
   const port = proxy.port === undefined ? "?" : String(proxy.port);
   const auth = proxy.username ? " with authentication" : "";

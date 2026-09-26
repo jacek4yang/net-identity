@@ -15,6 +15,12 @@
       </span>
     </header>
 
+    <section id="first-run" class="block" hidden>
+      <div class="label">Get started</div>
+      <p id="first-run-copy" class="note"></p>
+      <button id="create-profile" type="button" class="primary">Create a profile</button>
+    </section>
+
     <section class="block">
       <div class="label">Active profile</div>
       <div id="active-profile" class="value value-strong">Loading…</div>
@@ -63,9 +69,14 @@
       </div>
     </footer>
 
+    <details class="block about">
+      <summary>About and help</summary>
+      <div id="about-body"></div>
+    </details>
+
     <p class="note">
-      Proxy passwords are stored only for the current Firefox session. Automatic profiles contact a
-      third-party GeoIP provider through the active proxy.
+      Proxy passwords are stored only for the current Firefox session. A profile is not activated,
+      and no location service is contacted, until you activate one.
     </p>
 
     <script type="module" src="popup.js"></script>
