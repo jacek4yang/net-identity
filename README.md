@@ -116,7 +116,18 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 ## Installation
 
-### From a packaged build
+Ordinary Firefox users install and update net-identity from addons.mozilla.org
+after Mozilla approves a listed submission. That listing does not exist until the
+first tagged release is submitted and reviewed, so this README does not link to a
+listing page yet. The reviewer package and the pre-submission checklist are in
+[`docs/AMO-REVIEW.md`](docs/AMO-REVIEW.md) and
+[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md); the privacy policy is
+[`docs/PRIVACY.md`](docs/PRIVACY.md).
+
+A GitHub Release for a tag is the engineering record: source, checksums and the
+package that was submitted. It is not the signed installer.
+
+### From a packaged build, for development
 
 ```bash
 npm install
@@ -267,13 +278,13 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 274 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 287 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract, the
-  manual location map (projection, seeding, tile URLs), profile schema migration, and
-  per-frame page-shim diagnostics, and audit updates after external proxy or WebRTC
-  setting changes.
+  manual location map (projection, seeding, tile URLs), profile schema migration,
+  per-frame page-shim diagnostics, audit updates after external proxy or WebRTC setting
+  changes, the AMO reviewer metadata, and the real-Firefox CI gate.
 - `npm run check` – adds ESLint (type-aware), `tsc --noEmit`, a production-shaped build,
   and `web-ext lint` where _every_ error and any unexpected warning fails the build.
 - `npm run package` – builds and then inspects the zip: required entries present, and no
