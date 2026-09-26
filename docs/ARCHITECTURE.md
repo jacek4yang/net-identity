@@ -137,6 +137,20 @@ Geolocation positions are built from the real prototype with own enumerable prop
 so `instanceof GeolocationPosition`, property access and `JSON.stringify` behave as pages
 expect. This is verified in real Firefox by `npm run e2e`.
 
+## Options location map
+
+Manual coordinates are still a profile field. The options page projects them with a
+local Web Mercator implementation in `src/options/location-map.ts`. Automatic mode
+previews the resolved identity; Manual mode keeps the centre pin and the latitude and
+longitude inputs on the same point (click, drag, or typing). The circle is the accuracy
+value pages will receive. Zoom is chosen so a coarse accuracy stays visible, and the
+zoom buttons pin an explicit level.
+
+Raster tiles are optional `<img>` requests to `tile.openstreetmap.org`, sent only while
+the options page is showing the map, with no referrer. Indexes that fall outside the
+zoom are omitted. The CSS grid under the images is the offline surface, so coordinate
+entry does not depend on the tile host. No script is loaded from that host.
+
 ## Known architectural limitations
 
 - Subframes are patched (`all_frames: true`, `match_about_blank: true`). While

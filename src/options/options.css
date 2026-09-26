@@ -153,6 +153,90 @@ body {
   gap: 0 12px;
 }
 
+.location-map {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.location-map-surface {
+  position: relative;
+  height: 280px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--fg) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--fg) 12%, transparent) 1px, transparent 1px),
+    var(--panel);
+  background-size: 40px 40px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.location-map-tiles,
+.location-map-accuracy,
+.location-map-marker {
+  position: absolute;
+}
+
+.location-map-tiles {
+  inset: 0;
+}
+
+.location-map-tiles img {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  pointer-events: none;
+}
+
+.location-map-accuracy {
+  left: 50%;
+  top: 50%;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  pointer-events: none;
+}
+
+.location-map-marker {
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  margin: -16px 0 0 -8px;
+  border: 2px solid var(--accent-fg);
+  border-radius: 50% 50% 50% 0;
+  background: var(--accent);
+  transform: rotate(-45deg);
+  pointer-events: none;
+}
+
+.location-map-zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+}
+
+.location-map-zoom button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.location-map-surface.is-preview {
+  cursor: default;
+}
+
+.location-map-surface.is-grabbing {
+  cursor: grabbing;
+}
+
 .field-label,
 legend {
   display: block;

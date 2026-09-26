@@ -61,6 +61,7 @@ content/page-shim.js (MAIN world)          proxy.onRequest / webRTCIPHandlingPol
 | `src/geo/`                        | GeoIP provider interface + the `ipwho.is` implementation.                                               |
 | `src/shared/`                     | Result type, primitives, timezone maths, public identity contract, state types, audit, DOM helpers.     |
 | `src/options/form.ts`             | Pure form → profile mapping (unit tested; keeps the DOM layer thin).                                    |
+| `src/options/location-map.ts`     | Local Web Mercator picker. Tile images from `tile.openstreetmap.org` only; no remote script.            |
 
 ## 4. Firefox API decisions that must not be "simplified"
 
@@ -158,6 +159,9 @@ Storage layout:
   `personallyIdentifyingInfo` is granted.
 - Installation does not create or activate a profile, so a fresh install makes no
   GeoIP request.
+- The options map may load images from `tile.openstreetmap.org`. The tile path reveals
+  the viewed area. Requests use `referrerpolicy="no-referrer"` and carry no credentials.
+  Document any new tile host in `docs/SECURITY.md` before adding it.
 - **Do not change this to `["none"]`** while any automatic provider exists. If you add
   providers, re-review the declaration, `docs/SECURITY.md`, the README and
   `tests/manifest.test.ts` (which pins this behaviour).

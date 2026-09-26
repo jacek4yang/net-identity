@@ -14,13 +14,28 @@ npm run dev          # or: npm run dev -- --firefox="C:\Program Files\Firefox De
 
 Keep the browser console open (web-ext prints it with `--browser-console`).
 
-## 1. Extension loads and the default profile works
+## 1. Extension loads
 
 1. `npm run dev` starts Firefox with the extension installed.
-2. Open the popup: it should show **Direct (default)** active, a public IP, a
-   country/region/city, a timezone and coordinates.
+2. Open the popup. A fresh install has no active profile until you create and activate
+   one. After activation it should show a public IP, a country/region/city, a timezone
+   and coordinates.
 3. The audit should be _consistent_ once a page is open (the page-shim row turns ok).
 4. Resize/close freely: no console errors mentioning net-identity.
+
+## 1a. Manual location map
+
+1. Open the options page. The map previews the resolved location while Identity is
+   Automatic, including the accuracy circle once a lookup has succeeded.
+2. Choose **Manual**. Blank latitude, longitude, accuracy and timezone fields fill from
+   that resolved location. Fields you already typed stay as you left them.
+3. Click the map, drag it, and use the zoom buttons. The centre pin and the latitude
+   and longitude fields stay on the same point. Typing a latitude or longitude recentres
+   the map.
+4. **Use GeoIP location** replaces the manual point with the resolved one.
+5. Disconnect the network (or block `tile.openstreetmap.org`) and repeat the click and
+   the typed coordinates. Both still update the fields. Save and activate: a page's
+   geolocation matches the coordinates you saved.
 
 ## 2. Direct identity versus the observed egress
 

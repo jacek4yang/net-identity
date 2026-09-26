@@ -11,7 +11,7 @@
  *   node scripts/build.mjs --production  packaging build (minified, no source maps)
  */
 import { build } from "esbuild";
-import { cp, mkdir, readFile, rm, stat } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -106,10 +106,20 @@ async function verifyDist() {
     throw new Error(`manifest references missing files: ${missing.join(", ")}`);
   }
 
-  const script = path.join(dist, "background.js");
-  const contents = await readFile(script, "utf8");
-  if (/\beval\s*\(/.test(contents) || /new\s+Function\s*\(/.test(contents)) {
-    throw new Error("background bundle contains eval/new Function");
+  const bundled = await readdir(dist, { recursive: true });
+  for (const entry of bundled) {
+    const relative = String(entry);
+    if (!relative.endsWith(".js") && !relative.endsWith(".html")) continue;
+    const contents = await readFile(path.join(dist, relative), "utf8");
+    if (/\beval\s*\(/.test(contents) || /new\s+Function\s*\(/.test(contents)) {
+      throw new Error(`${relative} contains eval/new Function`);
+    }
+    if (/<script\b[^>]*\bsrc\s*=\s*["']https?:/i.test(contents)) {
+      throw new Error(`${relative} loads a remote script`);
+    }
+    if (/\bimport\s*\(\s*["']https?:/.test(contents)) {
+      throw new Error(`${relative} imports remote code`);
+    }
   }
 }
 
