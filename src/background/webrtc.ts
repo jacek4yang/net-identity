@@ -6,9 +6,11 @@
  * enterprise policy may control it; the `levelOfControl` value is checked first
  * and reported honestly instead of pretending the change succeeded.
  *
- * `default` is never replaced by default for direct profiles, and WebRTC is never
- * disabled entirely — `proxy_only` is offered as the strictest user-selectable
- * policy.
+ * `default` is never written merely because a direct profile was selected, and
+ * WebRTC is never disabled entirely — `proxy_only` is the strictest
+ * user-selectable policy. Deactivation calls `clear()` so Firefox restores the
+ * value that was effective before this extension took control, instead of
+ * forcing `default`.
  */
 import { describeError } from "../shared/result";
 import { parseWebRtcPolicy } from "../shared/primitives";
@@ -18,6 +20,7 @@ import type { WebRtcApplyStatus, WebRtcRuntimeState } from "../shared/state";
 export interface WebRtcSettingLike {
   get(details: { incognito?: boolean }): Promise<{ value: unknown; levelOfControl: string }>;
   set(details: { value: unknown; scope?: string }): Promise<unknown>;
+  clear(details: { scope?: string }): Promise<unknown>;
 }
 
 export interface WebRtcReadResult {
@@ -28,6 +31,8 @@ export interface WebRtcReadResult {
 export interface WebRtcController {
   read(): Promise<WebRtcReadResult>;
   apply(policy: WebRTCPolicy): Promise<WebRtcRuntimeState>;
+  /** Drops this extension's override and reports the value Firefox then exposes. */
+  release(): Promise<WebRtcRuntimeState>;
 }
 
 export function createPendingWebRtcState(desired: WebRTCPolicy): WebRtcRuntimeState {
@@ -42,6 +47,14 @@ export function createUnavailableWebRtcController(message: string): WebRtcContro
     },
     async apply(policy) {
       return { desired: policy, levelOfControl: "unknown", status: "unsupported", message };
+    },
+    async release() {
+      return {
+        desired: "default",
+        levelOfControl: "unknown",
+        status: "unsupported",
+        message,
+      };
     },
   };
 }
@@ -146,6 +159,85 @@ export function createWebRtcController(setting: WebRtcSettingLike): WebRtcContro
         status: "unsupported",
         actual: after.value,
         message: `Firefox kept "${after.value}" instead of "${policy}".`,
+      };
+    },
+
+    async release(): Promise<WebRtcRuntimeState> {
+      const before = await controller.read();
+      if (before.value === undefined && before.levelOfControl === "unknown") {
+        return {
+          desired: "default",
+          levelOfControl: "unknown",
+          status: "error",
+          message: "The WebRTC policy could not be read on this Firefox build.",
+        };
+      }
+      if (
+        before.levelOfControl === "not_controllable" ||
+        before.levelOfControl === "controlled_by_other_extensions"
+      ) {
+        const parsed = parseWebRtcPolicy(before.value);
+        return {
+          desired: parsed.ok ? parsed.value : "default",
+          levelOfControl: before.levelOfControl,
+          status:
+            before.levelOfControl === "not_controllable"
+              ? "not_controllable"
+              : "controlled_by_other",
+          ...(before.value === undefined ? {} : { actual: before.value }),
+          message:
+            before.levelOfControl === "not_controllable"
+              ? "This Firefox build does not allow extensions to change the WebRTC policy."
+              : "Another extension controls the WebRTC policy; net-identity did not change it.",
+        };
+      }
+
+      try {
+        const cleared = await setting.clear({});
+        if (cleared === false) {
+          return {
+            desired: "default",
+            levelOfControl: before.levelOfControl,
+            status: "error",
+            ...(before.value === undefined ? {} : { actual: before.value }),
+            message: "Firefox refused to relinquish the WebRTC policy.",
+          };
+        }
+      } catch (error) {
+        return {
+          desired: "default",
+          levelOfControl: before.levelOfControl,
+          status: "error",
+          ...(before.value === undefined ? {} : { actual: before.value }),
+          message: describeError(error, "Firefox refused to relinquish the WebRTC policy."),
+        };
+      }
+
+      const after = await controller.read();
+      if (after.value === undefined) {
+        return {
+          desired: "default",
+          levelOfControl: after.levelOfControl,
+          status: "error",
+          message: "Firefox cleared the WebRTC policy but did not report the restored value.",
+        };
+      }
+      const parsed = parseWebRtcPolicy(after.value);
+      if (!parsed.ok) {
+        return {
+          desired: "default",
+          levelOfControl: after.levelOfControl,
+          status: "unsupported",
+          actual: after.value,
+          message: `Firefox reported "${after.value}" after the extension released the setting.`,
+        };
+      }
+      return {
+        desired: parsed.value,
+        levelOfControl: after.levelOfControl,
+        status: "already",
+        actual: parsed.value,
+        message: `Relinquished extension control. Firefox's effective policy is "${parsed.value}".`,
       };
     },
   };

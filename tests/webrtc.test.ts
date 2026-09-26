@@ -69,6 +69,7 @@ describe("WebRTC controller", () => {
     const outcome = await createWebRtcController({
       get: async () => ({ value: values.stored, levelOfControl: "controllable_by_this_extension" }),
       set: async () => undefined, // accepts the call but does not change anything
+      clear: async () => undefined,
     }).apply("disable_non_proxied_udp");
 
     expect(outcome.status).toBe("unsupported");
@@ -81,6 +82,7 @@ describe("WebRTC controller", () => {
         throw new Error("no privacy API");
       },
       set: async () => undefined,
+      clear: async () => undefined,
     }).apply("proxy_only");
 
     expect(outcome.status).toBe("error");
@@ -103,5 +105,57 @@ describe("WebRTC controller", () => {
     const outcome = await controller.apply("proxy_only");
     expect(outcome.status).toBe("unsupported");
     expect(outcome.message).toBe("not available");
+    expect((await controller.release()).status).toBe("unsupported");
+  });
+
+  it("relinquishes control and restores the previous effective value", async () => {
+    const setting = createFakeWebRtcSetting({ value: "proxy_only" });
+    const controller = createWebRtcController(setting);
+    await controller.apply("disable_non_proxied_udp");
+    expect(setting.stored.value).toBe("disable_non_proxied_udp");
+
+    const released = await controller.release();
+
+    expect(setting.clearCalls).toBe(1);
+    expect(setting.setCalls).toBe(1);
+    expect(setting.stored.value).toBe("proxy_only");
+    expect(released.status).toBe("already");
+    expect(released.actual).toBe("proxy_only");
+    expect(released.desired).toBe("proxy_only");
+  });
+
+  it("does not clear a policy this extension does not control", async () => {
+    const setting = createFakeWebRtcSetting({
+      value: "default_public_interface_only",
+      levelOfControl: "controlled_by_other_extensions",
+    });
+    const released = await createWebRtcController(setting).release();
+
+    expect(setting.clearCalls).toBe(0);
+    expect(setting.stored.value).toBe("default_public_interface_only");
+    expect(released.status).toBe("controlled_by_other");
+    expect(released.actual).toBe("default_public_interface_only");
+  });
+
+  it("reports a clear failure without inventing the default policy", async () => {
+    const setting = createFakeWebRtcSetting({ value: "proxy_only" });
+    const controller = createWebRtcController(setting);
+    await controller.apply("disable_non_proxied_udp");
+    setting.failNextClear = true;
+
+    const released = await controller.release();
+
+    expect(released.status).toBe("error");
+    expect(setting.stored.value).toBe("disable_non_proxied_udp");
+    expect(released.actual).toBe("disable_non_proxied_udp");
+  });
+
+  it("reports a thrown clear without throwing", async () => {
+    const setting = createFakeWebRtcSetting({ value: "default" });
+    setting.throwNextClear = true;
+    const released = await createWebRtcController(setting).release();
+
+    expect(released.status).toBe("error");
+    expect(released.message).toContain("privacy setting clear rejected");
   });
 });

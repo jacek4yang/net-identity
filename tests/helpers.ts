@@ -125,22 +125,32 @@ export const SAMPLE_GEO: GeoIpResult = {
 
 export interface FakeWebRtcSetting extends WebRtcSettingLike {
   stored: { value: string; levelOfControl: string };
+  /** Value Firefox should expose again after this extension calls `clear()`. */
+  baseline: string;
   setCalls: number;
+  clearCalls: number;
   failNextSet: boolean;
   throwNextSet: boolean;
+  failNextClear: boolean;
+  throwNextClear: boolean;
 }
 
 export function createFakeWebRtcSetting(
   initial: { value?: string; levelOfControl?: string } = {},
 ): FakeWebRtcSetting {
+  const baseline = initial.value ?? "default";
   const setting: FakeWebRtcSetting = {
     stored: {
-      value: initial.value ?? "default",
+      value: baseline,
       levelOfControl: initial.levelOfControl ?? "controllable_by_this_extension",
     },
+    baseline,
     setCalls: 0,
+    clearCalls: 0,
     failNextSet: false,
     throwNextSet: false,
+    failNextClear: false,
+    throwNextClear: false,
 
     async get() {
       return { value: setting.stored.value, levelOfControl: setting.stored.levelOfControl };
@@ -157,7 +167,25 @@ export function createFakeWebRtcSetting(
         return false;
       }
       setting.stored.value = String(details.value);
+      setting.stored.levelOfControl = "controlled_by_this_extension";
       return undefined;
+    },
+
+    async clear() {
+      setting.clearCalls += 1;
+      if (setting.throwNextClear) {
+        setting.throwNextClear = false;
+        throw new Error("privacy setting clear rejected");
+      }
+      if (setting.failNextClear) {
+        setting.failNextClear = false;
+        return false;
+      }
+      setting.stored.value = setting.baseline;
+      if (setting.stored.levelOfControl === "controlled_by_this_extension") {
+        setting.stored.levelOfControl = "controllable_by_this_extension";
+      }
+      return true;
     },
   };
 

@@ -223,7 +223,9 @@ stay direct.
   the strictest option; WebRTC is never disabled entirely.
 - If another extension or an enterprise policy controls the setting, the UI says
   _controlled by another extension_ instead of pretending it succeeded.
-- Deactivating a profile restores Firefox's `default` policy.
+- Deactivating a profile calls `BrowserSetting.clear()`, so Firefox restores the
+  WebRTC policy that was effective before this extension took control. It does not
+  write `default` over that value.
 
 ## Development
 
@@ -253,7 +255,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 227 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 231 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract.

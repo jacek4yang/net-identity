@@ -64,6 +64,10 @@ the README. The important properties:
 - **Never throws.** Failures become an `error` status plus a precise `lastError` and
   audit entry, because a thrown error in the background script would leave the UI
   showing nothing at all.
+- **WebRTC is relinquished, not overwritten.** `deactivate()` calls
+  `privacy.network.webRTCIPHandlingPolicy.clear()`. Firefox then exposes the value that
+  was effective before this extension took control. A clear or read failure is reported
+  and does not pretend the policy returned to `default`.
 
 ## Layering and testability
 

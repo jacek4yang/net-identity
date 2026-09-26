@@ -78,7 +78,8 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
   this extension, including messages sent to this extension id by another add-on.
 - **Reversibility.** The extension never writes Firefox's global proxy settings, so
   removing it (or deactivating a profile) restores the previous browser behaviour. The
-  WebRTC policy is returned to `default` on deactivation.
+  WebRTC policy is relinquished with `BrowserSetting.clear()` on deactivation, so
+  Firefox restores the previously effective value instead of being forced to `default`.
 - **Honest reporting.** If another extension controls the WebRTC policy, net-identity
   reports _controlled by another extension_ rather than claiming success. If Firefox
   itself has a proxy configured, the audit reports that a `direct` profile does not
