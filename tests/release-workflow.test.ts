@@ -31,11 +31,31 @@ describe("AMO listed publication", () => {
 
   it("uses least permissions and submits on the listed channel with source", () => {
     expect(workflow).toContain("contents: read");
-    expect(workflow).not.toContain("contents: write");
     expect(submit).toContain("--channel=listed");
     expect(submit).toContain("--amo-metadata");
     expect(submit).toContain("--upload-source-code");
     expect(submit).toContain("--approval-timeout");
+  });
+
+  it("publishes a GitHub Release only after checks, the browser gate and AMO submission", () => {
+    expect(workflow).toContain("needs: [quality, firefox, submit]");
+    // Writing releases is scoped to the publish job; the workflow default stays read.
+    expect(workflow).toContain("contents: read");
+    expect(workflow).toMatch(/publish:[\s\S]*contents: write/);
+  });
+
+  it("attaches the package, source, checksums and machine-readable metadata", () => {
+    expect(workflow).toContain("write-metadata.ts");
+    expect(workflow).toContain("write-notes.ts");
+    expect(workflow).toContain("SHA256SUMS.txt");
+    expect(workflow).toContain("release-metadata.json");
+    expect(workflow).toContain("--notes-file release.md");
+  });
+
+  it("makes a rerun for an existing tag safe", () => {
+    expect(workflow).toMatch(/gh release create/);
+    expect(workflow).toMatch(/gh release upload[\s\S]*--clobber/);
+    expect(workflow).toMatch(/gh release edit/);
   });
 
   it("never prints credential material", () => {
