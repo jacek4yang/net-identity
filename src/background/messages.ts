@@ -39,6 +39,9 @@ export interface SenderInfo {
   /** True when the message came from a content script (it has a tab). */
   fromContentScript: boolean;
   url: string | undefined;
+  /** Present when a content script in a tab sent the message. */
+  tabId?: number;
+  frameId?: number;
 }
 
 export interface MessageRouterDeps {
@@ -207,7 +210,11 @@ export function createMessageHandler(
         const report = parsePageAppliedReport(parsed.value.payload);
         const ack: ContentReportAck = { accepted: false };
         if (!report.ok) return ack;
-        deps.controller.recordContentReport(report.value);
+        if (sender.tabId === undefined || sender.frameId === undefined) return ack;
+        deps.controller.recordContentReport(report.value, {
+          tabId: sender.tabId,
+          frameId: sender.frameId,
+        });
         ack.accepted = true;
         return ack;
       }

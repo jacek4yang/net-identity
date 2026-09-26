@@ -165,6 +165,27 @@ describe("buildAuditReport", () => {
     expect(statusOf(missing, "content_shim")).toBe("unavailable");
   });
 
+  it("stays partial when one frame matches and another does not", () => {
+    const mixed = auditInput({
+      content: {
+        hasShim: true,
+        reportedGeneration: 3,
+        reportedTimezone: "Europe/Amsterdam",
+        frameCount: 2,
+        currentFrameCount: 1,
+        activeTabId: 7,
+        activeTabCurrent: true,
+      },
+    });
+    const report = buildAuditReport(mixed);
+    expect(statusOf(mixed, "content_shim")).toBe("stale");
+    expect(report.verdict).toBe("partial");
+    expect(report.checks.find((check) => check.id === "content_shim")?.detail).toContain(
+      "Active tab matches",
+    );
+    expect(report.checks.find((check) => check.id === "content_shim")?.detail).toContain("1 of 2");
+  });
+
   it("reports Firefox's own proxy configuration instead of assuming it is unused", () => {
     const external = auditInput({
       firefoxProxy: { proxyType: "manual", levelOfControl: "controllable_by_this_extension" },

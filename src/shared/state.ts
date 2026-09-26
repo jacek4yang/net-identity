@@ -93,6 +93,14 @@ export interface ContentRuntimeState {
   reportedGeneration: number | null;
   reportedTimezone?: string;
   url?: string;
+  /** Retained frame self-reports. Absent on older in-memory states. */
+  frameCount?: number;
+  /** Frames whose generation and timezone match the active identity. */
+  currentFrameCount?: number;
+  /** Tab the popup summary prefers. Null when no browser tab is active. */
+  activeTabId?: number | null;
+  /** The active tab's top frame matches. False when that frame is missing or stale. */
+  activeTabCurrent?: boolean;
 }
 
 export interface RuntimeErrorInfo {
@@ -288,6 +296,26 @@ function parseContentState(value: unknown): Result<ContentRuntimeState> {
   if (timezone !== undefined && isValidTimeZone(timezone)) state.reportedTimezone = timezone;
   const url = readOptionalString(value, "url");
   if (url !== undefined) state.url = url;
+  if (value.frameCount !== undefined) {
+    if (!isIntegerInRange(value.frameCount, 0, 10_000)) {
+      return fail("content frame count is invalid");
+    }
+    state.frameCount = value.frameCount;
+  }
+  if (value.currentFrameCount !== undefined) {
+    if (!isIntegerInRange(value.currentFrameCount, 0, 10_000)) {
+      return fail("content current frame count is invalid");
+    }
+    state.currentFrameCount = value.currentFrameCount;
+  }
+  if (value.activeTabId === null) state.activeTabId = null;
+  else if (value.activeTabId !== undefined) {
+    if (!isIntegerInRange(value.activeTabId, 0, Number.MAX_SAFE_INTEGER)) {
+      return fail("content active tab id is invalid");
+    }
+    state.activeTabId = value.activeTabId;
+  }
+  if (typeof value.activeTabCurrent === "boolean") state.activeTabCurrent = value.activeTabCurrent;
   return ok(state);
 }
 

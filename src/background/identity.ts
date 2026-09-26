@@ -22,6 +22,13 @@
  * All collaborators are injected, so the whole lifecycle is unit testable without
  * Firefox.
  */
+import {
+  forgetContentTab,
+  recordContentDiagnostic,
+  summarizeContentDiagnostics,
+  type ContentDiagnostic,
+  type ContentProbeResult,
+} from "../shared/content-diagnostics";
 import { GEOIP_ACCURACY_METERS } from "../shared/constants";
 import { buildAuditReport } from "../shared/audit";
 import {
@@ -79,7 +86,7 @@ export interface ActivationDeps {
   broadcastState: (state: RuntimeState) => void | Promise<void>;
   broadcastIdentity: (envelope: IdentityEnvelope) => void | Promise<void>;
   /** Asks open tabs what their page shim actually applied. Diagnostic only. */
-  probeContent: (generation: number) => Promise<ContentRuntimeState>;
+  probeContent: (generation: number) => Promise<ContentProbeResult>;
   /** Firefox's optional data-collection grants. Fail closed when this throws. */
   readDataCollection: () => Promise<DataCollectionSnapshot>;
   now: () => number;
@@ -92,7 +99,14 @@ interface IdentityResolution {
   consentBlocked: boolean;
 }
 
-const EMPTY_CONTENT_STATE: ContentRuntimeState = { hasShim: false, reportedGeneration: null };
+const EMPTY_CONTENT_STATE: ContentRuntimeState = {
+  hasShim: false,
+  reportedGeneration: null,
+  frameCount: 0,
+  currentFrameCount: 0,
+  activeTabId: null,
+  activeTabCurrent: false,
+};
 
 /** Projects the resolved identity onto the profile shape used for state display. */
 function identityConfigFrom(identity: ResolvedIdentity): IdentityProfile["identity"] {
@@ -135,6 +149,8 @@ export class ActivationController {
   private target: ActiveProxyTarget | null = null;
   private state: RuntimeState;
   private content: ContentRuntimeState = { ...EMPTY_CONTENT_STATE };
+  private diagnostics: ContentDiagnostic[] = [];
+  private activeTabId: number | null = null;
   private abortController: AbortController | null = null;
   private pendingTargetLoad: Promise<ActiveProxyTarget | null> | null = null;
   /**
@@ -315,6 +331,8 @@ export class ActivationController {
       this.abortController?.abort();
       const controller = new AbortController();
       this.abortController = controller;
+      this.diagnostics = [];
+      this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };
 
       // Proxy routing becomes effective for subsequent requests immediately.
@@ -384,8 +402,18 @@ export class ActivationController {
         await this.persistResolvedIdentity(profile, resolution.identity);
       }
 
-      const content = await this.deps.probeContent(generation);
+      const probed = await this.deps.probeContent(generation);
       if (this.generation !== generation) return this.state;
+      this.activeTabId = probed.activeTabId;
+      for (const frame of probed.frames) {
+        this.diagnostics = recordContentDiagnostic(this.diagnostics, frame);
+      }
+      const content = summarizeContentDiagnostics(
+        this.diagnostics,
+        generation,
+        resolution.identity.timezone,
+        this.activeTabId,
+      );
 
       await this.saveSnapshot({
         generation,
@@ -441,6 +469,8 @@ export class ActivationController {
       this.abortController?.abort();
       this.abortController = null;
       this.target = null;
+      this.diagnostics = [];
+      this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };
       await this.deps.targets.clear();
       await mutateProfiles(this.deps.profiles, (current) => setActiveProfile(current, null));
@@ -476,16 +506,43 @@ export class ActivationController {
    * Page shim self-report. Untrusted by definition (a page can forge it) and used
    * only for the staleness diagnostic, never to change identity state.
    */
-  recordContentReport(report: PageAppliedReport): void {
-    const next: ContentRuntimeState = {
-      hasShim: true,
-      reportedGeneration: report.generation,
-      ...(report.timezone === null ? {} : { reportedTimezone: report.timezone }),
-    };
+  recordContentReport(report: PageAppliedReport, place: { tabId: number; frameId: number }): void {
+    this.diagnostics = recordContentDiagnostic(this.diagnostics, {
+      tabId: place.tabId,
+      frameId: place.frameId,
+      generation: report.generation,
+      timezone: report.timezone,
+      updatedAt: this.deps.now(),
+    });
+    this.replaceContent(this.snapshotContent(this.state.identity.timezone));
+  }
+
+  /** Drops every frame of a tab that Firefox has closed. */
+  forgetContentTab(tabId: number): void {
+    const next = forgetContentTab(this.diagnostics, tabId);
+    if (next.length === this.diagnostics.length) return;
+    this.diagnostics = next;
+    if (this.activeTabId === tabId) this.activeTabId = null;
+    this.replaceContent(this.snapshotContent(this.state.identity.timezone));
+  }
+
+  private snapshotContent(timezone: string | undefined): ContentRuntimeState {
+    return summarizeContentDiagnostics(
+      this.diagnostics,
+      this.state.generation,
+      timezone,
+      this.activeTabId,
+    );
+  }
+
+  private replaceContent(next: ContentRuntimeState): void {
     const unchanged =
       this.content.hasShim === next.hasShim &&
       this.content.reportedGeneration === next.reportedGeneration &&
-      this.content.reportedTimezone === next.reportedTimezone;
+      this.content.reportedTimezone === next.reportedTimezone &&
+      this.content.frameCount === next.frameCount &&
+      this.content.currentFrameCount === next.currentFrameCount &&
+      this.content.activeTabCurrent === next.activeTabCurrent;
     this.content = next;
     if (!unchanged) void this.rebroadcast();
   }

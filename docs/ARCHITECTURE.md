@@ -162,6 +162,15 @@ the options page is showing the map, with no referrer. Indexes that fall outside
 zoom are omitted. The CSS grid under the images is the offline surface, so coordinate
 entry does not depend on the tile host. No script is loaded from that host.
 
+## Page-shim diagnostics
+
+Each content-script report is stored by tab id and frame id. Those ids come from
+Firefox's message sender, not from the page. The page payload stays a diagnostic
+(generation, timezone, whether the geolocation shim is active) and is never copied
+into the identity. The audit is current only when every retained frame matches.
+The active tab is called out in the summary and does not override a stale frame.
+Closed tabs are removed. The log keeps at most 64 frames.
+
 ## Known architectural limitations
 
 - Subframes are patched (`all_frames: true`, `match_about_blank: true`). While

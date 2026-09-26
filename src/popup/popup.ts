@@ -146,7 +146,14 @@ function renderAudit(state: RuntimeState): void {
     });
     const item = el("li", {
       attrs: { "data-status": check.status },
-      children: [el("span", { className: "check-label", text: check.label }), status],
+      children: [
+        el("span", {
+          className: "check-label",
+          text:
+            check.id === "content_shim" && check.detail !== undefined ? check.detail : check.label,
+        }),
+        status,
+      ],
     });
     elements.auditChecks.append(item);
   }
