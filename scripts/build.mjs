@@ -11,7 +11,7 @@
  *   node scripts/build.mjs --production  packaging build (minified, no source maps)
  */
 import { build } from "esbuild";
-import { cp, mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -78,6 +78,24 @@ async function bundle() {
   ]);
 }
 
+/** The packaged manifest version is taken from package.json, and the id is fixed. */
+async function assertShippedVersion() {
+  const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+  const manifestPath = path.join(dist, "manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  if (manifest.version !== packageJson.version) {
+    throw new Error(
+      `manifest version ${manifest.version} must match package.json ${packageJson.version}`,
+    );
+  }
+  const extensionId = manifest.browser_specific_settings?.gecko?.id;
+  if (extensionId !== "net-identity@jacek4yang.github.io") {
+    throw new Error("extension id must stay net-identity@jacek4yang.github.io");
+  }
+  manifest.version = packageJson.version;
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
 /** Fails the build when the manifest points at something that was not emitted. */
 async function verifyDist() {
   const manifestPath = path.join(dist, "manifest.json");
@@ -128,6 +146,7 @@ async function main() {
   await mkdir(dist, { recursive: true });
   await bundle();
   await copyStatic();
+  await assertShippedVersion();
   await verifyDist();
   console.error(
     `built ${Object.keys(ENTRIES).length} entry points and copied ${STATIC_FILES.length} static paths into dist/ (${

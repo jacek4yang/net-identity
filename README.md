@@ -244,7 +244,7 @@ stay direct.
 ```bash
 npm install         # Node.js >= 22
 npm run build       # dist/ (dev, with source maps)
-npm run check       # prettier --check, eslint, tsc, vitest, build, web-ext lint
+npm run check       # prettier --check, eslint, tsc, vitest, build, web-ext lint, version check
 npm run test:watch  # vitest in watch mode
 npm run lint:fix    # eslint --fix
 npm run icons       # regenerate public/icons (deterministic)
@@ -267,7 +267,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 271 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 274 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract, the
