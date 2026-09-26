@@ -56,9 +56,10 @@ never transmitted.
 
 ### 7. AMO submission
 
-- confirm the data-collection declaration with Mozilla's current requirements;
-- provide reviewer notes explaining the GeoIP call and the page shims;
-- write listing copy that avoids absolute claims about anonymity.
+Done for v1: `amo-metadata.json` is the listing metadata, `docs/AMO-REVIEW.md` is the
+reviewer package, `docs/PRIVACY.md` is the privacy policy, and
+`docs/RELEASE-CHECKLIST.md` is the clean-profile smoke test. A listed AMO submission is
+the ordinary-user install and update channel once Mozilla approves it.
 
 ### 8. Firefox for Android
 

@@ -1,0 +1,16 @@
+{
+  "summary": {
+    "en-US": "Keep one Firefox network identity consistent: proxy, public IP, approximate location, timezone, and WebRTC."
+  },
+  "categories": ["privacy-security"],
+  "homepage": {
+    "en-US": "https://github.com/jacek4yang/net-identity"
+  },
+  "support_url": {
+    "en-US": "https://github.com/jacek4yang/net-identity/blob/main/docs/PRIVACY.md"
+  },
+  "version": {
+    "license": "MIT",
+    "approval_notes": "Reviewer notes are in docs/AMO-REVIEW.md in the uploaded source archive. The extension is Firefox-only. Proxy passwords stay in storage.session. A fresh install does not create a profile or contact a GeoIP service. Map code is bundled; tile.openstreetmap.org receives image requests only while the options page is open. Do not treat an unsigned GitHub zip as the user installer."
+  }
+}
