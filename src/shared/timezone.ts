@@ -140,6 +140,80 @@ export function getTimeZoneOffsetMinutes(timeZone: string, utcMilliseconds: numb
   return offset === 0 ? 0 : offset;
 }
 
+function wallClock(utcMilliseconds: number): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const date = new Date(utcMilliseconds);
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+    hour: date.getUTCHours(),
+    minute: date.getUTCMinutes(),
+    second: date.getUTCSeconds(),
+  };
+}
+
+function sameWallClock(
+  timeZone: string,
+  utcMilliseconds: number,
+  want: ReturnType<typeof wallClock>,
+): boolean {
+  const parts = getZonedParts(timeZone, utcMilliseconds);
+  const hour = parts.hour === 24 ? 0 : parts.hour;
+  return (
+    parts.year === want.year &&
+    parts.month === want.month &&
+    parts.day === want.day &&
+    hour === want.hour &&
+    parts.minute === want.minute &&
+    parts.second === want.second
+  );
+}
+
+/**
+ * UTC instant whose wall clock in `timeZone` matches the given components.
+ *
+ * `Date.UTC` overflow rules apply, so hour 25 or day 0 rolls into the next or
+ * previous civil day. When the wall time is repeated (a fall-back fold), the
+ * earlier instant is used. When it does not exist (a spring-forward gap), the
+ * later candidate is used, which is the post-transition offset.
+ */
+export function utcFromZonedWallTime(
+  timeZone: string,
+  year: number,
+  monthIndex: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  millisecond: number,
+): number {
+  const wallAsUtc = Date.UTC(year, monthIndex, day, hour, minute, second, millisecond);
+  if (!Number.isFinite(wallAsUtc)) return Number.NaN;
+  const want = wallClock(wallAsUtc);
+
+  const candidates: number[] = [];
+  let utc = wallAsUtc;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const offsetMinutes = getTimeZoneOffsetMinutes(timeZone, utc);
+    if (!Number.isFinite(offsetMinutes)) return Number.NaN;
+    const next = wallAsUtc + offsetMinutes * 60_000;
+    candidates.push(next);
+    if (next === utc) break;
+    utc = next;
+  }
+
+  const matches = candidates.filter((candidate) => sameWallClock(timeZone, candidate, want));
+  if (matches.length > 0) return Math.min(...matches);
+  return Math.max(...candidates);
+}
+
 export function formatGmtOffset(offsetMinutes: number): string {
   if (!Number.isFinite(offsetMinutes)) return "GMT+0000";
   const sign = offsetMinutes > 0 ? "-" : "+";

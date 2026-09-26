@@ -126,9 +126,12 @@ is active. A pending envelope keeps the previous synthetic position; a committed
 without coordinates returns position-unavailable instead of the host location.
 
 Timezones are computed per instant with `Intl.DateTimeFormat` (never a fixed offset), so
-DST and historical rule changes are correct. Numeric fields and display names come from
-two separate formatters — asking one formatter for both `month: "2-digit"` and
-`month: "short"` produced `NaN` offsets and was caught by the test suite.
+DST and historical rule changes are correct. Local `Date` getters and setters use that
+same wall clock. UTC methods are not patched. A spring-forward gap uses the
+post-transition offset and a fall-back fold uses the earlier instant. Numeric fields and
+display names come from two separate formatters — asking one formatter for both
+`month: "2-digit"` and `month: "short"` produced `NaN` offsets and was caught by the
+test suite.
 
 Geolocation positions are built from the real prototype with own enumerable properties,
 so `instanceof GeolocationPosition`, property access and `JSON.stringify` behave as pages

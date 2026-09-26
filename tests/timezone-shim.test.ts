@@ -6,6 +6,7 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { installTimeZoneShim, type TimeZoneShim } from "../src/content/timezone-shim";
+import { getTimeZoneOffsetMinutes, getZonedParts } from "../src/shared/timezone";
 
 let shim: TimeZoneShim | null = null;
 
@@ -135,5 +136,79 @@ describe("timezone shim", () => {
     expect(new Intl.DateTimeFormat("en-US").resolvedOptions().timeZone).not.toBe(
       "America/Los_Angeles",
     );
+  });
+
+  it("makes local Date getters agree with the active zone and leaves UTC getters alone", () => {
+    const installed = install();
+    installed.setTimeZone("Pacific/Auckland");
+    const instant = Date.UTC(2024, 0, 15, 12, 30, 45, 250);
+    const date = new Date(instant);
+    const parts = getZonedParts("Pacific/Auckland", instant);
+
+    expect(date.getFullYear()).toBe(parts.year);
+    expect(date.getMonth()).toBe(parts.month - 1);
+    expect(date.getDate()).toBe(parts.day);
+    expect(date.getHours()).toBe(parts.hour);
+    expect(date.getMinutes()).toBe(parts.minute);
+    expect(date.getSeconds()).toBe(parts.second);
+    expect(date.getMilliseconds()).toBe(250);
+    expect(date.getDay()).toBe(
+      new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay(),
+    );
+    expect(date.getUTCHours()).toBe(12);
+    expect(date.getUTCFullYear()).toBe(2024);
+    expect(date.getTimezoneOffset()).toBe(getTimeZoneOffsetMinutes("Pacific/Auckland", instant));
+    expect(
+      Number(
+        new Intl.DateTimeFormat("en-US", {
+          hour: "2-digit",
+          hourCycle: "h23",
+          timeZone: "Pacific/Auckland",
+        }).format(date),
+      ),
+    ).toBe(parts.hour);
+  });
+
+  it("writes local setters as wall time in the active zone", () => {
+    const installed = install();
+    installed.setTimeZone("America/New_York");
+    const date = new Date(Date.UTC(2024, 6, 15, 16, 0, 0, 0));
+
+    expect(date.setHours(9, 45, 5, 10)).toBe(date.getTime());
+    expect(date.getHours()).toBe(9);
+    expect(date.getMinutes()).toBe(45);
+    expect(date.getSeconds()).toBe(5);
+    expect(date.getMilliseconds()).toBe(10);
+    expect(getZonedParts("America/New_York", date.getTime())).toMatchObject({
+      hour: 9,
+      minute: 45,
+      second: 5,
+    });
+
+    date.setMonth(0, 2);
+    expect(date.getMonth()).toBe(0);
+    expect(date.getDate()).toBe(2);
+    expect(date.getHours()).toBe(9);
+
+    date.setDate(40);
+    expect(date.getMonth()).toBe(1);
+    expect(date.getDate()).toBe(9);
+  });
+
+  it("resolves a spring-forward gap to the post-transition offset and a fold to the earlier one", () => {
+    const installed = install();
+    installed.setTimeZone("America/New_York");
+
+    const gap = new Date(Date.UTC(2024, 2, 10, 12, 0, 0));
+    gap.setHours(2, 30, 0, 0);
+    expect(gap.getHours()).toBe(3);
+    expect(gap.getMinutes()).toBe(30);
+    expect(getTimeZoneOffsetMinutes("America/New_York", gap.getTime())).toBe(240);
+
+    const fold = new Date(Date.UTC(2024, 10, 3, 12, 0, 0));
+    fold.setHours(1, 30, 0, 0);
+    expect(fold.getHours()).toBe(1);
+    expect(fold.getMinutes()).toBe(30);
+    expect(getTimeZoneOffsetMinutes("America/New_York", fold.getTime())).toBe(240);
   });
 });

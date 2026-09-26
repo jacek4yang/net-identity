@@ -63,10 +63,18 @@ const PROBE_PAGE = `<!doctype html>
       const output = document.getElementById("out");
 
       function timezoneSnapshot() {
+        const now = new Date();
         return {
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           intlTimeZone: new Intl.DateTimeFormat("en-US").resolvedOptions().timeZone,
-          offsetMinutes: new Date().getTimezoneOffset(),
+          offsetMinutes: now.getTimezoneOffset(),
+          epoch: now.getTime(),
+          localYear: now.getFullYear(),
+          localMonth: now.getMonth(),
+          localDay: now.getDate(),
+          localHour: now.getHours(),
+          localMinute: now.getMinutes(),
+          utcHour: now.getUTCHours(),
           dateString: new Date(Date.UTC(2024, 0, 1, 12, 0, 0)).toString(),
           shimInstalled: "__netIdentityShim" in window,
         };
@@ -158,6 +166,33 @@ function fetchExpectedIdentity() {
   return fetch(endpoint, { headers: { accept: "application/json" }, cache: "no-store" })
     .then((response) => (response.ok ? response.json() : null))
     .catch(() => null);
+}
+
+function zonedWallClock(timeZone, epochMs) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(new Date(epochMs)).map((part) => [part.type, part.value]),
+  );
+  let hour = Number(parts.hour);
+  let day = Number(parts.day);
+  let month = Number(parts.month);
+  let year = Number(parts.year);
+  if (hour === 24) {
+    hour = 0;
+    const next = new Date(Date.UTC(year, month - 1, day) + 24 * 60 * 60 * 1000);
+    year = next.getUTCFullYear();
+    month = next.getUTCMonth() + 1;
+    day = next.getUTCDate();
+  }
+  return { year, month: month - 1, day, hour, minute: Number(parts.minute) };
 }
 
 function offsetMinutesFor(timeZone, epochMs) {
@@ -292,6 +327,22 @@ async function main() {
     `[e2e] ${offsetMatches ? "PASS" : "FAIL"}  getTimezoneOffset() = ${report.offsetMinutes} (expected ${expectedOffset} for ${report.timeZone})`,
   );
   if (!offsetMatches) failures.push("getTimezoneOffset() does not match the applied timezone");
+
+  if (typeof report.timeZone === "string" && typeof report.epoch === "number") {
+    const wall = zonedWallClock(report.timeZone, report.epoch);
+    const localMatches =
+      report.localYear === wall.year &&
+      report.localMonth === wall.month &&
+      report.localDay === wall.day &&
+      report.localHour === wall.hour &&
+      report.localMinute === wall.minute;
+    console.error(
+      `[e2e] ${localMatches ? "PASS" : "FAIL"}  local getters ${report.localYear}-${report.localMonth + 1}-${report.localDay} ${report.localHour}:${report.localMinute} vs ${report.timeZone}`,
+    );
+    if (!localMatches) {
+      failures.push("local Date getters do not match the applied timezone");
+    }
+  }
 
   const position = report.position ?? {};
   if (position.error !== undefined) {

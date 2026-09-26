@@ -209,6 +209,10 @@ stay direct.
 
 - Offsets are computed per instant from the IANA timezone, so **DST and historical rule
   changes are handled** — never as a fixed UTC offset.
+- `Date` local getters (`getFullYear`, `getMonth`, `getDate`, `getDay`, `getHours`,
+  `getMinutes`, `getSeconds`) and the matching setters use the identity's wall clock.
+  UTC methods are unchanged. Setter overflow follows `Date.UTC`. A spring-forward gap
+  uses the post-transition offset; a fall-back fold uses the earlier instant.
 - `Date.prototype.getTimezoneOffset/toString/toTimeString/toDateString/toLocale*` and
   `Intl.DateTimeFormat` (including `resolvedOptions().timeZone`) report the identity's
   timezone unless the caller explicitly passed one.
@@ -255,7 +259,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 231 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 236 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract.

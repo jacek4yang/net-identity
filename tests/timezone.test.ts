@@ -8,6 +8,7 @@ import {
   getTimeZoneOffsetMinutes,
   getZonedParts,
   isValidTimeZone,
+  utcFromZonedWallTime,
 } from "../src/shared/timezone";
 
 function intlAccepts(zone: string): boolean {
@@ -154,5 +155,28 @@ describe("formatting", () => {
     expect(winter).toContain("Pacific");
     expect(summer).toContain("Pacific");
     expect(winter).not.toBe(summer);
+  });
+});
+
+describe("utcFromZonedWallTime", () => {
+  it("round-trips a winter and summer wall time", () => {
+    const winter = utcFromZonedWallTime("America/Los_Angeles", 2024, 0, 15, 4, 30, 0, 0);
+    expect(getZonedParts("America/Los_Angeles", winter)).toMatchObject({
+      year: 2024,
+      month: 1,
+      day: 15,
+      hour: 4,
+      minute: 30,
+    });
+    expect(getTimeZoneOffsetMinutes("America/Los_Angeles", winter)).toBe(480);
+
+    const summer = utcFromZonedWallTime("America/Los_Angeles", 2024, 6, 15, 4, 30, 0, 0);
+    expect(getZonedParts("America/Los_Angeles", summer).hour).toBe(4);
+    expect(getTimeZoneOffsetMinutes("America/Los_Angeles", summer)).toBe(420);
+  });
+
+  it("rolls overflowed components into the next civil day", () => {
+    const utc = utcFromZonedWallTime("UTC", 2024, 0, 31, 25, 0, 0, 0);
+    expect(getZonedParts("UTC", utc)).toMatchObject({ month: 2, day: 1, hour: 1 });
   });
 });
