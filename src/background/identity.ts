@@ -133,6 +133,12 @@ export class ActivationController {
   private content: ContentRuntimeState = { ...EMPTY_CONTENT_STATE };
   private abortController: AbortController | null = null;
   private pendingTargetLoad: Promise<ActiveProxyTarget | null> | null = null;
+  /**
+   * False until the first committed startup result. Content scripts that ask
+   * before then are told geolocation is controlled, so a restoring profile
+   * cannot leak the host position.
+   */
+  private initialized = false;
 
   constructor(deps: ActivationDeps) {
     this.deps = deps;
@@ -149,6 +155,7 @@ export class ActivationController {
 
   /** Current payload for content scripts, including the "an identity is coming" flag. */
   getEnvelope(): IdentityEnvelope {
+    if (!this.initialized) return createIdentityEnvelope(null, true, true);
     return this.buildEnvelope(this.isBusy());
   }
 
@@ -164,7 +171,7 @@ export class ActivationController {
       accuracy: this.state.identity.accuracy,
       timezone: this.state.identity.timezone,
     });
-    return createIdentityEnvelope(payload, pending);
+    return createIdentityEnvelope(payload, pending, this.state.activeProfileId !== null);
   }
 
   /**
@@ -210,13 +217,21 @@ export class ActivationController {
 
   /** Starts (or restores) the active profile. Never throws. */
   async initialize(): Promise<RuntimeState> {
+    const epoch = this.generation;
     try {
       const stored = await this.deps.profiles.load();
+      // Install and startup both run on first launch. If activation began while
+      // this read was in flight, publishing idle here would release geolocation
+      // while a profile is actually active.
+      if (this.generation !== epoch) return this.state;
       if (stored.activeProfileId === null) {
-        return await this.commit(await this.composeIdleState(this.generation), false);
+        const idle = await this.composeIdleState(this.generation);
+        if (this.generation !== epoch) return this.state;
+        return await this.commit(idle, false);
       }
 
       const snapshot = await this.deps.targets.load();
+      if (this.generation !== epoch) return this.state;
       const restorable =
         snapshot !== null &&
         snapshot.profileId === stored.activeProfileId &&
@@ -225,6 +240,26 @@ export class ActivationController {
       if (snapshot !== null && restorable) {
         // The event page was restarted inside the same browser session: restore
         // in-memory routing immediately, without another GeoIP request.
+        // Routing is published only after the settings read, and only if no
+        // activation started while that read was in flight.
+        const profile: IdentityProfile = {
+          id: snapshot.profileId,
+          name: snapshot.profileName,
+          proxy: snapshot.proxy,
+          identity: identityConfigFrom(snapshot.identity),
+          webrtcPolicy: snapshot.webrtcPolicy,
+        };
+        const restored = await this.composeState({
+          status: "ready",
+          generation: snapshot.generation,
+          profile,
+          hasCredentials: snapshot.credentials !== null,
+          identity: snapshot.identity,
+          webrtc: snapshot.webrtc,
+          providerFailed: false,
+          content: { ...EMPTY_CONTENT_STATE },
+        });
+        if (this.generation !== epoch) return this.state;
         this.generation = Math.max(this.generation, snapshot.generation);
         this.target = {
           profileId: snapshot.profileId,
@@ -233,30 +268,13 @@ export class ActivationController {
           proxy: snapshot.proxy,
           credentials: snapshot.credentials,
         };
-        const profile: IdentityProfile = {
-          id: snapshot.profileId,
-          name: snapshot.profileName,
-          proxy: snapshot.proxy,
-          identity: identityConfigFrom(snapshot.identity),
-          webrtcPolicy: snapshot.webrtcPolicy,
-        };
-        return await this.commit(
-          await this.composeState({
-            status: "ready",
-            generation: snapshot.generation,
-            profile,
-            hasCredentials: snapshot.credentials !== null,
-            identity: snapshot.identity,
-            webrtc: snapshot.webrtc,
-            providerFailed: false,
-            content: { ...EMPTY_CONTENT_STATE },
-          }),
-          false,
-        );
+        return await this.commit(restored, false);
       }
 
+      if (this.generation !== epoch) return this.state;
       return await this.activate(stored.activeProfileId);
     } catch (error) {
+      if (this.generation !== epoch) return this.state;
       return await this.failWith(
         "initialize_failed",
         describeError(error, "Could not initialise net-identity."),
@@ -489,6 +507,7 @@ export class ActivationController {
 
   private async commit(state: RuntimeState, pending: boolean): Promise<RuntimeState> {
     this.state = state;
+    this.initialized = true;
     await this.deps.broadcastIdentity(this.buildEnvelope(pending || this.isBusy()));
     await this.deps.broadcastState(this.state);
     return this.state;

@@ -34,9 +34,13 @@ export const GEOIP_TIMEOUT_MS = 8000;
 
 /**
  * How long the MAIN-world geolocation shim may hold a page request while an
- * identity is being resolved, before falling back to the native implementation.
+ * identity is unresolved and the page did not set a shorter timeout.
+ *
+ * This is longer than {@link GEOIP_TIMEOUT_MS} so a lookup that succeeds or fails
+ * is committed before the shim gives up. The result is a timeout error, never a
+ * call to Firefox's geolocation API.
  */
-export const CONTENT_IDENTITY_WAIT_MS = 2000;
+export const CONTENT_IDENTITY_WAIT_MS = 10_000;
 
 /** Bounded retry schedule for the MAIN-world shim asking the bridge for data. */
 export const CONTENT_ANNOUNCE_DELAYS_MS: readonly number[] = [0, 250, 750, 1500];

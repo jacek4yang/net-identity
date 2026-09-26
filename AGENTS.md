@@ -112,7 +112,11 @@ validate profile
 - The previous in-flight lookup is cancelled through an `AbortController`.
 - Identity is never derived from the proxy server's hostname.
 - `deactivate()` clears routing, restores the WebRTC `default` policy, clears the
-  snapshot and publishes `payload: null` so pages revert to native behaviour.
+  snapshot and publishes `payload: null` with `controlled: false` so pages revert to
+  native behaviour.
+- Until that idle envelope is committed — including during startup, activation,
+  refresh and provider failure — the geolocation shim does not call Firefox's
+  implementation. It keeps the previous synthetic position when it has one.
 
 ## 6. Security invariants (do not weaken)
 
@@ -121,8 +125,10 @@ validate profile
 3. Credentials are never logged; use `describeError()` (it redacts auth schemes).
 4. GeoIP providers receive no credentials, cookies or referrers (`credentials: "omit"`,
    `referrerPolicy: "no-referrer"`, `cache: "no-store"`).
-5. Page/bridge traffic carries only `{ ns, generation, latitude, longitude, accuracy,
-timezone }`.
+5. Page/bridge traffic carries only the public identity payload
+   `{ ns, generation, latitude, longitude, accuracy, timezone }` plus the envelope
+   flags `pending` and `controlled`. `controlled` means a profile is active, or
+   startup has not finished; pages must not call native geolocation in that state.
 6. Every inbound message and every stored value is validated with a parser
    (`Result<T>`), never cast.
 7. Provider responses are untrusted: `parseIpWhoIsResponse` validates each field.

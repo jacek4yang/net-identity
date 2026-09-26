@@ -10,8 +10,8 @@
  *
  *   - only public identity data crosses the channel
  *   - no proxy configuration, host, port, username or password is ever present here
- *   - an identity is applied only when the background script publishes one, so
- *     pages behave natively while the extension is idle
+ *   - an identity is applied only when the background script publishes one
+ *   - geolocation stays fail-closed until that publication says no profile is active
  *
  * Installation is idempotent: a non-enumerable marker prevents double wrapping if
  * the script is somehow injected twice.
@@ -21,9 +21,9 @@ import {
   createPageAnnounce,
   createPageAppliedReport,
   parseIdentityEnvelope,
-  type PublicIdentity,
+  type IdentityEnvelope,
 } from "../shared/public-identity";
-import { installGeolocationShim } from "./geolocation-shim";
+import { geolocationCommandForEnvelope, installGeolocationShim } from "./geolocation-shim";
 import { installTimeZoneShim } from "./timezone-shim";
 
 function start(): void {
@@ -52,26 +52,49 @@ function start(): void {
     );
   };
 
-  const applyIdentity = (identity: PublicIdentity | null): void => {
-    appliedGeneration = identity === null ? 0 : identity.generation;
-    appliedTimeZone = identity === null ? null : (identity.timezone ?? null);
-    hasGeolocationOverride =
-      identity !== null && identity.latitude !== undefined && identity.longitude !== undefined;
+  const applyEnvelope = (envelope: IdentityEnvelope): void => {
+    const identity = envelope.payload;
+    const command = geolocationCommandForEnvelope(envelope);
 
-    timeZoneShim.setTimeZone(appliedTimeZone);
+    if (command.type === "release") {
+      appliedGeneration = 0;
+      appliedTimeZone = null;
+      hasGeolocationOverride = false;
+      timeZoneShim.setTimeZone(null);
+      geolocationShim.release();
+      reportApplied();
+      return;
+    }
 
-    if (
-      identity !== null &&
-      identity.latitude !== undefined &&
-      identity.longitude !== undefined &&
-      identity.accuracy !== undefined
-    ) {
-      geolocationShim.setTarget(
-        { latitude: identity.latitude, longitude: identity.longitude, accuracy: identity.accuracy },
-        false,
-      );
-    } else {
-      geolocationShim.setTarget(null, false);
+    if (identity !== null) {
+      appliedGeneration = identity.generation;
+      if (identity.timezone !== undefined) {
+        appliedTimeZone = identity.timezone;
+        timeZoneShim.setTimeZone(appliedTimeZone);
+      } else if (!envelope.pending) {
+        appliedTimeZone = null;
+        timeZoneShim.setTimeZone(null);
+      }
+    } else if (!envelope.pending) {
+      appliedGeneration = 0;
+      appliedTimeZone = null;
+      timeZoneShim.setTimeZone(null);
+    }
+
+    switch (command.type) {
+      case "position":
+        geolocationShim.setPosition(command.target);
+        hasGeolocationOverride = true;
+        break;
+      case "hold":
+        // Keep the previous synthetic position until the new identity commits.
+        geolocationShim.hold();
+        hasGeolocationOverride = geolocationShim.getTarget() !== null;
+        break;
+      case "unavailable":
+        geolocationShim.unavailable();
+        hasGeolocationOverride = false;
+        break;
     }
 
     reportApplied();
@@ -85,22 +108,7 @@ function start(): void {
     if (!parsed.ok) return;
 
     receivedEnvelope = true;
-    const envelope = parsed.value;
-
-    if (envelope.payload !== null) {
-      applyIdentity(envelope.payload);
-      return;
-    }
-
-    if (envelope.pending) {
-      // A profile is being activated: hold geolocation requests briefly rather than
-      // exposing the machine's real position, and keep the previous timezone until
-      // the new identity arrives.
-      geolocationShim.setTarget(null, true);
-      return;
-    }
-
-    applyIdentity(null);
+    applyEnvelope(parsed.value);
   });
 
   // Announce ourselves and retry a bounded number of times to cover the race where

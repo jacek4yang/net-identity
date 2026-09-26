@@ -46,6 +46,10 @@ Expected: no permission prompt, coordinates close to the identity, `accuracy` ar
 20000, `instanceof` true. `npm run e2e` asserts this automatically; this manual step is
 useful when debugging.
 
+While a profile is active, a failed or still-pending identity must not fall through to
+the machine position. The page receives the previous synthetic position, or a timeout /
+position-unavailable error. Native results appear only after **Deactivate**.
+
 ## 4. Proxy routing with the bundled test proxy
 
 ```bash

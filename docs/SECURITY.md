@@ -31,7 +31,9 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
 5. **Content/page communication carries only public identity information.**
    The bridge posts nothing else, and ignores every page message except `hello` and
    `applied`. Page-supplied data is never treated as identity input — `applied` is an
-   untrusted diagnostic used only to detect a stale injection.
+   untrusted diagnostic used only to detect a stale injection. The envelope may also
+   carry the booleans `pending` and `controlled`. `controlled` tells the page that
+   native geolocation must not be used.
 
 6. **Incoming messages are validated.**
    `runtime.onMessage` rejects senders whose extension id is not ours, then validates the
@@ -61,6 +63,12 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
   an HTTP/HTTPS proxy with stored credentials, and the challenger matches the configured
   proxy host or port. `WWW-Authenticate` challenges from websites can therefore never
   receive proxy credentials.
+- **Geolocation fails closed.** While a profile is active, while activation is in
+  flight, and until startup has committed an idle result, the page shim does not call
+  `getCurrentPosition` or `watchPosition` on Firefox's implementation. A previous
+  synthetic position is kept until the replacement identity is committed. If none is
+  available the page receives a timeout or position-unavailable error. Native
+  geolocation is used only after a committed idle envelope (`controlled: false`).
 - **WebSocket egress follows the active proxy.** `ws:` and `wss:` use the same
   `decideProxy()` path as `http:`/`https:`, including the bypass list. While a proxied
   profile is active, a page cannot leave that proxy by opening a WebSocket. Non-network

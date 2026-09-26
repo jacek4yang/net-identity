@@ -145,20 +145,28 @@ describe("parsePublicIdentity", () => {
 describe("identity envelope", () => {
   it("round-trips a payload for the bridge channel", () => {
     const payload = createPublicIdentity({ generation: 2, timezone: "UTC" });
-    const envelope = createIdentityEnvelope(payload, false);
+    const envelope = createIdentityEnvelope(payload, false, true);
     expect(parseIdentityEnvelope(envelope, BRIDGE_SOURCE)).toEqual({ ok: true, value: envelope });
   });
 
   it("supports a pending envelope without a payload", () => {
-    const envelope = createIdentityEnvelope(null, true);
+    const envelope = createIdentityEnvelope(null, true, true);
     expect(parseIdentityEnvelope(envelope, BRIDGE_SOURCE)).toEqual({ ok: true, value: envelope });
   });
 
   it("rejects envelopes with the wrong source or a malformed payload", () => {
-    expect(parseIdentityEnvelope(createIdentityEnvelope(null, false), PAGE_SOURCE).ok).toBe(false);
+    expect(parseIdentityEnvelope(createIdentityEnvelope(null, false, false), PAGE_SOURCE).ok).toBe(
+      false,
+    );
     expect(
       parseIdentityEnvelope(
         { source: BRIDGE_SOURCE, type: "identity", payload: null },
+        BRIDGE_SOURCE,
+      ).ok,
+    ).toBe(false);
+    expect(
+      parseIdentityEnvelope(
+        { source: BRIDGE_SOURCE, type: "identity", payload: null, pending: true },
         BRIDGE_SOURCE,
       ).ok,
     ).toBe(false);
@@ -214,10 +222,10 @@ describe("serializeForPage", () => {
       timezone: "Europe/Amsterdam",
     });
 
-    const serialized = serializeForPage(payload, false);
+    const serialized = serializeForPage(payload, false, true);
 
     expect(serialized).toContain(BRIDGE_SOURCE);
     expect(serialized).not.toMatch(/password|username|authorization|proxyHost|bypass/i);
-    expect(JSON.parse(serialized)).toEqual(createIdentityEnvelope(payload, false));
+    expect(JSON.parse(serialized)).toEqual(createIdentityEnvelope(payload, false, true));
   });
 });

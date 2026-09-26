@@ -110,15 +110,21 @@ export interface IdentityEnvelope {
   source: typeof BRIDGE_SOURCE;
   type: "identity";
   payload: PublicIdentity | null;
-  /** True while a resolution is in flight, so page shims can briefly wait. */
+  /** True while a resolution is in flight, so page shims can keep the previous position. */
   pending: boolean;
+  /**
+   * True while a profile is active, or while startup has not finished deciding.
+   * Pages must not call native geolocation in that state.
+   */
+  controlled: boolean;
 }
 
 export function createIdentityEnvelope(
   payload: PublicIdentity | null,
   pending: boolean,
+  controlled: boolean,
 ): IdentityEnvelope {
-  return { source: BRIDGE_SOURCE, type: "identity", payload, pending };
+  return { source: BRIDGE_SOURCE, type: "identity", payload, pending, controlled };
 }
 
 export function parseIdentityEnvelope(
@@ -130,8 +136,17 @@ export function parseIdentityEnvelope(
   if (value.type !== "identity") return fail("identity envelope has an unexpected type");
   if (typeof value.pending !== "boolean")
     return fail("identity envelope must declare a pending flag");
+  if (typeof value.controlled !== "boolean") {
+    return fail("identity envelope must declare whether geolocation is controlled");
+  }
   if (value.payload === null || value.payload === undefined) {
-    return ok({ source: BRIDGE_SOURCE, type: "identity", payload: null, pending: value.pending });
+    return ok({
+      source: BRIDGE_SOURCE,
+      type: "identity",
+      payload: null,
+      pending: value.pending,
+      controlled: value.controlled,
+    });
   }
   const parsed = parsePublicIdentity(value.payload);
   if (!parsed.ok) return fail(...parsed.errors);
@@ -140,6 +155,7 @@ export function parseIdentityEnvelope(
     type: "identity",
     payload: parsed.value,
     pending: value.pending,
+    controlled: value.controlled,
   });
 }
 
@@ -209,8 +225,12 @@ export function parsePageAppliedReport(value: unknown): Result<PageAppliedReport
 }
 
 /** Serialised form sent to the page. Kept as a helper so tests can assert hygiene. */
-export function serializeForPage(identity: PublicIdentity | null, pending: boolean): string {
-  return JSON.stringify(createIdentityEnvelope(identity, pending));
+export function serializeForPage(
+  identity: PublicIdentity | null,
+  pending: boolean,
+  controlled: boolean,
+): string {
+  return JSON.stringify(createIdentityEnvelope(identity, pending, controlled));
 }
 
 export const PAGE_CHANNEL_SOURCES = { bridge: BRIDGE_SOURCE, page: PAGE_SOURCE } as const;
