@@ -12,6 +12,12 @@ updates:
       prefix: "chore(deps)"
     labels:
       - dependencies
+    ignore:
+      # typescript-eslint 8.x declares peerDependencies.typescript ">=4.8.4 <6.1.0".
+      # TypeScript 7 would break `npm ci` and type-aware linting, so it cannot be
+      # adopted until typescript-eslint supports it. Remove this rule at that point.
+      - dependency-name: typescript
+        versions: [">=7.0.0"]
 
   - package-ecosystem: github-actions
     directory: /

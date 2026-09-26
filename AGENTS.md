@@ -25,6 +25,12 @@ resolves the identity from the _observed_ egress IP, and broadcasts it to pages.
   if `eval`/`new Function` appears in the background bundle.
 - Minimum Firefox is **128.0** (the floor at which `content_scripts[].world = "MAIN"`
   exists). Do not add a `strict_max_version`.
+- **Toolchain ceiling:** TypeScript is pinned to the 6.x line because
+  `typescript-eslint@8.x` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`.
+  TypeScript 7 breaks `npm ci` and type-aware linting, so Dependabot is configured to
+  ignore `typescript >= 7.0.0` (`.github/dependabot.yml`). Lift that rule only when
+  `typescript-eslint` supports it.
+- Node.js **>= 22** is required by `web-ext` 10 and asserted in `package.json`.
 
 ## 3. Architecture
 
