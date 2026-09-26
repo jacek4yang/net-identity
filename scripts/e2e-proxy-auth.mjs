@@ -147,8 +147,42 @@ const CALL = `
   } catch (error) { callback({ error: String(error) }); }
 `;
 
-function count407(logText) {
-  return logText.split("\n").filter((line) => line.includes("407")).length;
+// Starts a message and returns without waiting for the reply. Activation resolves the
+// identity through the proxy; a wrong password makes Firefox raise a proxy-auth dialog,
+// which aborts a script that is still waiting for that lookup. The 407s are counted from
+// the proxy log, so the reply is not needed.
+const CALL_FIRE = `
+  const callback = arguments[arguments.length - 1];
+  const message = arguments[0];
+  try {
+    const page = window.wrappedJSObject || window;
+    const payload = page.JSON.parse(JSON.stringify(message));
+    page.browser.runtime.sendMessage(payload);
+    callback({ ok: true });
+  } catch (error) { callback({ error: String(error) }); }
+`;
+
+// Reports whether the options page is loaded and has the extension API. The page
+// renders the profile list and the map, so a script sent too early can be torn down.
+const READY = `
+  const callback = arguments[arguments.length - 1];
+  try {
+    const page = window.wrappedJSObject || window;
+    const api = page.browser && page.browser.runtime && page.browser.runtime.id;
+    callback({ ok: page.document.readyState === "complete" && typeof api === "string" });
+  } catch (error) { callback({ ok: false, error: String(error) }); }
+`;
+
+function count407(logText, host) {
+  return logText
+    .split("\n")
+    .filter((line) => line.includes("407") && (host === undefined || line.includes(host))).length;
+}
+
+function sawTunnel(logText, host) {
+  return logText
+    .split("\n")
+    .some((line) => line.includes(`CONNECT ${host}`) && !line.includes("407"));
 }
 
 async function main() {
@@ -230,6 +264,40 @@ async function main() {
       url: new URL("options/options.html", location.baseURL).href,
     });
 
+    // The options page renders the profile list and the map. Wait until it is ready so
+    // a script is not torn down by a re-render before it can reply.
+    let optionsReady = false;
+    while (Date.now() < deadline) {
+      const probe = await client.send(
+        "WebDriver:ExecuteAsyncScript",
+        { script: READY, args: [] },
+        10000,
+      );
+      const value = probe?.value ?? probe;
+      if (value?.ok === true) {
+        optionsReady = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    if (!optionsReady) throw new Error("the options page never became ready");
+
+    // A script reply is lost (null) when the page navigates while it runs. Retry those
+    // instead of failing the smoke.
+    async function call(message, script = CALL, timeout = 20000) {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        const result = await client.send(
+          "WebDriver:ExecuteAsyncScript",
+          { script, args: [message] },
+          timeout,
+        );
+        const value = result?.value ?? result;
+        if (value !== null && value !== undefined) return value;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      return null;
+    }
+
     const profile = {
       id: "e2e-auth01",
       name: "Auth proxy",
@@ -245,40 +313,48 @@ async function main() {
     };
 
     async function saveAndActivate(password) {
-      const saved = await client.send(
-        "WebDriver:ExecuteAsyncScript",
-        {
-          script: CALL,
-          args: [{ type: "profiles:save", profile, credentials: { username: "user", password } }],
-        },
-        20000,
-      );
-      const saveResult = saved?.value ?? saved;
+      const saveResult = await call({
+        type: "profiles:save",
+        profile,
+        credentials: { username: "user", password },
+      });
       if (!saveResult?.ok || saveResult.value?.ok !== true) {
         throw new Error(`save failed: ${JSON.stringify(saveResult)}`);
       }
-      const activated = await client.send(
-        "WebDriver:ExecuteAsyncScript",
-        { script: CALL, args: [{ type: "profiles:activate", profileId: profile.id }] },
+      // Activation resolves the identity through the proxy. A wrong password makes
+      // Firefox raise a proxy-auth dialog, which would abort a script that waits for
+      // the lookup, so start the activation and return immediately.
+      const activateResult = await call(
+        { type: "profiles:activate", profileId: profile.id },
+        CALL_FIRE,
         40000,
       );
-      const activateResult = activated?.value ?? activated;
-      if (!activateResult?.ok || activateResult.value?.ok !== true) {
+      if (!activateResult?.ok) {
         throw new Error(`activate failed: ${JSON.stringify(activateResult)}`);
       }
     }
 
     await saveAndActivate("wrong-pass");
     await new Promise((resolve) => setTimeout(resolve, 2500));
-    const wrong407 = count407(proxyLog);
+    // The extension offers credentials for its own GeoIP request and must never tunnel
+    // the wrong password. The exact number of challenges depends on Firefox's and the
+    // provider's retry policy, so the once-per-request-id bound is unit tested in
+    // tests/proxy.test.ts and this smoke asserts only the deterministic parts.
+    const wrong407 = count407(proxyLog, "ipwho.is");
+    const wrongTunnel = sawTunnel(proxyLog, "ipwho.is");
     log(
-      `${wrong407 >= 1 && wrong407 <= 6 ? "PASS" : "FAIL"}  wrong password produced ${wrong407} 407 response(s)`,
+      `${wrong407 >= 1 && !wrongTunnel ? "PASS" : "FAIL"}  wrong password was challenged ${wrong407} time(s) and never tunneled the GeoIP request`,
     );
-    if (wrong407 < 1 || wrong407 > 6) {
-      failures.push(`wrong password 407 count ${wrong407} is not a bounded challenge`);
+    if (wrong407 < 1 || wrongTunnel) {
+      failures.push(`wrong password: ${wrong407} challenge(s), tunneled=${String(wrongTunnel)}`);
+    }
+    try {
+      await client.send("WebDriver:DismissAlert");
+    } catch {
+      // No auth dialog is fine.
     }
 
-    const beforeCorrect = count407(proxyLog);
+    const beforeCorrect = count407(proxyLog, "ipwho.is");
     try {
       await client.send("WebDriver:DismissAlert");
     } catch {
@@ -286,16 +362,16 @@ async function main() {
     }
     await saveAndActivate("pass");
     await new Promise((resolve) => setTimeout(resolve, 2500));
-    const correct407 = count407(proxyLog) - beforeCorrect;
-    const sawTraffic = /CONNECT ipwho\.is/i.test(proxyLog);
+    const correct407 = count407(proxyLog, "ipwho.is") - beforeCorrect;
+    const sawTraffic = sawTunnel(proxyLog, "ipwho.is");
     const leaked = /user:pass|wrong-pass/i.test(proxyLog);
-    log(`${sawTraffic ? "PASS" : "FAIL"}  proxy observed the GeoIP connection`);
+    log(`${sawTraffic ? "PASS" : "FAIL"}  proxy tunneled the GeoIP connection`);
     log(
-      `${correct407 <= 2 ? "PASS" : "FAIL"}  correct password added ${correct407} further 407 response(s)`,
+      `${correct407 <= 1 ? "PASS" : "FAIL"}  correct password added ${correct407} further 407 response(s)`,
     );
     log(`${leaked ? "FAIL" : "PASS"}  proxy log does not contain the password`);
-    if (!sawTraffic) failures.push("authenticated proxy saw no GeoIP request");
-    if (correct407 > 2) failures.push("correct credentials were challenged repeatedly");
+    if (!sawTraffic) failures.push("authenticated proxy never tunneled the GeoIP request");
+    if (correct407 > 1) failures.push("correct credentials were challenged repeatedly");
     if (leaked) failures.push("proxy log contains credential material");
   } catch (error) {
     failures.push(error instanceof Error ? error.message : String(error));
