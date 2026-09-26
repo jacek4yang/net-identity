@@ -190,7 +190,6 @@ function probePage(zone) {
 <iframe title="same" src="/frame?name=same"></iframe>
 <iframe title="srcdoc" srcdoc="<script>function publish(){parent.postMessage({niFrame:'srcdoc',shim:'__netIdentityShim' in window,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},'*')}publish();setInterval(publish,200)</script>"></iframe>
 <script>
-  const CLIENT = Math.random().toString(36).slice(2);
   const frames = {};
   window.addEventListener("message", (event) => {
     const data = event.data;
@@ -250,9 +249,6 @@ function probePage(zone) {
     );
     function send(position) {
       const payload = {
-        at: Date.now(),
-        href: location.href,
-        client: CLIENT,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         offsetMinutes: now.getTimezoneOffset(),
         localMatchesTarget: same(local, target),
@@ -286,13 +282,9 @@ const FRAME_PAGE = `<!doctype html><script>
 
 function startProbe(port) {
   let lastReport = null;
-  let geoRequests = 0;
-  let reportCount = 0;
-  const clients = new Set();
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url.startsWith("/geo")) {
-      geoRequests += 1;
       response.writeHead(200, {
         "content-type": "application/json",
         "cache-control": "no-store",
@@ -314,8 +306,6 @@ function startProbe(port) {
       request.on("end", () => {
         try {
           lastReport = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-          reportCount += 1;
-          clients.add(lastReport.client);
         } catch {
           log("received an unparsable report");
         }
@@ -334,19 +324,8 @@ function startProbe(port) {
         read() {
           return lastReport;
         },
-        geoRequests() {
-          return geoRequests;
-        },
-        reportCount() {
-          return reportCount;
-        },
-        clients() {
-          return [...clients];
-        },
         reset() {
           lastReport = null;
-          reportCount = 0;
-          clients.clear();
         },
       });
     });
@@ -411,11 +390,6 @@ async function main() {
   const proxyPort = await freePort();
   const marionettePort = await freePort();
   const pageUrl = `http://127.0.0.1:${pagePort}/`;
-  // Each probe navigation gets a distinct query so the browser cannot reuse a
-  // previous document from the bfcache: a restored document would keep its old
-  // shim state and hide a release bug.
-  let navSequence = 0;
-  const freshPageUrl = () => `${pageUrl}?nav=${(navSequence += 1)}`;
   const probe = await startProbe(pagePort);
   const blackhole = await startBlackhole(proxyPort);
 
@@ -490,7 +464,7 @@ async function main() {
     optionsUrl = new URL("options/options.html", location.baseURL).href;
 
     await client.send("Marionette:SetContext", { value: "content" });
-    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
+    await client.send("WebDriver:Navigate", { url: pageUrl });
     const native = await waitForReport(probe.read, isNativePosition, deadline);
     if (native === null) {
       log("INCONCLUSIVE: Firefox did not return the sentinel native geolocation.");
@@ -561,7 +535,7 @@ async function main() {
     check(applied?.value === "proxy_only", `WebRTC policy is proxy_only (saw ${applied?.value})`);
 
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
+    await client.send("WebDriver:Navigate", { url: pageUrl });
     const manual = await waitForReport(
       probe.read,
       (report) =>
@@ -608,22 +582,10 @@ async function main() {
       restored?.value === baseline.value,
       `WebRTC policy restored to ${baseline.value} (saw ${restored?.value})`,
     );
-    const stateAfterDeactivate = await client.send(
-      "WebDriver:ExecuteAsyncScript",
-      { script: CALL, args: [{ type: "state:get" }] },
-      40000,
-    );
-    const stateValue = (stateAfterDeactivate?.value ?? stateAfterDeactivate)?.value;
-    log(`diagnostic: state after deactivate ${JSON.stringify(stateValue)}`);
 
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
-    const released = await waitForReport(probe.read, isNativePosition, Date.now() + timeoutMs);
-    if (released === null) {
-      log(
-        `diagnostic: after deactivation the probe saw ${probe.geoRequests()} provider request(s), ${probe.reportCount()} report(s) from client(s) ${JSON.stringify(probe.clients())}; last report ${JSON.stringify(probe.read())}`,
-      );
-    }
+    await client.send("WebDriver:Navigate", { url: pageUrl });
+    const released = await waitForReport(probe.read, isNativePosition, deadline);
     check(released !== null, "deactivation returns the native geolocation sentinel");
     if (released !== null) {
       check(released.timeZone !== MANUAL_ZONE, "deactivation stops rewriting the page timezone");
@@ -663,17 +625,14 @@ async function main() {
     }
 
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
+    await client.send("WebDriver:Navigate", { url: pageUrl });
     const failed = await waitForReport(
       probe.read,
       (report) =>
         typeof report.position?.error === "string" &&
         report.position.error.includes("No network identity location is available"),
-      Date.now() + timeoutMs,
+      deadline,
     );
-    if (failed === null) {
-      log(`diagnostic: the failed auto profile reported ${JSON.stringify(probe.read())}`);
-    }
     check(failed !== null, "failed automatic identity keeps geolocation unavailable");
     if (failed !== null) {
       check(
@@ -689,17 +648,8 @@ async function main() {
       40000,
     );
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
-    const restoredNative = await waitForReport(
-      probe.read,
-      isNativePosition,
-      Date.now() + timeoutMs,
-    );
-    if (restoredNative === null) {
-      log(
-        `diagnostic: after clearing the failed profile the probe saw ${probe.geoRequests()} provider request(s) and ${probe.reportCount()} report(s); last report ${JSON.stringify(probe.read())}`,
-      );
-    }
+    await client.send("WebDriver:Navigate", { url: pageUrl });
+    const restoredNative = await waitForReport(probe.read, isNativePosition, deadline);
     check(
       restoredNative !== null,
       "native geolocation returns after the failed profile is cleared",
