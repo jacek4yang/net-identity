@@ -233,6 +233,9 @@ Package output: `artifacts/`.
 - Content scripts run in every frame (`all_frames: true`, `match_about_blank: true`)
   so a subframe cannot observe the host timezone or geolocation. A sandboxed frame
   that Firefox refuses to inject into remains a platform limit.
+- Page `applied` reports are diagnostics only. The background stores them per tab and
+  frame, using the sender's tab and frame ids, and the audit is current only when
+  every retained frame matches. One current tab does not hide a stale frame.
 
 ## 12. Files that must stay small and stable
 

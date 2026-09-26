@@ -39,9 +39,8 @@ describe("activation", () => {
       // Simulate an open tab whose shim already applied the new identity, which is
       // what makes the audit report a fully consistent state.
       probeContent: async (generation) => ({
-        hasShim: true,
-        reportedGeneration: generation,
-        reportedTimezone: "Europe/Amsterdam",
+        activeTabId: 1,
+        frames: [{ tabId: 1, frameId: 0, generation, timezone: "Europe/Amsterdam", updatedAt: 1 }],
       }),
     });
     const profile = makeProfile({ id: "profile-0001", name: "Amsterdam" });
@@ -276,13 +275,16 @@ describe("activation", () => {
     await harness.saveProfile(profile);
     const state = await harness.controller.activate(profile.id);
 
-    harness.controller.recordContentReport({
-      source: PAGE_SOURCE,
-      type: "applied",
-      generation: state.generation - 1,
-      timezone: "Europe/Amsterdam",
-      hasGeolocationOverride: true,
-    });
+    harness.controller.recordContentReport(
+      {
+        source: PAGE_SOURCE,
+        type: "applied",
+        generation: state.generation - 1,
+        timezone: "Europe/Amsterdam",
+        hasGeolocationOverride: true,
+      },
+      { tabId: 1, frameId: 0 },
+    );
 
     await waitUntil(() => harness.controller.getState().content.reportedGeneration !== null);
     expect(checkStatus(harness, "content_shim")).toBe("stale");
@@ -291,9 +293,8 @@ describe("activation", () => {
   it("marks the page shim as current when generation and timezone agree", async () => {
     const harness = createHarness({
       probeContent: async (generation) => ({
-        hasShim: true,
-        reportedGeneration: generation,
-        reportedTimezone: "Europe/Amsterdam",
+        activeTabId: 1,
+        frames: [{ tabId: 1, frameId: 0, generation, timezone: "Europe/Amsterdam", updatedAt: 1 }],
       }),
     });
     const profile = makeProfile({ id: "profile-0011" });
@@ -303,6 +304,42 @@ describe("activation", () => {
 
     expect(state.content.hasShim).toBe(true);
     expect(state.content.reportedGeneration).toBe(state.generation);
+    expect(state.content.frameCount).toBe(1);
+    expect(state.content.currentFrameCount).toBe(1);
+    expect(checkStatus(harness, "content_shim")).toBe("ok");
+  });
+
+  it("does not call the audit consistent when another frame is stale", async () => {
+    const harness = createHarness({
+      probeContent: async (generation) => ({
+        activeTabId: 1,
+        frames: [{ tabId: 1, frameId: 0, generation, timezone: "Europe/Amsterdam", updatedAt: 2 }],
+      }),
+    });
+    const profile = makeProfile({ id: "profile-0012" });
+    await harness.saveProfile(profile);
+    const state = await harness.controller.activate(profile.id);
+
+    harness.controller.recordContentReport(
+      {
+        source: PAGE_SOURCE,
+        type: "applied",
+        generation: state.generation - 1,
+        timezone: "Europe/Amsterdam",
+        hasGeolocationOverride: true,
+      },
+      { tabId: 2, frameId: 0 },
+    );
+
+    await waitUntil(() => harness.controller.getState().content.frameCount === 2);
+    const latest = harness.controller.getState();
+    expect(latest.content.currentFrameCount).toBe(1);
+    expect(latest.content.activeTabCurrent).toBe(true);
+    expect(checkStatus(harness, "content_shim")).toBe("stale");
+    expect(latest.audit.verdict).not.toBe("consistent");
+
+    harness.controller.forgetContentTab(2);
+    await waitUntil(() => harness.controller.getState().content.frameCount === 1);
     expect(checkStatus(harness, "content_shim")).toBe("ok");
   });
 

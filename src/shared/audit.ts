@@ -149,6 +149,57 @@ function check(
   return detail === undefined ? { id, label, status } : { id, label, status, detail };
 }
 
+function contentShimCheck(
+  content: ContentRuntimeState,
+  generation: number,
+  timezone: string | undefined,
+): AuditCheck {
+  if (typeof content.frameCount === "number") {
+    const frameCount = content.frameCount;
+    const currentFrameCount = content.currentFrameCount ?? 0;
+    const activeNote =
+      content.activeTabId === undefined || content.activeTabId === null
+        ? ""
+        : content.activeTabCurrent === true
+          ? "Active tab matches. "
+          : "Active tab is stale or missing. ";
+    if (frameCount === 0 || !content.hasShim) {
+      return check(
+        "content_shim",
+        "Page shim",
+        "unavailable",
+        "No page shim has reported from an open tab.",
+      );
+    }
+    const matched = currentFrameCount === frameCount;
+    return check(
+      "content_shim",
+      "Page shim",
+      matched ? "ok" : "stale",
+      `${activeNote}${currentFrameCount} of ${frameCount} frames match generation ${generation}.`,
+    );
+  }
+
+  const contentStatus: AuditCheckStatus =
+    !content.hasShim || content.reportedGeneration === null
+      ? "unavailable"
+      : content.reportedGeneration === generation && content.reportedTimezone === timezone
+        ? "ok"
+        : "stale";
+  return check(
+    "content_shim",
+    "Page shim",
+    contentStatus,
+    !content.hasShim
+      ? "No page shim has reported from an open tab."
+      : content.reportedGeneration === null
+        ? "A page shim is present but has not reported yet."
+        : contentStatus === "ok"
+          ? `reported generation ${content.reportedGeneration}`
+          : `page reports generation ${content.reportedGeneration} (${content.reportedTimezone ?? "no timezone"})`,
+  );
+}
+
 function hasGeoDetail(identity: ResolvedIdentity): boolean {
   return (
     identity.countryCode !== undefined ||
@@ -324,27 +375,7 @@ export function buildAuditReport(input: AuditInput): AuditReport {
     ),
   );
 
-  const contentStatus: AuditCheckStatus =
-    !content.hasShim || content.reportedGeneration === null
-      ? "unavailable"
-      : content.reportedGeneration === input.generation &&
-          content.reportedTimezone === identity.timezone
-        ? "ok"
-        : "stale";
-  checks.push(
-    check(
-      "content_shim",
-      "Page shim",
-      contentStatus,
-      !content.hasShim
-        ? "No page shim has reported from an open tab."
-        : content.reportedGeneration === null
-          ? "A page shim is present but has not reported yet."
-          : contentStatus === "ok"
-            ? `reported generation ${content.reportedGeneration}`
-            : `page reports generation ${content.reportedGeneration} (${content.reportedTimezone ?? "no timezone"})`,
-    ),
-  );
+  checks.push(contentShimCheck(content, input.generation, identity.timezone));
 
   checks.push(firefoxProxyCheck);
 

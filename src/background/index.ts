@@ -13,11 +13,12 @@
  * Secrets: proxy passwords reach this file only through `credentialStore`, which is
  * bound to `browser.storage.session`. Nothing here logs credentials.
  */
+import type { ContentDiagnostic, ContentProbeResult } from "../shared/content-diagnostics";
 import { MAX_DISTINCT_TABS_TO_PROBE } from "../shared/constants";
 import { parseProbeResponse } from "../shared/messages";
 import type { IdentityEnvelope } from "../shared/public-identity";
 import { fromBrowserStorageArea } from "../shared/storage";
-import type { ContentRuntimeState, RuntimeState } from "../shared/state";
+import type { RuntimeState } from "../shared/state";
 import { createDefaultGeoIpProvider } from "../geo/ipwhois";
 import { createProfileStore } from "../profile/store";
 import { createActiveTargetStore } from "./active-target";
@@ -96,38 +97,33 @@ async function broadcastIdentity(envelope: IdentityEnvelope): Promise<void> {
  * Page reports are untrusted diagnostics: they are used to detect stale injections
  * and are never treated as identity data.
  */
-async function probeContent(generation: number): Promise<ContentRuntimeState> {
+async function probeContent(_generation: number): Promise<ContentProbeResult> {
   const tabs = (await listHttpTabs()).slice(0, MAX_DISTINCT_TABS_TO_PROBE);
-  const responses = await Promise.all(
+  const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+  const activeTabId = activeTabs[0]?.id ?? null;
+  const frames: ContentDiagnostic[] = [];
+  await Promise.all(
     tabs.map(async (tab) => {
-      if (tab.id === undefined) return null;
+      if (tab.id === undefined) return;
       try {
-        const response: unknown = await browser.tabs.sendMessage(tab.id, { type: "content:probe" });
+        const response: unknown = await browser.tabs.sendMessage(tab.id, {
+          type: "content:probe",
+        });
         const parsed = parseProbeResponse(response);
-        return parsed.ok ? parsed.value : null;
+        if (!parsed.ok || !parsed.value.hasShim) return;
+        frames.push({
+          tabId: tab.id,
+          frameId: 0,
+          generation: parsed.value.generation,
+          timezone: parsed.value.timezone,
+          updatedAt: Date.now(),
+        });
       } catch {
-        return null;
+        // No bridge in that tab yet.
       }
     }),
   );
-
-  const reports = responses.filter(
-    (report): report is NonNullable<typeof report> => report !== null,
-  );
-  if (reports.length === 0) return { hasShim: false, reportedGeneration: null };
-
-  const current = reports.find((report) => report.generation === generation);
-  const newest = reports.reduce((best, report) =>
-    report.generation > best.generation ? report : best,
-  );
-  const chosen = current ?? newest;
-
-  return {
-    hasShim: chosen.hasShim,
-    reportedGeneration: chosen.generation,
-    ...(chosen.timezone === null ? {} : { reportedTimezone: chosen.timezone }),
-    ...(chosen.url === "" ? {} : { url: chosen.url }),
-  };
+  return { frames, activeTabId };
 }
 
 const controller = new ActivationController({
@@ -216,12 +212,18 @@ browser.runtime.onMessage.addListener((message: unknown, sender) => {
     id: sender.id,
     fromContentScript: sender.tab !== undefined,
     url: sender.url,
+    ...(sender.tab?.id === undefined ? {} : { tabId: sender.tab.id }),
+    ...(sender.frameId === undefined ? {} : { frameId: sender.frameId }),
   };
   return handleMessage(message, info);
 });
 
 browser.runtime.onStartup.addListener(() => {
   void controller.initialize();
+});
+
+browser.tabs.onRemoved.addListener((tabId) => {
+  controller.forgetContentTab(tabId);
 });
 
 // Restore or re-establish the active identity whenever this event page starts.

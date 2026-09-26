@@ -36,6 +36,8 @@ function setup(options: Parameters<typeof createHarness>[0] = {}) {
     id: RUNTIME_ID,
     fromContentScript: true,
     url: "https://example.com/",
+    tabId: 1,
+    frameId: 0,
   };
   const foreign: SenderInfo = {
     id: "some-other-extension@example",

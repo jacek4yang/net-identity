@@ -21,8 +21,9 @@ import {
 } from "../src/profile/store";
 import type { IdentityProfile } from "../src/profile/schema";
 import { parseProfile } from "../src/profile/validation";
+import type { ContentProbeResult } from "../src/shared/content-diagnostics";
 import type { IdentityEnvelope } from "../src/shared/public-identity";
-import type { ContentRuntimeState, RuntimeState } from "../src/shared/state";
+import type { RuntimeState } from "../src/shared/state";
 import type { StorageAreaLike } from "../src/shared/storage";
 
 /* ------------------------------------------------------------------- storage */
@@ -249,7 +250,7 @@ export interface HarnessOptions {
   provider?: GeoIpProvider;
   webrtcSetting?: FakeWebRtcSetting;
   firefoxProxy?: FirefoxProxySettingsSnapshot;
-  probeContent?: (generation: number) => Promise<ContentRuntimeState>;
+  probeContent?: (generation: number) => Promise<ContentProbeResult>;
   now?: () => number;
   readDataCollection?: () => Promise<{ apiAvailable: boolean; optionalGranted: readonly string[] }>;
   /** Reuse the storage areas of a previous harness to simulate an event page restart. */
@@ -271,7 +272,7 @@ export interface Harness {
   envelopes: IdentityEnvelope[];
   providerResolveCount: () => number;
   setProvider: (provider: GeoIpProvider) => void;
-  setProbeContent: (probe: (generation: number) => Promise<ContentRuntimeState>) => void;
+  setProbeContent: (probe: (generation: number) => Promise<ContentProbeResult>) => void;
   saveProfile: (profile: IdentityProfile) => Promise<void>;
   storedActiveProfileId: () => Promise<string | null>;
 }
@@ -290,7 +291,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
   let providerCalls = 0;
   let probeContent =
     options.probeContent ??
-    (async (): Promise<ContentRuntimeState> => ({ hasShim: false, reportedGeneration: null }));
+    (async (): Promise<ContentProbeResult> => ({ frames: [], activeTabId: null }));
 
   const states: RuntimeState[] = [];
   const envelopes: IdentityEnvelope[] = [];
