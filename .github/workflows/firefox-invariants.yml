@@ -1,0 +1,88 @@
+name: Firefox invariants
+
+# Deterministic, real-Firefox coverage of the identity invariants. Every request
+# goes to a loopback page, proxy or WebSocket server, so this never depends on the
+# public GeoIP provider or another flaky external service.
+#
+# Both the pull-request `quality` workflow and the tag release workflow call this
+# file, so one definition is the release gate for ordinary pull requests and for a
+# tagged release. The calling job's name is the required status check on `main`.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  invariants:
+    name: invariants
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # Mozilla's own APT repository, pinned above the Ubuntu snapshot, so the
+      # installed build is a supported stable desktop Firefox rather than a stale
+      # distro build.
+      - name: Install Firefox
+        run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- \
+            | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
+            | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
+          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
+            | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y firefox
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the extension
+        run: npm run build
+
+      # The harnesses print their progress to stderr and exit non-zero when a check
+      # fails. Run every one of them even if one fails so a single job log shows the
+      # full picture, then fail if any harness failed. `tee` keeps a log for the
+      # failure artifact; `pipefail` makes each pipeline inherit the harness exit code.
+      #
+      # `npm run e2e:proxy-auth` is deliberately not here. Its bounded-407 count is
+      # measured over all proxy traffic, and a fresh CI Firefox profile makes many
+      # unrelated proxied requests (Remote Settings, OSM tiles). That is a #21
+      # clean-profile smoke item, not a deterministic gate.
+      - name: Run the deterministic Firefox harnesses
+        env:
+          MOZ_HEADLESS: "1"
+        run: |
+          set -uo pipefail
+          firefox=/usr/bin/firefox
+          "$firefox" --version
+          status=0
+          run() {
+            name="$1"; shift
+            if ! "$@" 2>&1 | tee "firefox-$name.log"; then
+              echo "::error::$name failed"
+              status=1
+            fi
+          }
+          run invariants npm run e2e:invariants -- --firefox "$firefox"
+          run websocket npm run e2e:websocket -- --firefox "$firefox"
+          exit "$status"
+
+      # Uploaded only on failure. The output contains loopback ports and the bundled
+      # test proxy's throwaway user/pass; no repository secret ever reaches this job.
+      - name: Upload Firefox logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: firefox-e2e-logs
+          path: firefox-*.log
+          if-no-files-found: ignore

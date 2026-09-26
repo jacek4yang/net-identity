@@ -207,10 +207,10 @@ Package output: `artifacts/`.
 - Keep `tests/manifest.test.ts` honest: it pins MV3, the event page, permissions, the
   version floor and the data-collection declaration.
 - Every change that affects behaviour needs a test that fails without the change.
-- Firefox-only behaviour is covered by `npm run e2e`, `e2e:websocket`,
-  `e2e:proxy-auth` and `e2e:invariants`. They are not part of `npm run check`. The
-  required CI job stays Firefox-free so a GeoIP or Marionette outage cannot fail an
-  unrelated change.
+- Firefox-only behaviour is covered by `npm run e2e:invariants`, `e2e:websocket` and
+  `e2e:proxy-auth`. Those three run in the real-Firefox CI gate (`docs/CI.md`), which
+  is required on `main`. `npm run e2e` (the smoke test) needs the public GeoIP
+  provider, so it stays out of CI and out of `npm run check`.
 
 ## 10. Adding a GeoIP provider
 

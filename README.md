@@ -293,9 +293,13 @@ tests/            vitest unit tests (no browser required)
   proxy and checks that a correct password is accepted without a 407 loop, and a wrong
   password is challenged only a bounded number of times.
 
-The `quality` CI job does not launch Firefox. The smoke test depends on the public
-GeoIP provider, and the other three scripts need a desktop Firefox binary. Run them
-locally; `.github/workflows/ci.yml` records why they are not a required check.
+CI runs two jobs on every pull request and every push to `main`: the fast `quality`
+job and a real-Firefox `firefox` job. The `firefox` job runs the deterministic
+`e2e:invariants` and `e2e:websocket` harnesses against a loopback page and proxies, so
+it never contacts the public GeoIP provider. It is the browser gate for a release; see
+[`docs/CI.md`](docs/CI.md) for the one-time branch-protection setting that makes it a
+required check. `npm run e2e` and `npm run e2e:proxy-auth` need the public provider or
+a settled profile, so they stay local and release-candidate smoke checks (#21).
 
 Manual proxy verification (including `407` authentication) uses the bundled test proxy:
 
