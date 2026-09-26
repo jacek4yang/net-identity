@@ -203,7 +203,9 @@ stay direct.
   position-unavailable error instead of the host location.
 - Returned positions are real `GeolocationPosition` prototype instances with own
   `coords`/`timestamp` properties, and are accurate to the coarse accuracy you set.
-- Known gaps: subframes are not patched and `navigator.permissions.query` is untouched.
+- `navigator.permissions.query({ name: "geolocation" })` returns `granted` while a
+  profile is controlling geolocation, and the native result when the extension is idle.
+- The same shims run in subframes, including `about:blank` and `about:srcdoc`.
 
 ## Timezone behaviour
 
@@ -259,7 +261,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 236 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 237 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract.
@@ -294,8 +296,8 @@ misconfigured manifest cannot produce a silently broken extension.
 ## Known limitations
 
 - Firefox desktop only, 128+.
-- Shims apply to the top frame only.
-- `navigator.permissions.query({ name: "geolocation" })` is unpatched.
+- A sandboxed frame that Firefox will not inject a content script into can still see
+  the host timezone and geolocation.
 - Bypass lists do not support IPv6 CIDR ranges.
 - GeoIP accuracy is coarse by design (20 km default).
 - Challenge-based HTTP proxy authentication depends on Firefox reporting a matching
@@ -308,7 +310,7 @@ misconfigured manifest cannot produce a silently broken extension.
 Short version (details in [`docs/ROADMAP.md`](docs/ROADMAP.md)):
 
 1. Optional identically-typed host permissions / per-provider configuration UI.
-2. Patch `navigator.permissions.query` and support subframes.
+2. Selectable GeoIP providers, after the remaining identity-consistency work.
 3. Package/export profiles without secrets, plus import.
 4. Per-profile GeoIP provider selection with an enumeration of allowed endpoints.
 

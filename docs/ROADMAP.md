@@ -22,10 +22,10 @@ handling, so this is mostly UI, configuration and documentation work.
 
 ### 2. Coverage for the page shims' remaining semantics
 
-- patch `navigator.permissions.query({ name: "geolocation" })` so pages that gate on the
-  permission state behave predictably;
-- optionally patch subframes (`all_frames: true`) behind a per-profile option, with a
-  measured cost, since subframe scripts see the same APIs.
+Done: `navigator.permissions.query({ name: "geolocation" })` reports `granted` while
+identity controls geolocation, and content scripts run in subframes (`all_frames: true`,
+`match_about_blank: true`). A sandboxed document Firefox will not inject into is still
+unpatched.
 
 ### 3. Profile import/export
 

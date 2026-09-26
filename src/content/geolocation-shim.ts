@@ -40,6 +40,7 @@ export interface PositionFactories {
 
 export interface GeolocationRealm {
   geolocation: Geolocation;
+  permissions?: Permissions | undefined;
   positionCtor?: { prototype: object } | undefined;
   coordinatesCtor?: { prototype: object } | undefined;
   errorCtor?: { prototype: object } | undefined;
@@ -432,6 +433,52 @@ export function installGeolocationShim(realm?: GeolocationRealm): GeolocationShi
   proto.watchPosition = patchedWatchPosition;
   proto.clearWatch = patchedClearWatch;
 
+  const permissions =
+    realm?.permissions ?? (typeof navigator === "undefined" ? undefined : navigator.permissions);
+  const permissionsPrototype =
+    permissions === undefined || permissions === null
+      ? undefined
+      : (Object.getPrototypeOf(permissions) as Permissions | null);
+  /* eslint-disable @typescript-eslint/unbound-method */
+  const originalQuery =
+    permissionsPrototype === undefined || permissionsPrototype === null
+      ? undefined
+      : permissionsPrototype.query;
+  /* eslint-enable @typescript-eslint/unbound-method */
+
+  function grantedGeolocationPermission(): PermissionStatus {
+    const status =
+      typeof PermissionStatus === "undefined"
+        ? {}
+        : (Object.create(PermissionStatus.prototype) as object);
+    defineValues(status, { state: "granted", name: "geolocation", onchange: null });
+    return status as PermissionStatus;
+  }
+
+  function patchedQuery(
+    this: Permissions,
+    descriptor?: PermissionDescriptor,
+  ): Promise<PermissionStatus> {
+    const name =
+      descriptor !== undefined && descriptor !== null && typeof descriptor === "object"
+        ? descriptor.name
+        : undefined;
+    if (name === "geolocation" && !allowNative) {
+      return Promise.resolve(grantedGeolocationPermission());
+    }
+    if (originalQuery === undefined)
+      return Promise.reject(new TypeError("Permissions.query is unavailable"));
+    return originalQuery.call(this, descriptor as PermissionDescriptor);
+  }
+
+  if (
+    permissionsPrototype !== undefined &&
+    permissionsPrototype !== null &&
+    originalQuery !== undefined
+  ) {
+    permissionsPrototype.query = patchedQuery;
+  }
+
   return {
     installed: true,
 
@@ -523,6 +570,13 @@ export function installGeolocationShim(realm?: GeolocationRealm): GeolocationShi
       proto.getCurrentPosition = originalGetCurrentPosition;
       proto.watchPosition = originalWatchPosition;
       proto.clearWatch = originalClearWatch;
+      if (
+        permissionsPrototype !== undefined &&
+        permissionsPrototype !== null &&
+        originalQuery !== undefined
+      ) {
+        permissionsPrototype.query = originalQuery;
+      }
     },
   };
 }

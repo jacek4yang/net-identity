@@ -43,6 +43,14 @@ function installFake() {
     },
   };
   const geolocation = Object.create(proto) as Geolocation;
+  const permissionCalls = { query: 0 };
+  const permissionsProto = {
+    query(descriptor: PermissionDescriptor): Promise<PermissionStatus> {
+      permissionCalls.query += 1;
+      return Promise.resolve({ state: "prompt", name: descriptor.name } as PermissionStatus);
+    },
+  };
+  const permissions = Object.create(permissionsProto) as Permissions;
 
   let now = 0;
   let nextId = 1;
@@ -68,6 +76,7 @@ function installFake() {
 
   const shim = installGeolocationShim({
     geolocation,
+    permissions,
     now: () => 1_700_000_000_000,
     schedule(callback, delayMs) {
       const id = nextId;
@@ -80,7 +89,7 @@ function installFake() {
     },
   });
 
-  return { shim, calls, clock, geolocation };
+  return { shim, calls, clock, geolocation, permissions, permissionCalls };
 }
 
 function requestPosition(
@@ -231,6 +240,28 @@ describe("installGeolocationShim", () => {
     shim.setPosition(BERLIN);
     expect(calls.get).toBe(0);
     expect(calls.watch).toBe(0);
+    shim.uninstall();
+  });
+
+  it("reports geolocation permission as granted while identity is controlled", async () => {
+    const { shim, permissions, permissionCalls } = installFake();
+    const held = await permissions.query({ name: "geolocation" });
+    expect(held.state).toBe("granted");
+    expect(permissionCalls.query).toBe(0);
+
+    shim.setPosition(AMSTERDAM);
+    expect((await permissions.query({ name: "geolocation" })).state).toBe("granted");
+
+    shim.unavailable();
+    expect((await permissions.query({ name: "geolocation" })).state).toBe("granted");
+
+    const other = await permissions.query({ name: "notifications" });
+    expect(other.state).toBe("prompt");
+    expect(permissionCalls.query).toBe(1);
+
+    shim.release();
+    expect((await permissions.query({ name: "geolocation" })).state).toBe("prompt");
+    expect(permissionCalls.query).toBe(2);
     shim.uninstall();
   });
 });
