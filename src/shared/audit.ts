@@ -273,7 +273,7 @@ export function buildAuditReport(input: AuditInput): AuditReport {
           "proxy",
           "Proxy configured",
           "not_configured",
-          "Direct connection: traffic is not proxied.",
+          "Browser routing: Firefox's own connection is used, and a proxy set in Firefox is not overridden.",
         ),
   );
 

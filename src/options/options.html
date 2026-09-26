@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
+    <details class="panel" id="guide">
+      <summary>How profiles work</summary>
+      <div id="guide-body"></div>
+    </details>
+
     <header class="page-header">
       <h1>Net Identity — Profiles</h1>
       <p class="subtitle">
@@ -23,7 +28,8 @@
         </div>
         <ul id="profile-list" class="profile-list"></ul>
         <p id="list-empty" class="empty">
-          No profiles yet. Create one to define a network identity.
+          No profiles yet. Press New profile, choose browser routing or a proxy, then Save and
+          Activate. Nothing is contacted until you activate.
         </p>
       </section>
 
@@ -42,12 +48,15 @@
           <label class="field">
             <span class="field-label">Proxy type</span>
             <select id="field-proxy-type">
-              <option value="direct">direct</option>
-              <option value="http">http</option>
-              <option value="https">https</option>
-              <option value="socks4">socks4</option>
-              <option value="socks5">socks5</option>
+              <option value="direct">Browser routing</option>
+              <option value="http">HTTP proxy</option>
+              <option value="https">HTTPS proxy</option>
+              <option value="socks4">SOCKS4 proxy</option>
+              <option value="socks5">SOCKS5 proxy</option>
             </select>
+            <span class="hint"
+              >Browser routing does not override a proxy you already set in Firefox.</span
+            >
           </label>
 
           <div class="grid" id="proxy-address-fields">
@@ -150,10 +159,10 @@
           <label class="field">
             <span class="field-label">WebRTC IP handling policy</span>
             <select id="field-webrtc">
-              <option value="default">default</option>
-              <option value="default_public_interface_only">default_public_interface_only</option>
-              <option value="disable_non_proxied_udp">disable_non_proxied_udp</option>
-              <option value="proxy_only">proxy_only (strictest)</option>
+              <option value="default">Leave Firefox's setting</option>
+              <option value="default_public_interface_only">Public addresses only</option>
+              <option value="disable_non_proxied_udp">Prefer the proxy for UDP</option>
+              <option value="proxy_only">Proxy only (strictest)</option>
             </select>
           </label>
 

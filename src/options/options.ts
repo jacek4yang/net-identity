@@ -11,6 +11,7 @@
  * from the field after a successful save.
  */
 import { describeProxy, type IdentityProfile } from "../profile/schema";
+import { GUIDE } from "../shared/onboarding";
 import { createProfileId } from "../profile/store";
 import { parseProfile } from "../profile/validation";
 import { clear, el, formatAccuracy, formatCoordinates, requireElement } from "../shared/dom";
@@ -41,6 +42,14 @@ import {
   toProfileInput,
   type ProfileFormValues,
 } from "./form";
+
+const guideBody = requireElement<HTMLElement>("#guide-body");
+for (const section of GUIDE) {
+  guideBody.append(
+    el("h3", { text: section.title }),
+    el("p", { className: "hint", text: section.body }),
+  );
+}
 
 const ui = {
   list: requireElement<HTMLUListElement>("#profile-list"),

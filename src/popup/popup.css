@@ -155,6 +155,21 @@ h1 {
   color: var(--fg);
 }
 
+.about summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.about h2 {
+  margin: 10px 0 2px;
+  font-size: 13px;
+}
+
+.about p {
+  margin: 0;
+  color: var(--fg-dim);
+}
+
 .checks .check-status {
   font-size: 11px;
   color: var(--fg-dim);
