@@ -11,7 +11,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:prod": "node scripts/build.mjs --production",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run lint:ext",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run lint:ext && npm run check:version",
+    "check:version": "node --experimental-strip-types src/release/check-version.ts",
     "dev": "npm run build && web-ext run --source-dir dist --browser-console",
     "e2e": "node scripts/e2e-smoke.mjs",
     "e2e:websocket": "node scripts/e2e-websocket.mjs",

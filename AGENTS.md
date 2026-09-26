@@ -286,6 +286,14 @@ git push -u origin HEAD
 gh pr create --fill          # or with a full body
 ```
 
+`package.json` `version` is the version that ships. `public/manifest.json` `version`
+must be the same value (`npm run check:version` and the build both reject a
+mismatch). A release tag must be `v` plus that version, for example `v0.2.0`.
+Do not tag a dirty tree, a version that was already published, or an older
+version. The extension id stays `net-identity@jacek4yang.github.io`. Release
+notes list the supplied pull-request titles and do not add changes that were
+not in that list.
+
 `main` is protected: pull requests only, linear history, conversation resolution,
 0 required approvals, admins included, no force pushes, no deletions. CI (`quality`)
 is a required check. Merge with `gh pr merge --squash --delete-branch`.
