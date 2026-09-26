@@ -98,6 +98,11 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
 
 There is no key material, no signing, no native messaging and no local server.
 
+If a `password`, `credentials` or `proxyPassword` key is ever found inside
+`ni.state.v1`, profile migration drops it and writes the profile back without that
+key. A newer schema version is not rewritten, so an upgrade cannot replace a future
+document with an empty one or with a direct profile.
+
 ## Platform trust boundary
 
 Firefox's `storage.session` is restricted to trusted extension contexts

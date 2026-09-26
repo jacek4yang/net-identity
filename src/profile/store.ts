@@ -17,11 +17,17 @@ import {
   type IdentityProfile,
   type ProfileState,
 } from "./schema";
-import { parseProfileState } from "./validation";
+import { migrateStoredProfileState, migrationHoldMessage } from "./migrate";
 
 export interface ProfileStore {
-  /** Always resolves; unreadable or corrupt state degrades to an empty state. */
+  /**
+   * The profiles this build may use. A document that must not be overwritten is
+   * reported as empty here; `migrationWarning()` explains why, and `save` /
+   * `mutate` refuse to replace the stored bytes.
+   */
   load(): Promise<ProfileState>;
+  /** Set after `load` or a refused write when storage was left unchanged on purpose. */
+  migrationWarning(): string | null;
   save(state: ProfileState): Promise<void>;
   /**
    * Atomic read-modify-write.
@@ -35,6 +41,7 @@ export interface ProfileStore {
 
 export function createProfileStore(area: StorageAreaLike): ProfileStore {
   let queue: Promise<unknown> = Promise.resolve();
+  let warning: string | null = null;
 
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
     const next = queue.then(operation, operation);
@@ -43,34 +50,51 @@ export function createProfileStore(area: StorageAreaLike): ProfileStore {
   };
 
   // Called from inside the queue, so it must not enqueue again.
-  const readState = async (): Promise<ProfileState> =>
-    parseStoredState(await readKey(area, STORAGE_KEY));
-  const writeState = async (state: ProfileState): Promise<void> => {
-    await area.set({ [STORAGE_KEY]: state });
+  const readMigration = async () => migrateStoredProfileState(await readKey(area, STORAGE_KEY));
+
+  const accept = async (
+    migrated: ReturnType<typeof migrateStoredProfileState>,
+  ): Promise<ProfileState | null> => {
+    if (migrated.status === "hold") {
+      warning = migrationHoldMessage(migrated);
+      return null;
+    }
+    warning = null;
+    if (migrated.persist) await area.set({ [STORAGE_KEY]: migrated.state });
+    return migrated.state;
   };
 
   return {
-    load: () => enqueue(readState),
+    load: () =>
+      enqueue(async () => {
+        const state = await accept(await readMigration());
+        return state ?? structuredClone(EMPTY_PROFILE_STATE);
+      }),
 
-    save: (state) => enqueue(() => writeState(state)),
+    migrationWarning: () => warning,
+
+    save: (state) =>
+      enqueue(async () => {
+        const current = await accept(await readMigration());
+        if (current === null) return;
+        await area.set({ [STORAGE_KEY]: state });
+      }),
 
     mutate: (apply) =>
       enqueue(async () => {
-        const result = apply(await readState());
+        const current = await accept(await readMigration());
+        if (current === null) {
+          return {
+            ok: false as const,
+            errors: [warning ?? "Stored profiles were left unchanged."],
+          };
+        }
+        const result = apply(current);
         if (!result.ok) return result;
-        await writeState(result.value);
+        await area.set({ [STORAGE_KEY]: result.value });
         return result;
       }),
   };
-}
-
-/**
- * Parse-or-empty: corrupt or unreadable stored data must never break the
- * background script, so a bad state degrades to an empty one.
- */
-export function parseStoredState(raw: unknown): ProfileState {
-  const parsed = parseProfileState(raw);
-  return parsed.ok ? parsed.value : structuredClone(EMPTY_PROFILE_STATE);
 }
 
 /**
