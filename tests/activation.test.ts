@@ -343,6 +343,34 @@ describe("activation", () => {
     expect(checkStatus(harness, "content_shim")).toBe("ok");
   });
 
+  it("updates the audit when Firefox proxy or WebRTC control changes later", async () => {
+    const firefoxProxy = {
+      proxyType: "none",
+      levelOfControl: "controllable_by_this_extension",
+    };
+    const harness = createHarness({ firefoxProxy });
+    const profile = makeProfile({ id: "profile-0013" });
+    await harness.saveProfile(profile);
+    const activated = await harness.controller.activate(profile.id);
+    const providerCalls = harness.providerResolveCount();
+    const setCalls = harness.webrtcSetting.setCalls;
+
+    firefoxProxy.proxyType = "manual";
+    const proxyChanged = await harness.controller.refreshObservedSettings();
+    expect(checkStatus(harness, "firefox_proxy")).toBe("unavailable");
+    expect(proxyChanged.generation).toBe(activated.generation);
+    expect(harness.providerResolveCount()).toBe(providerCalls);
+    expect(harness.webrtcSetting.setCalls).toBe(setCalls);
+    expect(harness.controller.getTarget()?.proxy.type).toBe("http");
+
+    harness.webrtcSetting.stored.value = "default";
+    harness.webrtcSetting.stored.levelOfControl = "controlled_by_other_extensions";
+    const webrtcChanged = await harness.controller.refreshObservedSettings();
+    expect(checkStatus(harness, "webrtc")).toBe("controlled_by_other_extension");
+    expect(webrtcChanged.generation).toBe(activated.generation);
+    expect(harness.webrtcSetting.setCalls).toBe(setCalls);
+  });
+
   it("surfaces proxy errors without leaking credentials", async () => {
     const harness = createHarness();
     const profile = makeProfile({ id: "profile-0012" });

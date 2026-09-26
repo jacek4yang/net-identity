@@ -116,6 +116,9 @@ validate profile
 - `deactivate()` clears routing, calls `webRTCIPHandlingPolicy.clear()` so Firefox
   restores the previously effective value, clears the snapshot and publishes
   `payload: null` with `controlled: false` so pages revert to native behaviour.
+- Later changes to Firefox's proxy settings or WebRTC policy recompute the audit
+  only. The listeners do not write those settings again and do not reactivate the
+  profile. An `onChange` that matches the value this extension just published is ignored.
 - Until that idle envelope is committed — including during startup, activation,
   refresh and provider failure — the geolocation shim does not call Firefox's
   implementation. It keeps the previous synthetic position when it has one.

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   createUnavailableWebRtcController,
   createWebRtcController,
+  describeObservedWebRtc,
+  isOwnWebRtcEcho,
 } from "../src/background/webrtc";
 import { createFakeWebRtcSetting } from "./helpers";
 
@@ -157,5 +159,39 @@ describe("WebRTC controller", () => {
 
     expect(released.status).toBe("error");
     expect(released.message).toContain("privacy setting clear rejected");
+  });
+});
+
+describe("observed WebRTC changes", () => {
+  it("ignores an onChange echo of the value this extension already published", () => {
+    const state = {
+      desired: "proxy_only" as const,
+      actual: "proxy_only",
+      levelOfControl: "controlled_by_this_extension",
+      status: "applied" as const,
+    };
+    expect(
+      isOwnWebRtcEcho(state, {
+        value: "proxy_only",
+        levelOfControl: "controlled_by_this_extension",
+      }),
+    ).toBe(true);
+    expect(
+      isOwnWebRtcEcho(state, {
+        value: "proxy_only",
+        levelOfControl: "controlled_by_other_extensions",
+      }),
+    ).toBe(false);
+    expect(isOwnWebRtcEcho(state, { value: "default" })).toBe(false);
+  });
+
+  it("reports another extension's control without rewriting the desired policy", () => {
+    const observed = describeObservedWebRtc("proxy_only", {
+      value: "default",
+      levelOfControl: "controlled_by_other_extensions",
+    });
+    expect(observed.desired).toBe("proxy_only");
+    expect(observed.status).toBe("controlled_by_other");
+    expect(observed.actual).toBe("default");
   });
 });
