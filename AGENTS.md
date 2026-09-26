@@ -85,6 +85,12 @@ extension in ways tests will not catch:
    key. It is declared because AMO requires it and because automatic profiles do contact
    a third-party GeoIP provider (see §7). web-ext lint warns about the version gap; the
    allowance is recorded in `scripts/lint-extension.mjs`.
+9. **`proxy.onRequest` sees `ws:` and `wss:` as well as `http:`/`https:`.**
+   `parseRequestUrl()` treats all four as proxyable network traffic and applies the same
+   bypass list. Other schemes (`moz-extension`, `about`, `file`, `data`, `blob`, `ftp`,
+   …) stay `{ type: "direct" }`. Do not narrow this back to http(s): a page can otherwise
+   leave the active proxy by opening a WebSocket. `<all_urls>` already matches those
+   schemes, which is why the listener filter is not a shorter http-only list.
 
 ## 5. Profile activation lifecycle
 

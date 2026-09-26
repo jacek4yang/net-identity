@@ -61,6 +61,11 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
   an HTTP/HTTPS proxy with stored credentials, and the challenger matches the configured
   proxy host or port. `WWW-Authenticate` challenges from websites can therefore never
   receive proxy credentials.
+- **WebSocket egress follows the active proxy.** `ws:` and `wss:` use the same
+  `decideProxy()` path as `http:`/`https:`, including the bypass list. While a proxied
+  profile is active, a page cannot leave that proxy by opening a WebSocket. Non-network
+  schemes stay direct on purpose. `tests/proxy.test.ts` pins the scheme split, and
+  `npm run e2e:websocket` checks it in real Firefox.
 - **OTHER extensions cannot interfere.** `runtime.onMessage` ignores senders that are not
   this extension, including messages sent to this extension id by another add-on.
 - **Reversibility.** The extension never writes Firefox's global proxy settings, so

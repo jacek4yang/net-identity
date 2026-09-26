@@ -107,6 +107,12 @@ Bypass matching (`bypassEntryMatchesHost`) supports bare hosts (matching subdoma
 Firefox's own exclusion list does), `*.domain`, IP literals and IPv4 CIDR. Loopback is
 always bypassed; the GeoIP endpoint never is, because it must observe the proxy egress.
 
+`parseRequestUrl()` accepts `http`, `https`, `ws` and `wss`. Those four schemes share
+the bypass list and the active `ProxyInfo`. `moz-extension`, `about`, `file`, `data`,
+`blob`, `ftp` and any unparsable URL stay `{ type: "direct" }`, so the extension does
+not intercept internal browser URLs. The `proxy.onRequest` filter remains `<all_urls>`
+because that match pattern already includes WebSocket URLs.
+
 ## Page shims
 
 `page-shim.ts` runs at `document_start` in the MAIN world so it installs before page

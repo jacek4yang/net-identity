@@ -93,11 +93,31 @@ export function buildProxyInfo(
 }
 
 export interface ParsedRequestUrl {
-  scheme: "http" | "https";
+  scheme: "http" | "https" | "ws" | "wss";
   hostname: string;
 }
 
-/** Only http(s) requests are routed; extension, about: and file URLs stay direct. */
+/**
+ * Schemes that carry ordinary network traffic and must follow the active proxy.
+ * `ws`/`wss` are included so a page cannot leave the proxy by opening a WebSocket.
+ * Extension, `about:`, `file:`, `data:` and other internal URLs stay direct.
+ */
+function networkScheme(protocol: string): ParsedRequestUrl["scheme"] | null {
+  switch (protocol) {
+    case "http:":
+      return "http";
+    case "https:":
+      return "https";
+    case "ws:":
+      return "ws";
+    case "wss:":
+      return "wss";
+    default:
+      return null;
+  }
+}
+
+/** http(s) and ws(s) are routed; extension, about and file URLs stay direct. */
 export function parseRequestUrl(url: string): ParsedRequestUrl | null {
   let parsed: URL;
   try {
@@ -105,12 +125,10 @@ export function parseRequestUrl(url: string): ParsedRequestUrl | null {
   } catch {
     return null;
   }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  const scheme = networkScheme(parsed.protocol);
+  if (scheme === null) return null;
   if (parsed.hostname === "") return null;
-  return {
-    scheme: parsed.protocol === "http:" ? "http" : "https",
-    hostname: normalizeHost(parsed.hostname),
-  };
+  return { scheme, hostname: normalizeHost(parsed.hostname) };
 }
 
 /**

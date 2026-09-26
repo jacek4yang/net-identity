@@ -112,7 +112,7 @@ describe("encodeBasicAuthorization", () => {
 });
 
 describe("parseRequestUrl", () => {
-  it("keeps only http(s) hosts", () => {
+  it("accepts http(s) and ws(s) hosts", () => {
     expect(parseRequestUrl("https://Example.com/path")).toEqual({
       scheme: "https",
       hostname: "example.com",
@@ -121,9 +121,39 @@ describe("parseRequestUrl", () => {
       scheme: "http",
       hostname: "127.0.0.1",
     });
+    expect(parseRequestUrl("wss://Example.com/socket")).toEqual({
+      scheme: "wss",
+      hostname: "example.com",
+    });
+    expect(parseRequestUrl("ws://example.com:9/socket")).toEqual({
+      scheme: "ws",
+      hostname: "example.com",
+    });
+    expect(parseRequestUrl("WS://Example.COM/socket")).toEqual({
+      scheme: "ws",
+      hostname: "example.com",
+    });
+    expect(parseRequestUrl("wss://user:secret@example.com/socket")).toEqual({
+      scheme: "wss",
+      hostname: "example.com",
+    });
+    expect(parseRequestUrl("ws://[::1]/socket")).toEqual({
+      scheme: "ws",
+      hostname: "::1",
+    });
+  });
+
+  it("rejects non-network and unparsable URLs", () => {
     expect(parseRequestUrl("moz-extension://abc/background.js")).toBeNull();
     expect(parseRequestUrl("about:blank")).toBeNull();
+    expect(parseRequestUrl("file:///tmp/page.html")).toBeNull();
+    expect(parseRequestUrl("data:text/html,hi")).toBeNull();
+    expect(
+      parseRequestUrl("blob:https://example.com/11111111-1111-1111-1111-111111111111"),
+    ).toBeNull();
+    expect(parseRequestUrl("ftp://example.com/file")).toBeNull();
     expect(parseRequestUrl("not a url")).toBeNull();
+    expect(parseRequestUrl("ws://")).toBeNull();
   });
 });
 
@@ -152,8 +182,38 @@ describe("decideProxy", () => {
     expect(decision.type).toBe("http");
   });
 
-  it("leaves non-http requests alone", () => {
-    expect(decideProxy(target({}), "ws://example.com/socket")).toEqual({ type: "direct" });
+  it("routes WebSocket traffic through the same proxy and bypass rules", () => {
+    const active = target({ bypassHosts: ["example.org", "10.0.0.0/8"] });
+    const routed = decideProxy(active, "wss://example.com/socket");
+    expect(routed.type).toBe("http");
+    expect(routed.host).toBe("proxy.example.com");
+    expect(decideProxy(active, "ws://example.com/socket").type).toBe("http");
+
+    expect(decideProxy(active, "ws://localhost/socket")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "wss://127.0.0.1/socket")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "ws://[::1]/socket")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "wss://www.example.org/socket")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "ws://10.20.30.40/socket")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "wss://ipwho.is/")).toMatchObject({
+      type: "http",
+      host: "proxy.example.com",
+    });
+  });
+
+  it("leaves non-network schemes direct even while a proxy is active", () => {
+    const active = target({});
+    expect(decideProxy(active, "ftp://example.com/file")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "file:///tmp/page.html")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "moz-extension://abc/background.js")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "about:blank")).toEqual({ type: "direct" });
+    expect(decideProxy(active, "data:text/html,hi")).toEqual({ type: "direct" });
+    expect(decideProxy(null, "wss://example.com/socket")).toEqual({ type: "direct" });
+    expect(
+      decideProxy(
+        target({ type: "direct", host: undefined, port: undefined, bypassHosts: [] }),
+        "wss://example.com/socket",
+      ),
+    ).toEqual({ type: "direct" });
   });
 });
 
