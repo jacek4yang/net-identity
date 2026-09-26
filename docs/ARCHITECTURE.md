@@ -116,8 +116,10 @@ because that match pattern already includes WebSocket URLs.
 ## Page shims
 
 `page-shim.ts` runs at `document_start` in the MAIN world so it installs before page
-scripts can capture the natives. Wrappers are installed immediately but delegate to the
-native implementation while no identity is active, so an idle extension is invisible.
+scripts can capture the natives. The geolocation wrapper starts fail-closed. It calls
+Firefox's implementation only after an envelope with `controlled: false` says no profile
+is active. A pending envelope keeps the previous synthetic position; a committed profile
+without coordinates returns position-unavailable instead of the host location.
 
 Timezones are computed per instant with `Intl.DateTimeFormat` (never a fixed offset), so
 DST and historical rule changes are correct. Numeric fields and display names come from

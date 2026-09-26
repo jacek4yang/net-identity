@@ -7,7 +7,7 @@
  * background restart, and deactivation really stops the spoofing.
  */
 import { describe, expect, it } from "vitest";
-import { GEOIP_ACCURACY_METERS, PAGE_SOURCE } from "../src/shared/constants";
+import { BRIDGE_SOURCE, GEOIP_ACCURACY_METERS, PAGE_SOURCE } from "../src/shared/constants";
 import type { GeoIpResult } from "../src/geo/provider";
 import {
   SAMPLE_GEO,
@@ -170,6 +170,13 @@ describe("activation", () => {
     // Routing is unaffected by a failed lookup.
     const decision = await harness.controller.decideProxyForRequest("https://example.com/");
     expect(decision.type).toBe("http");
+
+    // The page must stay under extension control, with no coordinates to fall back on.
+    const last = harness.envelopes.at(-1);
+    expect(last?.controlled).toBe(true);
+    expect(last?.pending).toBe(false);
+    expect(last?.payload?.latitude).toBeUndefined();
+    expect(harness.envelopes.every((envelope) => envelope.controlled)).toBe(true);
   });
 
   it("applies manual values and still records the observed egress IP", async () => {
@@ -235,6 +242,8 @@ describe("activation", () => {
     // The last envelope tells pages to go back to native behaviour.
     expect(harness.envelopes.at(-1)?.payload).toBeNull();
     expect(harness.envelopes.at(-1)?.pending).toBe(false);
+    expect(harness.envelopes.at(-1)?.controlled).toBe(false);
+    expect(harness.envelopes.slice(0, -1).every((envelope) => envelope.controlled)).toBe(true);
   });
 
   it("reports an error state instead of throwing when the profile is unknown", async () => {
@@ -362,6 +371,51 @@ describe("background restart", () => {
     expect(await restarted.controller.decideProxyForRequest("http://localhost:3000/")).toEqual({
       type: "direct",
     });
+  });
+
+  it("keeps geolocation controlled until startup has settled", () => {
+    const harness = createHarness();
+    expect(harness.controller.getEnvelope()).toEqual({
+      source: BRIDGE_SOURCE,
+      type: "identity",
+      payload: null,
+      pending: true,
+      controlled: true,
+    });
+  });
+
+  it("does not release geolocation when startup observes an empty store too late", async () => {
+    const harness = createHarness();
+    let releaseRead: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    let parked = false;
+    const originalLoad = harness.profileStore.load.bind(harness.profileStore);
+    harness.profileStore.load = async () => {
+      if (!parked) {
+        const snapshot = await originalLoad();
+        parked = true;
+        await gate;
+        return snapshot;
+      }
+      return originalLoad();
+    };
+
+    const startup = harness.controller.initialize();
+    await waitUntil(() => parked);
+
+    const profile = makeProfile({ id: "profile-0099" });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+    releaseRead();
+    await startup;
+
+    expect(harness.controller.getState().activeProfileId).toBe(profile.id);
+    expect(harness.controller.getState().status).toBe("ready");
+    const last = harness.envelopes.at(-1);
+    expect(last?.controlled).toBe(true);
+    expect(last?.payload?.latitude).toBe(SAMPLE_GEO.latitude);
   });
 
   it("is direct when there is no session snapshot", async () => {

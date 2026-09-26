@@ -4,20 +4,20 @@
  * Overrides `navigator.geolocation.getCurrentPosition`, `watchPosition` and
  * `clearWatch` so that pages see the identity of the active profile.
  *
- * Semantics preserved as closely as practical:
- *   - callbacks are always invoked asynchronously, never synchronously
- *   - `watchPosition` returns an opaque numeric id accepted by `clearWatch`
- *   - the returned object is a real `GeolocationPosition` prototype instance with
- *     own `coords`/`timestamp` properties, so `instanceof` and property access work
- *   - while no identity is active, every call is delegated to the native
- *     implementation (the extension is invisible when idle)
- *   - while an identity is being resolved, requests are held for a bounded time
- *     instead of leaking the machine's real position
+ * Fail-closed rules:
+ *   - native geolocation is called only after the extension reports that no
+ *     profile is active (`release`)
+ *   - while a position is known, including during a later activation, that
+ *     position is served until a new one is committed
+ *   - while identity is pending and no position is known, calls wait and then
+ *     receive a timeout error
+ *   - a committed profile with no coordinates returns position-unavailable
+ *   - `enableHighAccuracy` never bypasses these rules
  *
- * `navigator.permissions.query({ name: "geolocation" })` is intentionally NOT
- * patched: see docs/ROADMAP.md.
+ * Callbacks stay asynchronous. Returned positions are real prototype instances.
  */
 import { CONTENT_IDENTITY_WAIT_MS } from "../shared/constants";
+import type { IdentityEnvelope } from "../shared/public-identity";
 
 export interface GeoTarget {
   latitude: number;
@@ -26,7 +26,9 @@ export interface GeoTarget {
 }
 
 /** PositionError constants, mirrored so the shim never depends on globals. */
+export const PERMISSION_DENIED = 1;
 export const POSITION_UNAVAILABLE = 2;
+export const POSITION_TIMEOUT = 3;
 
 export interface PositionFactories {
   /** Only `prototype` is needed: Firefox exposes no constructor for these types. */
@@ -34,6 +36,16 @@ export interface PositionFactories {
   coordinatesCtor: { prototype: object } | undefined;
   errorCtor: { prototype: object } | undefined;
   now: () => number;
+}
+
+export interface GeolocationRealm {
+  geolocation: Geolocation;
+  positionCtor?: { prototype: object } | undefined;
+  coordinatesCtor?: { prototype: object } | undefined;
+  errorCtor?: { prototype: object } | undefined;
+  now?: () => number;
+  schedule?: (callback: () => void, delayMs: number) => number;
+  cancel?: (handle: number) => void;
 }
 
 function defineValues(target: object, values: Record<string, unknown>): void {
@@ -64,8 +76,6 @@ function createFromPrototype(ctor: { prototype: object } | undefined): object {
  * Firefox provides no constructor for these platform objects, so the object is
  * created from the real prototype with own enumerable properties, which keeps
  * `instanceof`, property access, `JSON.stringify` and `structuredClone` working.
- * This is the single assertion in the content scripts, and it is never applied to
- * untrusted input.
  */
 export function createPositionLike(
   target: GeoTarget,
@@ -95,17 +105,61 @@ export function createErrorLike(
   factories: PositionFactories,
 ): GeolocationPositionError {
   const error = createFromPrototype(factories.errorCtor);
-  defineValues(error, { code, message, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+  defineValues(error, {
+    code,
+    message,
+    PERMISSION_DENIED,
+    POSITION_UNAVAILABLE,
+    TIMEOUT: POSITION_TIMEOUT,
+  });
   return error as GeolocationPositionError;
+}
+
+export type GeolocationCommand =
+  | { type: "release" }
+  | { type: "hold" }
+  | { type: "unavailable" }
+  | { type: "position"; target: GeoTarget };
+
+/**
+ * Maps an identity envelope onto one geolocation action.
+ *
+ * A pending envelope keeps the previous position when the new one is not known
+ * yet. Native geolocation is selected only when the extension is idle.
+ */
+export function geolocationCommandForEnvelope(envelope: IdentityEnvelope): GeolocationCommand {
+  const payload = envelope.payload;
+  if (
+    payload !== null &&
+    payload.latitude !== undefined &&
+    payload.longitude !== undefined &&
+    payload.accuracy !== undefined
+  ) {
+    return {
+      type: "position",
+      target: {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        accuracy: payload.accuracy,
+      },
+    };
+  }
+  if (envelope.pending || envelope.controlled) {
+    return envelope.pending ? { type: "hold" } : { type: "unavailable" };
+  }
+  return { type: "release" };
 }
 
 export interface GeolocationShim {
   readonly installed: boolean;
-  /**
-   * Applies a new target. `pending` means "an identity is being resolved": page
-   * requests are briefly buffered instead of falling back to the real position.
-   */
-  setTarget(target: GeoTarget | null, pending: boolean): void;
+  /** A synthetic position is known. Native geolocation stays blocked. */
+  setPosition(target: GeoTarget): void;
+  /** Keep the current position, or wait if there is not one yet. Never calls native. */
+  hold(): void;
+  /** The active profile has no coordinates. Callers receive position-unavailable. */
+  unavailable(): void;
+  /** No profile is active. Later calls, and calls still waiting, use native geolocation. */
+  release(): void;
   getTarget(): GeoTarget | null;
   uninstall(): void;
 }
@@ -113,24 +167,35 @@ export interface GeolocationShim {
 interface Waiter {
   success: PositionCallback | undefined;
   error: PositionErrorCallback | undefined;
-  timer: ReturnType<typeof setTimeout> | undefined;
+  timer: number | undefined;
   options: PositionOptions | undefined;
+  receiver: Geolocation;
 }
 
 interface Watcher {
   success: PositionCallback | undefined;
   error: PositionErrorCallback | undefined;
-  timer: ReturnType<typeof setTimeout> | undefined;
+  timer: number | undefined;
   options: PositionOptions | undefined;
-  /** Native watch id, set when a buffered watch timed out and was delegated. */
+  receiver: Geolocation;
+  /** Native watch id, set only after the extension has released control. */
   delegatedId: number | undefined;
 }
 
 function noopShim(): GeolocationShim {
   return {
     installed: false,
-    setTarget() {
+    setPosition() {
       // No geolocation API in this context (for example a sandboxed frame).
+    },
+    hold() {
+      // Nothing to hold.
+    },
+    unavailable() {
+      // Nothing to reject.
+    },
+    release() {
+      // Nothing was patched.
     },
     getTarget() {
       return null;
@@ -141,8 +206,25 @@ function noopShim(): GeolocationShim {
   };
 }
 
-export function installGeolocationShim(): GeolocationShim {
-  const geolocation = typeof navigator === "undefined" ? undefined : navigator.geolocation;
+function defaultSchedule(callback: () => void, delayMs: number): number {
+  return setTimeout(callback, delayMs) as unknown as number;
+}
+
+function defaultCancel(handle: number): void {
+  clearTimeout(handle);
+}
+
+function waitLimit(options: PositionOptions | undefined): number {
+  const requested = options?.timeout;
+  if (typeof requested === "number" && Number.isFinite(requested) && requested >= 0) {
+    return Math.min(requested, CONTENT_IDENTITY_WAIT_MS);
+  }
+  return CONTENT_IDENTITY_WAIT_MS;
+}
+
+export function installGeolocationShim(realm?: GeolocationRealm): GeolocationShim {
+  const geolocation =
+    realm?.geolocation ?? (typeof navigator === "undefined" ? undefined : navigator.geolocation);
   if (geolocation === undefined || geolocation === null) return noopShim();
 
   const proto = Object.getPrototypeOf(geolocation) as Geolocation;
@@ -154,28 +236,33 @@ export function installGeolocationShim(): GeolocationShim {
   const originalClearWatch = proto.clearWatch;
   /* eslint-enable @typescript-eslint/unbound-method */
 
+  const schedule = realm?.schedule ?? defaultSchedule;
+  const cancel = realm?.cancel ?? defaultCancel;
   const factories: PositionFactories = {
-    positionCtor: typeof GeolocationPosition === "undefined" ? undefined : GeolocationPosition,
+    positionCtor:
+      realm?.positionCtor ??
+      (typeof GeolocationPosition === "undefined" ? undefined : GeolocationPosition),
     coordinatesCtor:
-      typeof GeolocationCoordinates === "undefined" ? undefined : GeolocationCoordinates,
+      realm?.coordinatesCtor ??
+      (typeof GeolocationCoordinates === "undefined" ? undefined : GeolocationCoordinates),
     errorCtor:
-      typeof GeolocationPositionError === "undefined" ? undefined : GeolocationPositionError,
-    now: () => Date.now(),
+      realm?.errorCtor ??
+      (typeof GeolocationPositionError === "undefined" ? undefined : GeolocationPositionError),
+    now: realm?.now ?? (() => Date.now()),
   };
 
-  let target: GeoTarget | null = null;
-  let identityPending = false;
+  let position: GeoTarget | null = null;
+  let allowNative = false;
+  let failImmediately = false;
   let nextWatchId = 1_000_000;
   const waiters = new Set<Waiter>();
   const watchers = new Map<number, Watcher>();
 
-  /** Used when a page omitted the success callback: nothing observable happens. */
   const noopPosition: PositionCallback = () => undefined;
 
-  /** Async delivery, matching the native contract. */
   function deliverPosition(success: PositionCallback | undefined, current: GeoTarget): void {
     if (success === undefined) return;
-    setTimeout(() => {
+    schedule(() => {
       try {
         success(createPositionLike(current, factories));
       } catch {
@@ -190,7 +277,7 @@ export function installGeolocationShim(): GeolocationShim {
     message: string,
   ): void {
     if (error === undefined) return;
-    setTimeout(() => {
+    schedule(() => {
       try {
         error(createErrorLike(code, message, factories));
       } catch {
@@ -199,23 +286,66 @@ export function installGeolocationShim(): GeolocationShim {
     }, 0);
   }
 
+  function flushWaiters(current: GeoTarget): void {
+    for (const waiter of [...waiters]) {
+      if (waiter.timer !== undefined) cancel(waiter.timer);
+      waiters.delete(waiter);
+      deliverPosition(waiter.success, current);
+    }
+  }
+
+  function rejectWaiters(code: number, message: string): void {
+    for (const waiter of [...waiters]) {
+      if (waiter.timer !== undefined) cancel(waiter.timer);
+      waiters.delete(waiter);
+      deliverError(waiter.error, code, message);
+    }
+  }
+
+  function delegateWaiter(waiter: Waiter): void {
+    originalGetCurrentPosition.call(
+      waiter.receiver,
+      waiter.success ?? noopPosition,
+      waiter.error ?? null,
+      waiter.options,
+    );
+  }
+
+  function delegateWatcher(watcher: Watcher): void {
+    if (watcher.delegatedId !== undefined) return;
+    watcher.delegatedId = originalWatchPosition.call(
+      watcher.receiver,
+      watcher.success ?? noopPosition,
+      watcher.error ?? null,
+      watcher.options,
+    );
+  }
+
   function patchedGetCurrentPosition(
     this: Geolocation,
     successCallback?: PositionCallback | null,
     errorCallback?: PositionErrorCallback | null,
     options?: PositionOptions,
   ): void {
-    const current = target;
+    const current = position;
     if (current !== null) {
       deliverPosition(successCallback ?? undefined, current);
       return;
     }
-    if (!identityPending) {
+    if (allowNative) {
       originalGetCurrentPosition.call(
         this,
         successCallback ?? noopPosition,
         errorCallback ?? null,
         options,
+      );
+      return;
+    }
+    if (failImmediately) {
+      deliverError(
+        errorCallback ?? undefined,
+        POSITION_UNAVAILABLE,
+        "No network identity location is available.",
       );
       return;
     }
@@ -225,17 +355,14 @@ export function installGeolocationShim(): GeolocationShim {
       error: errorCallback ?? undefined,
       timer: undefined,
       options,
+      receiver: this,
     };
-    waiter.timer = setTimeout(() => {
+    waiter.timer = schedule(() => {
+      if (!waiters.has(waiter)) return;
       waiters.delete(waiter);
-      // The identity never arrived: fall back to the native implementation.
-      originalGetCurrentPosition.call(
-        this,
-        waiter.success ?? noopPosition,
-        waiter.error ?? null,
-        waiter.options,
-      );
-    }, CONTENT_IDENTITY_WAIT_MS);
+      // Still unresolved and still controlled: time out. Never call native here.
+      deliverError(waiter.error, POSITION_TIMEOUT, "Network identity did not resolve in time.");
+    }, waitLimit(options));
     waiters.add(waiter);
   }
 
@@ -245,23 +372,7 @@ export function installGeolocationShim(): GeolocationShim {
     errorCallback?: PositionErrorCallback | null,
     options?: PositionOptions,
   ): number {
-    const current = target;
-    const watchId = nextWatchId;
-    nextWatchId += 1;
-
-    if (current !== null) {
-      watchers.set(watchId, {
-        success: successCallback ?? undefined,
-        error: errorCallback ?? undefined,
-        timer: undefined,
-        options,
-        delegatedId: undefined,
-      });
-      deliverPosition(successCallback ?? undefined, current);
-      return watchId;
-    }
-
-    if (!identityPending) {
+    if (allowNative && position === null) {
       return originalWatchPosition.call(
         this,
         successCallback ?? noopPosition,
@@ -270,24 +381,37 @@ export function installGeolocationShim(): GeolocationShim {
       );
     }
 
+    const watchId = nextWatchId;
+    nextWatchId += 1;
     const watcher: Watcher = {
       success: successCallback ?? undefined,
       error: errorCallback ?? undefined,
       timer: undefined,
       options,
+      receiver: this,
       delegatedId: undefined,
     };
-    watcher.timer = setTimeout(() => {
-      const nativeId = originalWatchPosition.call(
-        this,
-        watcher.success ?? noopPosition,
-        watcher.error ?? null,
-        watcher.options,
-      );
-      watcher.delegatedId = nativeId;
-      watcher.timer = undefined;
-    }, CONTENT_IDENTITY_WAIT_MS);
     watchers.set(watchId, watcher);
+
+    const current = position;
+    if (current !== null) {
+      deliverPosition(successCallback ?? undefined, current);
+      return watchId;
+    }
+    if (failImmediately) {
+      deliverError(
+        errorCallback ?? undefined,
+        POSITION_UNAVAILABLE,
+        "No network identity location is available.",
+      );
+      return watchId;
+    }
+
+    watcher.timer = schedule(() => {
+      if (watcher.timer === undefined) return;
+      watcher.timer = undefined;
+      deliverError(watcher.error, POSITION_TIMEOUT, "Network identity did not resolve in time.");
+    }, waitLimit(options));
     return watchId;
   }
 
@@ -296,12 +420,12 @@ export function installGeolocationShim(): GeolocationShim {
 
     const watcher = watchers.get(watchId);
     if (watcher !== undefined) {
-      if (watcher.timer !== undefined) clearTimeout(watcher.timer);
+      if (watcher.timer !== undefined) cancel(watcher.timer);
       if (watcher.delegatedId !== undefined) originalClearWatch.call(this, watcher.delegatedId);
       watchers.delete(watchId);
       return;
     }
-    originalClearWatch.call(this, watchId);
+    if (allowNative) originalClearWatch.call(this, watchId);
   }
 
   proto.getCurrentPosition = patchedGetCurrentPosition;
@@ -311,57 +435,91 @@ export function installGeolocationShim(): GeolocationShim {
   return {
     installed: true,
 
-    setTarget(next: GeoTarget | null, pending: boolean): void {
-      target = next;
-      identityPending = pending;
-
-      if (next === null) {
-        // Without an identity there is nothing left to deliver. Buffered or active
-        // spoofed requests are settled honestly instead of hanging forever.
-        for (const waiter of [...waiters]) {
-          if (waiter.timer !== undefined) clearTimeout(waiter.timer);
-          waiters.delete(waiter);
-          deliverError(waiter.error, POSITION_UNAVAILABLE, "No network identity is active.");
+    setPosition(next: GeoTarget): void {
+      position = next;
+      allowNative = false;
+      failImmediately = false;
+      flushWaiters(next);
+      for (const watcher of watchers.values()) {
+        if (watcher.timer !== undefined) cancel(watcher.timer);
+        watcher.timer = undefined;
+        if (watcher.delegatedId !== undefined) {
+          originalClearWatch.call(geolocation, watcher.delegatedId);
+          watcher.delegatedId = undefined;
         }
-        for (const [id, watcher] of [...watchers]) {
-          if (watcher.timer !== undefined) clearTimeout(watcher.timer);
-          watchers.delete(id);
-          if (watcher.delegatedId !== undefined) {
-            originalClearWatch.call(geolocation, watcher.delegatedId);
-          } else {
-            deliverError(watcher.error, POSITION_UNAVAILABLE, "No network identity is active.");
-          }
-        }
-        return;
+        deliverPosition(watcher.success, next);
       }
+    },
 
+    hold(): void {
+      allowNative = false;
+      failImmediately = false;
+      const current = position;
+      if (current === null) return;
+      flushWaiters(current);
+      for (const watcher of watchers.values()) {
+        if (watcher.timer === undefined) continue;
+        cancel(watcher.timer);
+        watcher.timer = undefined;
+        deliverPosition(watcher.success, current);
+      }
+    },
+
+    unavailable(): void {
+      position = null;
+      allowNative = false;
+      failImmediately = true;
+      rejectWaiters(POSITION_UNAVAILABLE, "No network identity location is available.");
+      for (const watcher of watchers.values()) {
+        if (watcher.timer !== undefined) cancel(watcher.timer);
+        watcher.timer = undefined;
+        if (watcher.delegatedId !== undefined) {
+          originalClearWatch.call(geolocation, watcher.delegatedId);
+          watcher.delegatedId = undefined;
+        }
+        deliverError(
+          watcher.error,
+          POSITION_UNAVAILABLE,
+          "No network identity location is available.",
+        );
+      }
+    },
+
+    release(): void {
+      position = null;
+      allowNative = true;
+      failImmediately = false;
       for (const waiter of [...waiters]) {
-        if (waiter.timer !== undefined) clearTimeout(waiter.timer);
+        if (waiter.timer !== undefined) cancel(waiter.timer);
         waiters.delete(waiter);
-        deliverPosition(waiter.success, next);
+        delegateWaiter(waiter);
       }
       for (const watcher of watchers.values()) {
-        if (watcher.delegatedId === undefined) deliverPosition(watcher.success, next);
+        if (watcher.timer !== undefined) cancel(watcher.timer);
+        watcher.timer = undefined;
+        delegateWatcher(watcher);
       }
     },
 
     getTarget(): GeoTarget | null {
-      return target;
+      return position;
     },
 
     uninstall(): void {
       for (const waiter of [...waiters]) {
-        if (waiter.timer !== undefined) clearTimeout(waiter.timer);
+        if (waiter.timer !== undefined) cancel(waiter.timer);
         waiters.delete(waiter);
       }
       for (const [id, watcher] of [...watchers]) {
-        if (watcher.timer !== undefined) clearTimeout(watcher.timer);
-        watchers.delete(id);
-        if (watcher.delegatedId !== undefined)
+        if (watcher.timer !== undefined) cancel(watcher.timer);
+        if (watcher.delegatedId !== undefined) {
           originalClearWatch.call(geolocation, watcher.delegatedId);
+        }
+        watchers.delete(id);
       }
-      target = null;
-      identityPending = false;
+      position = null;
+      allowNative = false;
+      failImmediately = false;
       proto.getCurrentPosition = originalGetCurrentPosition;
       proto.watchPosition = originalWatchPosition;
       proto.clearWatch = originalClearWatch;

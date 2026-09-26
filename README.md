@@ -195,10 +195,12 @@ stay direct.
 
 - A `document_start`, `MAIN`-world content script overrides
   `navigator.geolocation.getCurrentPosition`, `watchPosition` and `clearWatch`.
-- While no identity is active, every call is delegated to the native implementation, so
-  the extension is invisible when idle.
-- While an identity is being resolved, requests are held briefly (2 s) rather than
-  leaking the real position.
+- While no profile is active, calls are delegated to the native implementation, so an
+  idle extension is invisible.
+- While a profile is active, pending, or still starting, the shim does not call
+  Firefox's geolocation API. A previous synthetic position is kept until the new
+  identity is committed. If none is available, the page gets a timeout or
+  position-unavailable error instead of the host location.
 - Returned positions are real `GeolocationPosition` prototype instances with own
   `coords`/`timestamp` properties, and are accurate to the coarse accuracy you set.
 - Known gaps: subframes are not patched and `navigator.permissions.query` is untouched.
@@ -251,7 +253,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 217 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 227 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract.

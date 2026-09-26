@@ -30,7 +30,9 @@ import {
 import { ok } from "../shared/result";
 import { onRuntimeMessage, request } from "../shared/runtime";
 
-let currentEnvelope: IdentityEnvelope = createIdentityEnvelope(null, true);
+// Fail closed until the background answers. A page that asks early must not
+// observe the host position while startup is still deciding.
+let currentEnvelope: IdentityEnvelope = createIdentityEnvelope(null, true, true);
 let pageShimDetected = false;
 
 function postToPage(envelope: IdentityEnvelope): void {

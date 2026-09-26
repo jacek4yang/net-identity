@@ -263,12 +263,18 @@ describe("message router", () => {
   });
 
   it("answers the content handshake only for content scripts", async () => {
-    const { handler, ui, content } = setup();
+    const { handler, harness, ui, content } = setup();
 
-    const fromContent = parseIdentityResponse(await handler({ type: "content:hello" }, content));
-    expect(fromContent.ok).toBe(true);
-    expect(fromContent.ok && fromContent.value.envelope.payload).toBeNull();
-    expect(fromContent.ok && fromContent.value.envelope.pending).toBe(false);
+    const beforeStartup = parseIdentityResponse(await handler({ type: "content:hello" }, content));
+    expect(beforeStartup.ok).toBe(true);
+    expect(beforeStartup.ok && beforeStartup.value.envelope.payload).toBeNull();
+    expect(beforeStartup.ok && beforeStartup.value.envelope.pending).toBe(true);
+    expect(beforeStartup.ok && beforeStartup.value.envelope.controlled).toBe(true);
+
+    await harness.controller.initialize();
+    const idle = parseIdentityResponse(await handler({ type: "content:hello" }, content));
+    expect(idle.ok && idle.value.envelope.pending).toBe(false);
+    expect(idle.ok && idle.value.envelope.controlled).toBe(false);
 
     expect(await handler({ type: "content:hello" }, ui)).toBeUndefined();
   });
