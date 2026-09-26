@@ -190,6 +190,7 @@ function probePage(zone) {
 <iframe title="same" src="/frame?name=same"></iframe>
 <iframe title="srcdoc" srcdoc="<script>function publish(){parent.postMessage({niFrame:'srcdoc',shim:'__netIdentityShim' in window,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},'*')}publish();setInterval(publish,200)</script>"></iframe>
 <script>
+  const CLIENT = Math.random().toString(36).slice(2);
   const frames = {};
   window.addEventListener("message", (event) => {
     const data = event.data;
@@ -251,6 +252,7 @@ function probePage(zone) {
       const payload = {
         at: Date.now(),
         href: location.href,
+        client: CLIENT,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         offsetMinutes: now.getTimezoneOffset(),
         localMatchesTarget: same(local, target),
@@ -286,6 +288,7 @@ function startProbe(port) {
   let lastReport = null;
   let geoRequests = 0;
   let reportCount = 0;
+  const clients = new Set();
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url.startsWith("/geo")) {
@@ -312,6 +315,7 @@ function startProbe(port) {
         try {
           lastReport = JSON.parse(Buffer.concat(chunks).toString("utf8"));
           reportCount += 1;
+          clients.add(lastReport.client);
         } catch {
           log("received an unparsable report");
         }
@@ -336,9 +340,13 @@ function startProbe(port) {
         reportCount() {
           return reportCount;
         },
+        clients() {
+          return [...clients];
+        },
         reset() {
           lastReport = null;
           reportCount = 0;
+          clients.clear();
         },
       });
     });
@@ -403,6 +411,11 @@ async function main() {
   const proxyPort = await freePort();
   const marionettePort = await freePort();
   const pageUrl = `http://127.0.0.1:${pagePort}/`;
+  // Each probe navigation gets a distinct query so the browser cannot reuse a
+  // previous document from the bfcache: a restored document would keep its old
+  // shim state and hide a release bug.
+  let navSequence = 0;
+  const freshPageUrl = () => `${pageUrl}?nav=${(navSequence += 1)}`;
   const probe = await startProbe(pagePort);
   const blackhole = await startBlackhole(proxyPort);
 
@@ -477,7 +490,7 @@ async function main() {
     optionsUrl = new URL("options/options.html", location.baseURL).href;
 
     await client.send("Marionette:SetContext", { value: "content" });
-    await client.send("WebDriver:Navigate", { url: pageUrl });
+    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
     const native = await waitForReport(probe.read, isNativePosition, deadline);
     if (native === null) {
       log("INCONCLUSIVE: Firefox did not return the sentinel native geolocation.");
@@ -548,7 +561,7 @@ async function main() {
     check(applied?.value === "proxy_only", `WebRTC policy is proxy_only (saw ${applied?.value})`);
 
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: pageUrl });
+    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
     const manual = await waitForReport(
       probe.read,
       (report) =>
@@ -601,16 +614,14 @@ async function main() {
       40000,
     );
     const stateValue = (stateAfterDeactivate?.value ?? stateAfterDeactivate)?.value;
-    log(
-      `diagnostic: after deactivate status=${stateValue?.state?.status} activeProfileId=${stateValue?.state?.activeProfileId}`,
-    );
+    log(`diagnostic: state after deactivate ${JSON.stringify(stateValue)}`);
 
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: pageUrl });
+    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
     const released = await waitForReport(probe.read, isNativePosition, Date.now() + timeoutMs);
     if (released === null) {
       log(
-        `diagnostic: after deactivation the probe saw ${probe.geoRequests()} provider request(s) and ${probe.reportCount()} report(s); last report ${JSON.stringify(probe.read())}`,
+        `diagnostic: after deactivation the probe saw ${probe.geoRequests()} provider request(s), ${probe.reportCount()} report(s) from client(s) ${JSON.stringify(probe.clients())}; last report ${JSON.stringify(probe.read())}`,
       );
     }
     check(released !== null, "deactivation returns the native geolocation sentinel");
@@ -652,7 +663,7 @@ async function main() {
     }
 
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: pageUrl });
+    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
     const failed = await waitForReport(
       probe.read,
       (report) =>
@@ -678,7 +689,7 @@ async function main() {
       40000,
     );
     probe.reset();
-    await client.send("WebDriver:Navigate", { url: pageUrl });
+    await client.send("WebDriver:Navigate", { url: freshPageUrl() });
     const restoredNative = await waitForReport(
       probe.read,
       isNativePosition,
