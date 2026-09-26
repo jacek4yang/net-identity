@@ -27,6 +27,27 @@ export async function sendToTab(tabId: number, message: unknown): Promise<Result
   }
 }
 
+/**
+ * A direct profile sends the user's own public IP to the GeoIP provider.
+ * Firefox 140+ grants required location collection at install, but this
+ * optional personal-data grant must be requested from a user gesture.
+ * Returns false when the user declines or the consent API is missing.
+ */
+export async function ensureDirectIpConsent(proxyType: string): Promise<boolean> {
+  if (proxyType !== "direct") return true;
+  try {
+    const current = await browser.permissions.getAll();
+    const granted = current.data_collection;
+    if (!Array.isArray(granted)) return false;
+    if (granted.includes("personallyIdentifyingInfo")) return true;
+    return await browser.permissions.request({
+      data_collection: ["personallyIdentifyingInfo"],
+    });
+  } catch {
+    return false;
+  }
+}
+
 export function onRuntimeMessage(
   handler: (
     message: unknown,

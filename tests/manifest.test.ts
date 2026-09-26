@@ -78,7 +78,7 @@ describe("manifest", () => {
   it("declares the Firefox target with an id and a version floor", () => {
     const gecko = manifest.browser_specific_settings?.gecko;
     expect(gecko?.id).toBe("net-identity@jacek4yang.github.io");
-    expect(gecko?.strict_min_version).toBe("128.0");
+    expect(gecko?.strict_min_version).toBe("140.0");
     // No upper bound: the extension must keep working on newer Firefox builds.
     expect(gecko?.strict_max_version).toBeUndefined();
   });
@@ -95,6 +95,7 @@ describe("manifest", () => {
       expect(DATA_CATEGORIES, `unknown data category ${entry}`).toContain(entry);
     }
     expect(declared?.required).toContain("locationInfo");
+    expect(declared?.optional).toContain("personallyIdentifyingInfo");
   });
 
   it("runs both content scripts at document_start, with the shim in the page world", () => {

@@ -116,12 +116,17 @@ The manifest declares:
 
 Reasoning, so a reviewer can verify it:
 
-- Automatic identity mode sends an HTTPS request to a third-party GeoIP provider
-  (`https://ipwho.is/…`) and stores the returned location data. That is location data
-  collected and transmitted off the device, so `none` would be false.
-- `personallyIdentifyingInfo` is listed as _optional_ because, with a **proxied**
-  profile, the IP the provider sees belongs to the proxy, while with a **direct**
-  profile it is the user's own address. The user chooses that mode per profile.
+- Automatic and manual activation can send an HTTPS request to a third-party GeoIP
+  provider (`https://ipwho.is/…`) and store the returned location data. That is location
+  data collected and transmitted off the device, so `none` would be false.
+- Firefox 140+ presents required `locationInfo` in the install prompt. The extension
+  does not run on older Firefox, so there is no second consent UI.
+- `personallyIdentifyingInfo` is _optional_ because a **direct** profile sends the
+  user's own public IP. A **proxied** profile sends the proxy's address and does not
+  need that optional grant. The direct lookup is refused until
+  `permissions.request({ data_collection: ["personallyIdentifyingInfo"] })` succeeds.
+- A fresh install does not create or activate a profile, so it does not contact the
+  provider.
 - `tests/manifest.test.ts` asserts that the declaration exists, uses only documented
   categories and is not `["none"]` while an automatic provider exists.
 

@@ -443,4 +443,52 @@ describe("background restart", () => {
     expect(state.activeProfileId).toBe(profile.id);
     expect(freshSession.providerResolveCount()).toBe(1);
   });
+
+  it("does not call the GeoIP provider for a direct profile without personal-data consent", async () => {
+    const harness = createHarness({
+      readDataCollection: async () => ({ apiAvailable: true, optionalGranted: [] }),
+    });
+    const profile = makeProfile({
+      id: "profile-direct-1",
+      proxy: { type: "direct", proxyDNS: false, bypassHosts: [] },
+      identity: {
+        mode: "manual",
+        latitude: 35,
+        longitude: 139,
+        accuracy: 1000,
+        timezone: "Asia/Tokyo",
+      },
+    });
+    await harness.saveProfile(profile);
+    const state = await harness.controller.activate(profile.id);
+
+    expect(harness.providerResolveCount()).toBe(0);
+    expect(state.lastError?.code).toBe("consent_required");
+    expect(state.identity.latitude).toBe(35);
+    expect(state.identity.timezone).toBe("Asia/Tokyo");
+    expect(state.status).toBe("ready");
+  });
+
+  it("calls the GeoIP provider for a proxied profile without the optional personal-data grant", async () => {
+    const harness = createHarness({
+      readDataCollection: async () => ({ apiAvailable: true, optionalGranted: [] }),
+    });
+    const profile = makeProfile({ id: "profile-proxied-consent" });
+    await harness.saveProfile(profile);
+    const state = await harness.controller.activate(profile.id);
+
+    expect(harness.providerResolveCount()).toBe(1);
+    expect(state.lastError).toBeUndefined();
+    expect(state.identity.publicIp).toBe(SAMPLE_GEO.ip);
+  });
+
+  it("does not call the GeoIP provider when the consent API is unavailable", async () => {
+    const harness = createHarness({
+      readDataCollection: async () => ({ apiAvailable: false, optionalGranted: [] }),
+    });
+    const profile = makeProfile({ id: "profile-no-api" });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+    expect(harness.providerResolveCount()).toBe(0);
+  });
 });

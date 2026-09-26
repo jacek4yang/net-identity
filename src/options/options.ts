@@ -21,7 +21,7 @@ import {
   parseStateResponse,
   type ProfilesResponse,
 } from "../shared/messages";
-import { onRuntimeMessage, request } from "../shared/runtime";
+import { ensureDirectIpConsent, onRuntimeMessage, request } from "../shared/runtime";
 import type { RuntimeState } from "../shared/state";
 import {
   credentialsIntentFrom,
@@ -358,6 +358,12 @@ async function saveProfile(): Promise<IdentityProfile | null> {
 async function activateSelected(): Promise<void> {
   const profile = await saveProfile();
   if (profile === null) return;
+  if (!(await ensureDirectIpConsent(profile.proxy.type))) {
+    showErrors([
+      "A direct profile would send your own public IP to the GeoIP provider. Allow that collection to continue.",
+    ]);
+    return;
+  }
   const response = await request(
     { type: "profiles:activate", profileId: profile.id },
     parseMutationResponse,

@@ -59,7 +59,7 @@ chore(deps): bump typescript
 4. `vitest run`
 5. `node scripts/build.mjs` (verifies the manifest references only emitted files)
 6. `node scripts/lint-extension.mjs` — every error **and** any unexpected warning fails;
-   the two allowed warnings about `data_collection_permissions` versus the 128.0 version
+   the allowed warning about Android `data_collection_permissions` versus the desktop-only
    floor are documented in `scripts/lint-extension.mjs`
 7. `npm run package`, then inspecting the zip contents
 
