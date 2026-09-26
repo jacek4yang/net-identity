@@ -3,6 +3,7 @@ import {
   buildProxyInfo,
   credentialsSupported,
   decideProxy,
+  createAuthAttemptTracker,
   decideProxyAuth,
   encodeBasicAuthorization,
   parseRequestUrl,
@@ -220,11 +221,8 @@ describe("decideProxy", () => {
 describe("decideProxyAuth", () => {
   const credentials: ProxyCredentials = { username: "user", password: "pw" };
 
-  it("answers a challenge from the configured proxy", () => {
+  it("answers only when both challenger host and port match", () => {
     const active = target({}, credentials);
-    expect(decideProxyAuth(active, { isProxy: true, challengerHost: "proxy.example.com" })).toEqual(
-      credentials,
-    );
     expect(
       decideProxyAuth(active, {
         isProxy: true,
@@ -232,13 +230,31 @@ describe("decideProxyAuth", () => {
         challengerPort: 8080,
       }),
     ).toEqual(credentials);
+    expect(
+      decideProxyAuth(active, {
+        isProxy: true,
+        challengerHost: "proxy.example.com.",
+        challengerPort: 8080,
+      }),
+    ).toEqual(credentials);
   });
 
-  it("matches on the configured port when the challenger host differs", () => {
+  it("fails closed when the host matches but the port does not, or the port matches another host", () => {
     const active = target({}, credentials);
     expect(
+      decideProxyAuth(active, {
+        isProxy: true,
+        challengerHost: "proxy.example.com",
+        challengerPort: 1,
+      }),
+    ).toBeNull();
+    expect(
       decideProxyAuth(active, { isProxy: true, challengerHost: "10.0.0.9", challengerPort: 8080 }),
-    ).toEqual(credentials);
+    ).toBeNull();
+    expect(
+      decideProxyAuth(active, { isProxy: true, challengerHost: "proxy.example.com" }),
+    ).toBeNull();
+    expect(decideProxyAuth(active, { isProxy: true, challengerPort: 8080 })).toBeNull();
   });
 
   it("never answers origin authentication challenges", () => {
@@ -248,7 +264,7 @@ describe("decideProxyAuth", () => {
     ).toBeNull();
   });
 
-  it("refuses when neither host nor port matches the active proxy", () => {
+  it("refuses when the challenger does not match the active proxy", () => {
     const active = target({}, credentials);
     expect(
       decideProxyAuth(active, {
@@ -274,6 +290,26 @@ describe("decideProxyAuth", () => {
         challengerPort: 1080,
       }),
     ).toBeNull();
+  });
+});
+
+describe("createAuthAttemptTracker", () => {
+  it("answers a request id once and again only after release", () => {
+    const tracker = createAuthAttemptTracker();
+    expect(tracker.claim("req-1")).toBe(true);
+    expect(tracker.claim("req-1")).toBe(false);
+    expect(tracker.claim("")).toBe(false);
+    tracker.release("req-1");
+    expect(tracker.claim("req-1")).toBe(true);
+  });
+
+  it("forgets the oldest id after the cap so the map stays bounded", () => {
+    const tracker = createAuthAttemptTracker(2);
+    expect(tracker.claim("a")).toBe(true);
+    expect(tracker.claim("b")).toBe(true);
+    expect(tracker.claim("c")).toBe(true);
+    expect(tracker.claim("a")).toBe(true);
+    expect(tracker.claim("c")).toBe(false);
   });
 });
 

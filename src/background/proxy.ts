@@ -169,10 +169,12 @@ export interface ProxyAuthCredentials {
  * Credentials are returned only when *all* of the following hold:
  *   1. Firefox reports the challenge came from a proxy (`isProxy`).
  *   2. The active profile is an HTTP/HTTPS proxy with stored credentials.
- *   3. The challenger matches the configured proxy host or proxy port.
+ *   3. The challenger host and port are both present and both match. A same-port
+ *      challenge from a different host, or a missing field, fails closed.
  *
  * Origin (`WWW-Authenticate`) challenges therefore can never receive proxy
- * credentials, which is the leak this function exists to prevent.
+ * credentials. Callers must also use {@link createAuthAttemptTracker} so a wrong
+ * password cannot be replayed on the same request.
  */
 export function decideProxyAuth(
   target: ActiveProxyTarget | null,
@@ -184,20 +186,48 @@ export function decideProxyAuth(
 
   const credentials = target.credentials;
   if (credentials === null) return null;
+  if (target.proxy.host === undefined || target.proxy.port === undefined) return null;
+  if (challenge.challengerHost === undefined || challenge.challengerPort === undefined) {
+    return null;
+  }
 
-  const proxyHost = target.proxy.host === undefined ? "" : normalizeHost(target.proxy.host);
-  const challengerHost =
-    challenge.challengerHost === undefined ? undefined : normalizeHost(challenge.challengerHost);
-  const hostMatches =
-    challengerHost !== undefined && challengerHost !== "" && challengerHost === proxyHost;
-  const portMatches =
-    challenge.challengerPort !== undefined &&
-    target.proxy.port !== undefined &&
-    challenge.challengerPort === target.proxy.port;
-
-  if (!hostMatches && !portMatches) return null;
+  const proxyHost = normalizeHost(target.proxy.host);
+  const challengerHost = normalizeHost(challenge.challengerHost);
+  if (challengerHost === "" || challengerHost !== proxyHost) return null;
+  if (challenge.challengerPort !== target.proxy.port) return null;
 
   return { username: credentials.username, password: credentials.password };
+}
+
+/**
+ * Remembers which webRequest ids have already been offered proxy credentials.
+ *
+ * A second `407` on the same request means the previous answer was rejected.
+ * Returning credentials again would loop. The id is released when the request
+ * completes or errors, and the map is capped so a missing completion event
+ * cannot grow without bound.
+ */
+export function createAuthAttemptTracker(limit = 256): {
+  claim(requestId: string): boolean;
+  release(requestId: string): void;
+} {
+  const answered = new Map<string, true>();
+  return {
+    claim(requestId: string): boolean {
+      if (requestId === "") return false;
+      if (answered.has(requestId)) return false;
+      answered.set(requestId, true);
+      while (answered.size > limit) {
+        const oldest = answered.keys().next().value;
+        if (oldest === undefined) break;
+        answered.delete(oldest);
+      }
+      return true;
+    },
+    release(requestId: string): void {
+      answered.delete(requestId);
+    },
+  };
 }
 
 export interface FirefoxProxySettingsLike {

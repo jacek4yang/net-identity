@@ -24,7 +24,7 @@ import { createActiveTargetStore } from "./active-target";
 import { createCredentialStore } from "./credentials";
 import { ActivationController } from "./identity";
 import { createMessageHandler, type SenderInfo } from "./messages";
-import { readFirefoxProxySettings } from "./proxy";
+import { createAuthAttemptTracker, readFirefoxProxySettings } from "./proxy";
 import {
   createUnavailableWebRtcController,
   createWebRtcController,
@@ -172,22 +172,37 @@ browser.proxy.onError.addListener((error) => {
 
 /**
  * Challenge-based proxy authentication (HTTP/HTTPS proxies only; Firefox never
- * calls this for SOCKS). Strict matching happens in `decideProxyAuth`, so origin
- * `WWW-Authenticate` challenges can never receive proxy credentials.
+ * calls this for SOCKS). Strict host-and-port matching happens in
+ * `decideProxyAuth`. Each request id is answered at most once so a rejected
+ * password is not replayed in a 407 loop.
  */
+const proxyAuthAttempts = createAuthAttemptTracker();
+
 browser.webRequest.onAuthRequired.addListener(
   (details) => {
+    const requestId = details.requestId;
+    if (typeof requestId !== "string" || !proxyAuthAttempts.claim(requestId)) return undefined;
     const credentials = controller.decideProxyAuth({
       isProxy: details.isProxy === true,
       challengerHost: details.challenger?.host,
       challengerPort: details.challenger?.port,
     });
-    if (credentials === null) return undefined;
+    if (credentials === null) {
+      proxyAuthAttempts.release(requestId);
+      return undefined;
+    }
     return { authCredentials: credentials };
   },
   { urls: ["<all_urls>"] },
   ["blocking"],
 );
+
+function releaseProxyAuthAttempt(details: { requestId: string }): void {
+  proxyAuthAttempts.release(details.requestId);
+}
+
+browser.webRequest.onCompleted.addListener(releaseProxyAuthAttempt, { urls: ["<all_urls>"] });
+browser.webRequest.onErrorOccurred.addListener(releaseProxyAuthAttempt, { urls: ["<all_urls>"] });
 
 const handleMessage = createMessageHandler({
   profiles: profileStore,

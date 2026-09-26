@@ -60,9 +60,11 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
 
 - **Origin vs proxy authentication.** `webRequest.onAuthRequired` returns credentials
   only when Firefox reports a proxy challenge (`isProxy === true`), the active profile is
-  an HTTP/HTTPS proxy with stored credentials, and the challenger matches the configured
-  proxy host or port. `WWW-Authenticate` challenges from websites can therefore never
-  receive proxy credentials.
+  an HTTP/HTTPS proxy with stored credentials, and the challenger host and port both
+  match that proxy. A missing field, a same-port challenge from another host, or a
+  repeated `407` for the same request receives no credentials. `WWW-Authenticate`
+  challenges from websites can therefore never receive proxy credentials. Preemptive
+  `proxyAuthorizationHeader` is unchanged.
 - **Geolocation fails closed.** While a profile is active, while activation is in
   flight, and until startup has committed an idle result, the page shim does not call
   `getCurrentPosition` or `watchPosition` on Firefox's implementation. A previous
