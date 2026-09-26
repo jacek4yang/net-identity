@@ -102,7 +102,11 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 - The timezone and geolocation shims are **compatibility shims, observable by
   sophisticated page scripts**. They are not a claim of fingerprinting invisibility, and
   `navigator.permissions.query` is not patched.
-- No telemetry, no analytics, no remote JavaScript.
+- The options page can load map images from `tile.openstreetmap.org` while it is open.
+  The tile address reveals the area on screen. Images are requested with no referrer.
+  No proxy credentials or profile secrets are attached. The map still accepts typed
+  coordinates when those images cannot load. No telemetry, no analytics, no remote
+  JavaScript.
 
 ## Requirements
 
@@ -263,10 +267,11 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 245 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 252 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
-  credential separation, message-router authorisation, the manifest contract.
+  credential separation, message-router authorisation, the manifest contract, and the
+  manual location map (projection, seeding, tile URLs).
 - `npm run check` – adds ESLint (type-aware), `tsc --noEmit`, a production-shaped build,
   and `web-ext lint` where _every_ error and any unexpected warning fails the build.
 - `npm run package` – builds and then inspects the zip: required entries present, and no

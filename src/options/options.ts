@@ -24,6 +24,17 @@ import {
 import { ensureDirectIpConsent, onRuntimeMessage, request } from "../shared/runtime";
 import type { RuntimeState } from "../shared/state";
 import {
+  accuracyRadiusPixels,
+  applyResolvedLocation,
+  latLngFromViewport,
+  panViewport,
+  seedBlankManualFields,
+  visibleTiles,
+  zoomToFitAccuracy,
+  type LocationSeed,
+  type MapViewport,
+} from "./location-map";
+import {
   credentialsIntentFrom,
   proxyFieldHints,
   toFormValues,
@@ -53,6 +64,13 @@ const ui = {
   modeAuto: requireElement<HTMLInputElement>("#field-mode-auto"),
   modeManual: requireElement<HTMLInputElement>("#field-mode-manual"),
   manualFields: requireElement<HTMLElement>("#manual-fields"),
+  mapSurface: requireElement<HTMLElement>("#location-map-surface"),
+  mapTiles: requireElement<HTMLElement>("#location-map-tiles"),
+  mapAccuracy: requireElement<HTMLElement>("#location-map-accuracy"),
+  mapMarker: requireElement<HTMLElement>("#location-map-marker"),
+  mapZoomIn: requireElement<HTMLButtonElement>("#map-zoom-in"),
+  mapZoomOut: requireElement<HTMLButtonElement>("#map-zoom-out"),
+  useGeoIpLocation: requireElement<HTMLButtonElement>("#use-geoip-location"),
   latitude: requireElement<HTMLInputElement>("#field-latitude"),
   longitude: requireElement<HTMLInputElement>("#field-longitude"),
   accuracy: requireElement<HTMLInputElement>("#field-accuracy"),
@@ -71,6 +89,11 @@ let profiles: IdentityProfile[] = [];
 let activeProfileId: string | null = null;
 let credentialProfileIds: string[] = [];
 let selectedId: string | null = null;
+let manualUserEdited = false;
+let resolvedSeed: LocationSeed | null = null;
+/** Null means the zoom follows the accuracy circle. A zoom button pins an explicit level. */
+let mapZoom: number | null = null;
+let mapDrag: { originX: number; originY: number; lastX: number; lastY: number } | null = null;
 
 function readForm(): ProfileFormValues {
   return {
@@ -105,6 +128,8 @@ function writeForm(values: ProfileFormValues): void {
   ui.bypass.value = values.bypassHosts;
   ui.modeAuto.checked = values.identityMode !== "manual";
   ui.modeManual.checked = values.identityMode === "manual";
+  manualUserEdited = false;
+  mapZoom = null;
   ui.latitude.value = values.latitude;
   ui.longitude.value = values.longitude;
   ui.accuracy.value = values.accuracy;
@@ -127,6 +152,96 @@ function selectedProfile(): IdentityProfile | null {
   return profiles.find((profile) => profile.id === selectedId) ?? null;
 }
 
+function displayedPoint(): { latitude: number; longitude: number; accuracy: number } {
+  if (!ui.modeManual.checked && resolvedSeed !== null) {
+    return {
+      latitude: resolvedSeed.latitude ?? 0,
+      longitude: resolvedSeed.longitude ?? 0,
+      accuracy: resolvedSeed.accuracy ?? 0,
+    };
+  }
+  const latitude = Number(ui.latitude.value);
+  const longitude = Number(ui.longitude.value);
+  const accuracy = Number(ui.accuracy.value);
+  return {
+    latitude: Number.isFinite(latitude) ? latitude : 0,
+    longitude: Number.isFinite(longitude) ? longitude : 0,
+    accuracy: Number.isFinite(accuracy) ? accuracy : 0,
+  };
+}
+
+function mapViewport(): MapViewport {
+  const point = displayedPoint();
+  const height = ui.mapSurface.clientHeight || 280;
+  return {
+    width: ui.mapSurface.clientWidth || 640,
+    height,
+    zoom: mapZoom ?? zoomToFitAccuracy(point.latitude, point.accuracy, height),
+    center: { latitude: point.latitude, longitude: point.longitude },
+  };
+}
+
+function renderLocationMap(): void {
+  const viewport = mapViewport();
+  const point = displayedPoint();
+  const tiles = visibleTiles(viewport);
+  const existing = new Map<string, HTMLImageElement>();
+  for (const node of ui.mapTiles.querySelectorAll("img")) {
+    if (!(node instanceof HTMLImageElement)) continue;
+    const url = node.dataset["url"];
+    if (url === undefined) {
+      node.remove();
+      continue;
+    }
+    existing.set(url, node);
+  }
+  const next = new Set(tiles.map((tile) => tile.url));
+  for (const [url, image] of existing) {
+    if (!next.has(url)) image.remove();
+  }
+  for (const tile of tiles) {
+    let image = existing.get(tile.url);
+    if (image === undefined) {
+      const created = document.createElement("img");
+      created.alt = "";
+      created.referrerPolicy = "no-referrer";
+      created.dataset["url"] = tile.url;
+      created.src = tile.url;
+      created.addEventListener("error", () => {
+        created.remove();
+      });
+      ui.mapTiles.append(created);
+      image = created;
+    }
+    image.style.left = `${tile.left}px`;
+    image.style.top = `${tile.top}px`;
+  }
+
+  const radius = accuracyRadiusPixels(point.latitude, point.accuracy, viewport.zoom);
+  if (radius <= 0) {
+    ui.mapAccuracy.hidden = true;
+  } else {
+    ui.mapAccuracy.hidden = false;
+    const diameter = radius * 2;
+    ui.mapAccuracy.style.width = `${diameter}px`;
+    ui.mapAccuracy.style.height = `${diameter}px`;
+    ui.mapAccuracy.style.marginLeft = `${-radius}px`;
+    ui.mapAccuracy.style.marginTop = `${-radius}px`;
+  }
+  const previewWithoutPoint =
+    !ui.modeManual.checked &&
+    (resolvedSeed?.latitude === undefined || resolvedSeed?.longitude === undefined);
+  ui.mapMarker.hidden = previewWithoutPoint;
+  ui.mapSurface.classList.toggle("is-grabbing", mapDrag !== null);
+}
+
+function setManualPoint(latitude: number, longitude: number, edited: boolean): void {
+  ui.latitude.value = String(Math.round(latitude * 1e6) / 1e6);
+  ui.longitude.value = String(Math.round(longitude * 1e6) / 1e6);
+  if (edited) manualUserEdited = true;
+  renderLocationMap();
+}
+
 function updateVisibility(): void {
   const isDirect = ui.proxyType.value === "direct";
   const isManual = ui.modeManual.checked;
@@ -134,6 +249,8 @@ function updateVisibility(): void {
 
   ui.proxyAddressFields.hidden = isDirect;
   ui.manualFields.hidden = !isManual;
+  ui.mapSurface.classList.toggle("is-preview", !isManual);
+  renderLocationMap();
   ui.removeCredentials.parentElement?.toggleAttribute("hidden", !hasCredentials);
 
   clear(ui.hints);
@@ -213,6 +330,12 @@ function selectProfile(profileId: string | null): void {
 }
 
 function renderStatus(state: RuntimeState): void {
+  resolvedSeed = {
+    latitude: state.identity.latitude,
+    longitude: state.identity.longitude,
+    accuracy: state.identity.accuracy,
+    timezone: state.identity.timezone,
+  };
   clear(ui.status);
 
   const addRow = (label: string, value: string, status: string): void => {
@@ -285,6 +408,7 @@ function renderStatus(state: RuntimeState): void {
   if (state.lastError !== undefined) {
     addRow("Last error", state.lastError.message, "error");
   }
+  renderLocationMap();
 }
 
 async function reload(selectAfter: string | null = null): Promise<ProfilesResponse | null> {
@@ -481,7 +605,109 @@ ui.modeAuto.addEventListener("change", () => {
 });
 
 ui.modeManual.addEventListener("change", () => {
+  if (ui.modeManual.checked && !manualUserEdited) {
+    const seeded = seedBlankManualFields(
+      {
+        latitude: ui.latitude.value,
+        longitude: ui.longitude.value,
+        accuracy: ui.accuracy.value,
+        timezone: ui.timezone.value,
+      },
+      resolvedSeed,
+      false,
+    );
+    ui.latitude.value = seeded.latitude;
+    ui.longitude.value = seeded.longitude;
+    ui.accuracy.value = seeded.accuracy;
+    ui.timezone.value = seeded.timezone;
+  }
   updateVisibility();
+});
+
+ui.latitude.addEventListener("input", () => {
+  manualUserEdited = true;
+  renderLocationMap();
+});
+ui.longitude.addEventListener("input", () => {
+  manualUserEdited = true;
+  renderLocationMap();
+});
+ui.accuracy.addEventListener("input", () => {
+  renderLocationMap();
+});
+
+ui.useGeoIpLocation.addEventListener("click", () => {
+  if (resolvedSeed === null) return;
+  const next = applyResolvedLocation(
+    {
+      latitude: ui.latitude.value,
+      longitude: ui.longitude.value,
+      accuracy: ui.accuracy.value,
+      timezone: ui.timezone.value,
+    },
+    resolvedSeed,
+  );
+  ui.modeManual.checked = true;
+  ui.modeAuto.checked = false;
+  ui.latitude.value = next.latitude;
+  ui.longitude.value = next.longitude;
+  ui.accuracy.value = next.accuracy;
+  ui.timezone.value = next.timezone;
+  manualUserEdited = false;
+  mapZoom = null;
+  updateVisibility();
+});
+
+function adjustZoom(delta: number): void {
+  const viewport = mapViewport();
+  mapZoom = Math.min(16, Math.max(2, viewport.zoom + delta));
+  renderLocationMap();
+}
+
+ui.mapZoomIn.addEventListener("click", () => {
+  adjustZoom(1);
+});
+
+ui.mapZoomOut.addEventListener("click", () => {
+  adjustZoom(-1);
+});
+
+ui.mapSurface.addEventListener("pointerdown", (event) => {
+  if (!ui.modeManual.checked) return;
+  if (event.target instanceof HTMLButtonElement) return;
+  mapDrag = {
+    originX: event.clientX,
+    originY: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
+  };
+  ui.mapSurface.setPointerCapture(event.pointerId);
+  ui.mapSurface.classList.add("is-grabbing");
+});
+
+ui.mapSurface.addEventListener("pointermove", (event) => {
+  if (mapDrag === null) return;
+  const moved = panViewport(
+    mapViewport(),
+    event.clientX - mapDrag.lastX,
+    event.clientY - mapDrag.lastY,
+  );
+  mapDrag = { ...mapDrag, lastX: event.clientX, lastY: event.clientY };
+  setManualPoint(moved.latitude, moved.longitude, true);
+});
+
+ui.mapSurface.addEventListener("pointerup", (event) => {
+  if (mapDrag === null) return;
+  const distance = Math.hypot(event.clientX - mapDrag.originX, event.clientY - mapDrag.originY);
+  mapDrag = null;
+  ui.mapSurface.classList.remove("is-grabbing");
+  if (distance > 4) return;
+  const bounds = ui.mapSurface.getBoundingClientRect();
+  const picked = latLngFromViewport(mapViewport(), {
+    x: event.clientX - bounds.left,
+    y: event.clientY - bounds.top,
+  });
+  setManualPoint(picked.latitude, picked.longitude, true);
 });
 
 onRuntimeMessage(async (message) => {

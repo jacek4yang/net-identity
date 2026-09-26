@@ -100,23 +100,51 @@
             </label>
           </fieldset>
 
-          <div class="grid" id="manual-fields">
-            <label class="field">
-              <span class="field-label">Latitude</span>
-              <input id="field-latitude" type="number" step="any" min="-90" max="90" />
-            </label>
-            <label class="field">
-              <span class="field-label">Longitude</span>
-              <input id="field-longitude" type="number" step="any" min="-180" max="180" />
-            </label>
-            <label class="field">
-              <span class="field-label">Accuracy (metres)</span>
-              <input id="field-accuracy" type="number" min="1" step="1" />
-            </label>
-            <label class="field">
-              <span class="field-label">Timezone (IANA)</span>
-              <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
-            </label>
+          <div class="location-map" id="location-map">
+            <div
+              class="location-map-surface"
+              id="location-map-surface"
+              role="application"
+              aria-label="Location map"
+            >
+              <div class="location-map-tiles" id="location-map-tiles"></div>
+              <div class="location-map-accuracy" id="location-map-accuracy" hidden></div>
+              <div class="location-map-marker" id="location-map-marker"></div>
+              <div class="location-map-zoom">
+                <button id="map-zoom-in" type="button" aria-label="Zoom in">+</button>
+                <button id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
+              </div>
+            </div>
+            <p class="hint">
+              Automatic mode previews the resolved location. Manual mode lets you click or drag the
+              map; the centre pin and the latitude and longitude fields stay in sync, and they still
+              work if tiles cannot load. The circle is the accuracy pages will see. Tiles are images
+              from tile.openstreetmap.org, requested only while this page shows the map, with no
+              referrer. The tile address reveals the area on screen. No proxy credentials or profile
+              secrets are sent.
+            </p>
+            <button id="use-geoip-location" type="button">Use GeoIP location</button>
+          </div>
+
+          <div id="manual-fields">
+            <div class="grid">
+              <label class="field">
+                <span class="field-label">Latitude</span>
+                <input id="field-latitude" type="number" step="any" min="-90" max="90" />
+              </label>
+              <label class="field">
+                <span class="field-label">Longitude</span>
+                <input id="field-longitude" type="number" step="any" min="-180" max="180" />
+              </label>
+              <label class="field">
+                <span class="field-label">Accuracy (metres)</span>
+                <input id="field-accuracy" type="number" min="1" step="1" />
+              </label>
+              <label class="field">
+                <span class="field-label">Timezone (IANA)</span>
+                <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
+              </label>
+            </div>
           </div>
 
           <label class="field">
@@ -154,9 +182,11 @@
 
     <footer class="page-footer">
       <p>
-        Automatic profiles request the active proxy egress IP from a third-party GeoIP provider
-        (ipwho.is) over HTTPS. That provider sees the proxy's public IP, never this browser's real
-        one. No telemetry, no analytics and no remotely loaded code.
+        Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that
+        provider the proxy address. A direct profile shows it your own public IP, and only after you
+        allow that collection. Map tiles, while this page is open, are images from
+        tile.openstreetmap.org. The tile address reveals the area on screen. No telemetry and no
+        remotely loaded code.
       </p>
       <p>
         Page-level geolocation and timezone changes are compatibility shims. They are observable by
