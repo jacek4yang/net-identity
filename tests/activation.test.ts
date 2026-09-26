@@ -222,7 +222,7 @@ describe("activation", () => {
     expect(JSON.stringify(stored).toLowerCase()).not.toContain("password");
   });
 
-  it("deactivates: clears routing, restores the WebRTC default and stops spoofing", async () => {
+  it("deactivates: clears routing, relinquishes WebRTC control and stops spoofing", async () => {
     const harness = createHarness();
     const profile = makeProfile({ id: "profile-0008" });
     await harness.saveProfile(profile);
@@ -236,7 +236,8 @@ describe("activation", () => {
     expect(await harness.controller.decideProxyForRequest("https://example.com/")).toEqual({
       type: "direct",
     });
-    expect(harness.webrtcSetting.stored.value).toBe("default");
+    expect(harness.webrtcSetting.clearCalls).toBe(1);
+    expect(harness.webrtcSetting.stored.value).toBe(harness.webrtcSetting.baseline);
     expect(harness.sessionArea.snapshot()["ni.active-target.v1"]).toBeUndefined();
     expect(await harness.storedActiveProfileId()).toBeNull();
     // The last envelope tells pages to go back to native behaviour.

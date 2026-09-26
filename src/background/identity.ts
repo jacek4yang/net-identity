@@ -417,7 +417,7 @@ export class ActivationController {
     return this.activate(profileId);
   }
 
-  /** Clears routing, restores the browser-default WebRTC policy and stops spoofing. */
+  /** Clears routing, relinquishes the WebRTC override and stops spoofing. */
   async deactivate(): Promise<RuntimeState> {
     try {
       this.generation += 1;
@@ -427,7 +427,7 @@ export class ActivationController {
       this.content = { ...EMPTY_CONTENT_STATE };
       await this.deps.targets.clear();
       await mutateProfiles(this.deps.profiles, (current) => setActiveProfile(current, null));
-      const webrtc = await this.deps.webrtc.apply("default");
+      const webrtc = await this.deps.webrtc.release();
       return await this.commit(
         await this.composeState({
           status: "idle",

@@ -111,9 +111,9 @@ validate profile
   generation is discarded (see `tests/activation.test.ts`).
 - The previous in-flight lookup is cancelled through an `AbortController`.
 - Identity is never derived from the proxy server's hostname.
-- `deactivate()` clears routing, restores the WebRTC `default` policy, clears the
-  snapshot and publishes `payload: null` with `controlled: false` so pages revert to
-  native behaviour.
+- `deactivate()` clears routing, calls `webRTCIPHandlingPolicy.clear()` so Firefox
+  restores the previously effective value, clears the snapshot and publishes
+  `payload: null` with `controlled: false` so pages revert to native behaviour.
 - Until that idle envelope is committed — including during startup, activation,
   refresh and provider failure — the geolocation shim does not call Firefox's
   implementation. It keeps the previous synthetic position when it has one.

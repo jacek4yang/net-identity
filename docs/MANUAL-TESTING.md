@@ -105,7 +105,9 @@ node scripts/dev-proxy.mjs --port 8080 --require-auth user:pass
 1. Activate a proxy profile and open `about:config` → `privacy.network.webRTCIPHandlingPolicy`
    → it should be `disable_non_proxied_udp` (the default for proxy profiles).
 2. Switch the profile to `proxy_only`, save and reactivate → the pref follows.
-3. Deactivate the profile → the pref returns to `default`.
+3. Deactivate the profile → the pref returns to whatever was effective before
+   activation (often `default`, but a prior user or enterprise value must come back).
+   It must not be overwritten with `default` when that was not the previous value.
 4. If another extension controls the preference, the popup must say _controlled by
    another extension_ rather than claiming success.
 
