@@ -168,6 +168,12 @@ export class ActivationController {
    * cannot leak the host position.
    */
   private initialized = false;
+  /**
+   * True while `deactivate()` is mid-transition. A WebRTC `onChange` fires during
+   * that window (the release writes the setting), and must not observe a
+   * profile-less state that still carries the old identity coordinates.
+   */
+  private deactivating = false;
 
   constructor(deps: ActivationDeps) {
     this.deps = deps;
@@ -193,6 +199,13 @@ export class ActivationController {
   }
 
   private buildEnvelope(pending: boolean): IdentityEnvelope {
+    // Identity coordinates belong to a profile. With no active profile there is
+    // nothing to publish, so a state that still carries the previous coordinates
+    // (a transition, or a setting refresh racing a deactivation) cannot leak them
+    // to pages.
+    if (this.state.activeProfileId === null) {
+      return createIdentityEnvelope(null, pending, this.isBusy());
+    }
     const payload = createPublicIdentity({
       generation: this.state.generation,
       latitude: this.state.identity.latitude,
@@ -200,7 +213,7 @@ export class ActivationController {
       accuracy: this.state.identity.accuracy,
       timezone: this.state.identity.timezone,
     });
-    return createIdentityEnvelope(payload, pending, this.state.activeProfileId !== null);
+    return createIdentityEnvelope(payload, pending, true);
   }
 
   /**
@@ -484,6 +497,7 @@ export class ActivationController {
 
   /** Clears routing, relinquishes the WebRTC override and stops spoofing. */
   async deactivate(): Promise<RuntimeState> {
+    this.deactivating = true;
     try {
       this.generation += 1;
       this.abortController?.abort();
@@ -514,6 +528,8 @@ export class ActivationController {
         "deactivate_failed",
         describeError(error, "Could not deactivate the profile."),
       );
+    } finally {
+      this.deactivating = false;
     }
   }
 
@@ -543,7 +559,11 @@ export class ActivationController {
    * Does not activate a profile, change generation, or write either setting.
    */
   async refreshObservedSettings(): Promise<RuntimeState> {
-    if (!this.initialized || this.isBusy()) return this.state;
+    // A setting `onChange` fires while `deactivate()` is releasing WebRTC control.
+    // Reading the state then would see a profile-less state that still carries the
+    // old identity coordinates and would re-publish them to pages. Wait for the
+    // transition to commit its idle state instead.
+    if (!this.initialized || this.isBusy() || this.deactivating) return this.state;
     const read = await this.deps.webrtc.read();
     const webrtc = describeObservedWebRtc(this.state.webrtc.desired, read);
     const state = await this.composeState({

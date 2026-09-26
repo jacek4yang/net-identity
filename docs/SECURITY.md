@@ -71,6 +71,12 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
   synthetic position is kept until the replacement identity is committed. If none is
   available the page receives a timeout or position-unavailable error. Native
   geolocation is used only after a committed idle envelope (`controlled: false`).
+- **A profile-less state never carries identity.** Publishing coordinates is bound to
+  `activeProfileId`. A page cannot receive the previous profile's latitude, longitude
+  or timezone after deactivation, and a proxy/WebRTC `onChange` that lands while
+  deactivation is releasing the WebRTC setting cannot resurrect them. Deactivation is
+  a single transition: setting-change refreshes are ignored until it commits its idle
+  state. `tests/activation.test.ts` pins both the state and the envelope.
 - **WebSocket egress follows the active proxy.** `ws:` and `wss:` use the same
   `decideProxy()` path as `http:`/`https:`, including the bypass list. While a proxied
   profile is active, a page cannot leave that proxy by opening a WebSocket. Non-network
