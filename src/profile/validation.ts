@@ -296,6 +296,11 @@ export function parseProfile(input: unknown): Result<IdentityProfile> {
   });
 }
 
+/**
+ * Parses a document that is already the current schema. Invalid profiles are
+ * skipped. Stored data goes through `migrateStoredProfileState` instead, which
+ * refuses to drop a profile or replace a newer schema.
+ */
 export function parseProfileState(input: unknown): Result<ProfileState> {
   if (!isPlainObject(input)) return fail("stored profile state is not an object");
   if (input.schemaVersion !== SCHEMA_VERSION) {

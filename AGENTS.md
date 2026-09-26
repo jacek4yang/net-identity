@@ -144,9 +144,17 @@ Storage layout:
 
 | Key                      | Area              | Contents                                                                  |
 | ------------------------ | ----------------- | ------------------------------------------------------------------------- |
-| `ni.state.v1`            | `storage.local`   | profiles + `activeProfileId`. **Never** a password.                       |
+| `ni.state.v1`            | `storage.local`   | profiles + `activeProfileId`. **Never** a password. Schema version 1.     |
 | `ni.cred.v1.<profileId>` | `storage.session` | `{ username, password }`. Cleared when Firefox exits.                     |
 | `ni.active-target.v1`    | `storage.session` | active target snapshot incl. credentials (needed for cold-start routing). |
+
+Durable profile documents are migrated by `src/profile/migrate.ts`. Version 1 is the
+only released shape. A password key found in that document is removed and not written
+back. A higher `schemaVersion`, or a version-1 profile that cannot be parsed without
+dropping the profile or its proxy, is left byte-for-byte in storage. Startup then stays
+idle and reports `schema_unsupported` instead of activating a direct connection. Session
+snapshots are not copied into `storage.local`. Bump `SCHEMA_VERSION` and add a migration
+step before changing the stored shape.
 
 ## 7. Data collection
 

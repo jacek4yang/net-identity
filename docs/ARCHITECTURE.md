@@ -137,6 +137,17 @@ Geolocation positions are built from the real prototype with own enumerable prop
 so `instanceof GeolocationPosition`, property access and `JSON.stringify` behave as pages
 expect. This is verified in real Firefox by `npm run e2e`.
 
+## Profile schema migration
+
+`ni.state.v1` in `storage.local` is the only durable profile document. `src/profile/migrate.ts`
+reads it. Version 1 is canonicalised in place: unknown keys are dropped, and `password`,
+`credentials` and `proxyPassword` are never copied into the result. The same function is
+idempotent. A newer integer `schemaVersion` is not opened and not replaced. A version-1
+document that fails validation, repeats an id, or exceeds the profile limit is not
+replaced either, so a missing proxy host cannot be saved back as `direct`. In those held
+cases the background stays idle and publishes `schema_unsupported`. The session snapshot
+stays in `storage.session` and is not migrated into the local document.
+
 ## Options location map
 
 Manual coordinates are still a profile field. The options page projects them with a

@@ -228,6 +228,15 @@ export class ActivationController {
       // this read was in flight, publishing idle here would release geolocation
       // while a profile is actually active.
       if (this.generation !== epoch) return this.state;
+      const migrationWarning = this.deps.profiles.migrationWarning();
+      if (migrationWarning !== null) {
+        const idle = await this.composeIdleState(this.generation, {
+          code: "schema_unsupported",
+          message: migrationWarning,
+        });
+        if (this.generation !== epoch) return this.state;
+        return await this.commit(idle, false);
+      }
       if (stored.activeProfileId === null) {
         const idle = await this.composeIdleState(this.generation);
         if (this.generation !== epoch) return this.state;
@@ -537,7 +546,10 @@ export class ActivationController {
     await this.deps.broadcastState(state);
   }
 
-  private async composeIdleState(generation: number): Promise<RuntimeState> {
+  private async composeIdleState(
+    generation: number,
+    lastError?: RuntimeErrorInfo,
+  ): Promise<RuntimeState> {
     return await this.composeState({
       status: "idle",
       generation,
@@ -547,6 +559,7 @@ export class ActivationController {
       webrtc: createPendingWebRtcState("default"),
       providerFailed: false,
       content: { ...EMPTY_CONTENT_STATE },
+      ...(lastError === undefined ? {} : { lastError }),
     });
   }
 

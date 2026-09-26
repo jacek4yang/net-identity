@@ -48,13 +48,25 @@ describe("profile store", () => {
     expect(await store.load()).toEqual(EMPTY_PROFILE_STATE);
   });
 
-  it("degrades to an empty state when the schema version is unknown", async () => {
-    const store = createProfileStore(
-      createMemoryStorage({
-        [STORAGE_KEY]: { schemaVersion: 42, activeProfileId: null, profiles: [] },
-      }),
-    );
+  it("leaves a newer schema untouched and refuses to overwrite it", async () => {
+    const stored = {
+      schemaVersion: 42,
+      activeProfileId: "profile-0001",
+      profiles: [makeProfile({ id: "profile-0001", name: "future" })],
+    };
+    const area = createMemoryStorage({ [STORAGE_KEY]: stored });
+    const before = area.serialized();
+    const store = createProfileStore(area);
+
     expect(await store.load()).toEqual(EMPTY_PROFILE_STATE);
+    expect(store.migrationWarning()).toContain("42");
+    expect(area.serialized()).toBe(before);
+
+    const written = await mutateProfiles(store, (state) =>
+      upsertProfile(state, makeProfile({ id: "profile-0008" })),
+    );
+    expect(written.ok).toBe(false);
+    expect(area.serialized()).toBe(before);
   });
 
   it("serialises concurrent mutations without losing updates", async () => {
