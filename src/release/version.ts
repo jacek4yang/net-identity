@@ -92,6 +92,20 @@ export interface ReleasePullRequest {
   title: string;
 }
 
+const RELEASE_PREAMBLE = [
+  "Ordinary Firefox users install and update this extension from addons.mozilla.org after Mozilla approves the listed submission.",
+  "The files attached here are the tested submission package, the human-readable source archive, and checksums. They are not a signed substitute for the AMO install.",
+  "",
+].join("\n");
+
+/**
+ * GitHub Release text. The preamble states the install channel; the list is only the
+ * supplied pull requests, never an invented changelog.
+ */
+export function formatGithubReleaseBody(pulls: readonly ReleasePullRequest[]): string {
+  return `${RELEASE_PREAMBLE}\n${formatReleaseNotes(pulls)}`;
+}
+
 /** Notes contain only the supplied pull requests. An empty list does not invent changes. */
 export function formatReleaseNotes(pulls: readonly ReleasePullRequest[]): string {
   if (pulls.length === 0) return "No pull requests were provided for these notes.\n";

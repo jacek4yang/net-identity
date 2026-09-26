@@ -78,3 +78,58 @@ jobs:
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: node scripts/submit-listed.mjs --source-dir dist --source-code net-identity-source.zip
+
+  # The public engineering record for the tag. It needs the checks, the browser gate and
+  # a successful AMO submission, so a release is never created from a failed run. It is
+  # idempotent: a rerun edits the existing release and replaces its assets.
+  publish:
+    name: publish
+    needs: [quality, firefox, submit]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the production package
+        run: npm run package
+
+      - name: Archive human-readable source
+        run: git archive --format=zip --output=net-identity-source.zip HEAD
+
+      - name: Write checksums and machine-readable release metadata
+        run: node --experimental-strip-types src/release/write-metadata.ts artifacts/*.zip net-identity-source.zip
+
+      - name: Write release notes from merged pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr list --state merged --base main --limit 100 --json number,title > pulls.json
+          node --experimental-strip-types src/release/write-notes.ts
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          files=(artifacts/*.zip net-identity-source.zip SHA256SUMS.txt release-metadata.json)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "net-identity $tag" --notes-file release.md
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" --title "net-identity $tag" --notes-file release.md "${files[@]}"
+          fi

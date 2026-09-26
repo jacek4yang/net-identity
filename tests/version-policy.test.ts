@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { checkReleaseVersion, formatReleaseNotes } from "../src/release/version";
+import {
+  checkReleaseVersion,
+  formatGithubReleaseBody,
+  formatReleaseNotes,
+} from "../src/release/version";
 
 const current = {
   packageVersion: "0.2.0",
@@ -49,5 +53,12 @@ describe("release version policy", () => {
       "- #42 fix: remember the snapshot\n",
     );
     expect(() => formatReleaseNotes([{ number: 1, title: "" }])).toThrow(/title/);
+  });
+
+  it("points the GitHub Release at AMO rather than the unsigned package", () => {
+    const body = formatGithubReleaseBody([{ number: 44, title: "feat: check versions" }]);
+    expect(body).toContain("addons.mozilla.org");
+    expect(body).toContain("not a signed substitute");
+    expect(body).toContain("#44 feat: check versions");
   });
 });

@@ -45,9 +45,27 @@ The tag push starts `.github/workflows/release.yml`, which:
 3. runs the `firefox` job (the same reusable real-Firefox invariants as pull-request CI);
 4. only then, in `submit`, builds the production package, archives human-readable source,
    and submits the version to AMO with `web-ext sign --channel=listed` using
-   `amo-metadata.json` and `--upload-source-code`.
+   `amo-metadata.json` and `--upload-source-code`;
+5. in `publish`, creates or updates the GitHub Release from the tested tag.
 
 A `workflow_dispatch` run repeats steps 1–3 only. It never submits and never publishes.
+
+## What the GitHub Release is
+
+It is the engineering record for the tag. `publish` runs only after `quality`, the
+`firefox` gate and the AMO `submit` job succeeded, so a failed gate or a missing AMO
+credential means no release is created. It attaches:
+
+- the production package that was submitted to AMO (`artifacts/*.zip`);
+- the human-readable source archive (`net-identity-source.zip`);
+- `SHA256SUMS.txt`, a `sha256sum`-compatible checksum file;
+- `release-metadata.json`, the machine-readable manifest tying the version, tag, commit,
+  extension id and artifact hashes together.
+
+Release notes list only the merged pull-request titles for that tag, with a preamble
+that points ordinary users at AMO. A rerun for an existing tag edits the release and
+replaces its assets instead of failing. The attached unsigned zip is labeled as the
+submission artifact, never as the user installer.
 
 ## Submission is not approval
 
