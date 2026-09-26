@@ -61,6 +61,10 @@ node scripts/dev-proxy.mjs --port 8080
    loopback is bypassed.
 5. GeoIP check: the provider request must also appear in the proxy log (the GeoIP
    endpoint is deliberately not bypassed).
+6. WebSocket check: from a page console, open `new WebSocket("wss://example.com/")` (and
+   a `ws://` URL). The proxy log must show that connection. A WebSocket to
+   `ws://127.0.0.1/` must not, because loopback is bypassed. `npm run e2e:websocket`
+   runs this against a local proxy in real Firefox.
 
 ## 5. Challenge-based proxy authentication
 

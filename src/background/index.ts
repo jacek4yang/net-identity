@@ -149,6 +149,9 @@ const controller = new ActivationController({
 // Dynamic proxy decisions. Firefox explicitly allows this listener to return a
 // Promise resolving to ProxyInfo (the session-snapshot fallback depends on that),
 // which the bundled `void`-returning callback type cannot express.
+// `<all_urls>` includes http(s) and ws(s). `decideProxy` then routes those four
+// schemes and leaves internal URLs direct; narrowing the filter would let a
+// WebSocket bypass the active profile.
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 browser.proxy.onRequest.addListener((details) => controller.decideProxyForRequest(details.url), {
   urls: ["<all_urls>"],

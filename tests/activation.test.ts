@@ -352,7 +352,13 @@ describe("background restart", () => {
     expect(decision.type).toBe("http");
     expect(decision.host).toBe("127.0.0.1");
 
-    // A loopback bypass still applies while restoring.
+    // WebSocket traffic uses the same restored route. A loopback bypass still applies.
+    const websocket = await restarted.controller.decideProxyForRequest("wss://example.com/socket");
+    expect(websocket.type).toBe("http");
+    expect(websocket.host).toBe("127.0.0.1");
+    expect(await restarted.controller.decideProxyForRequest("ws://localhost/socket")).toEqual({
+      type: "direct",
+    });
     expect(await restarted.controller.decideProxyForRequest("http://localhost:3000/")).toEqual({
       type: "direct",
     });
@@ -361,6 +367,9 @@ describe("background restart", () => {
   it("is direct when there is no session snapshot", async () => {
     const harness = createHarness();
     expect(await harness.controller.decideProxyForRequest("https://example.com/")).toEqual({
+      type: "direct",
+    });
+    expect(await harness.controller.decideProxyForRequest("wss://example.com/socket")).toEqual({
       type: "direct",
     });
   });

@@ -151,12 +151,13 @@ On Windows with Firefox Developer Edition in its default location:
 npm run dev -- --firefox="C:\Program Files\Firefox Developer Edition\firefox.exe"
 ```
 
-The Windows path is never hard-coded in project logic — pass it when you need it. For an
-automated real-browser check (extension install, identity resolution, page-visible
-timezone and geolocation):
+The Windows path is never hard-coded in project logic — pass it when you need it. For
+automated real-browser checks (extension install, identity resolution, page-visible
+timezone and geolocation, and WebSocket proxy routing):
 
 ```bash
 npm run e2e
+npm run e2e:websocket
 ```
 
 ## Creating a profile
@@ -185,6 +186,10 @@ npm run e2e
 Bypass lists accept bare hosts, `*.domain`, IP literals and IPv4 CIDR ranges.
 `localhost`, `127.0.0.1` and `::1` are always bypassed. The GeoIP endpoint is
 deliberately **not** bypassed: it must observe the proxy egress.
+
+`http`, `https`, `ws` and `wss` all use that decision, so a page cannot leave an active
+proxy by opening a WebSocket. Other schemes (`about:`, `file:`, extension pages, `data:`)
+stay direct.
 
 ## Geolocation behaviour
 
@@ -246,7 +251,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 215 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 217 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract.
@@ -257,6 +262,8 @@ tests/            vitest unit tests (no browser required)
 - `npm run e2e` – launches real Firefox, activates the default profile, and asserts what
   a page observes (shim installed, timezone and offset matching the resolved identity,
   geolocation coordinates matching the provider with the coarse accuracy).
+- `npm run e2e:websocket` – launches real Firefox with a local HTTP proxy profile and
+  asserts that `ws`/`wss` reach that proxy while a loopback WebSocket stays bypassed.
 
 Manual proxy verification (including `407` authentication) uses the bundled test proxy:
 
