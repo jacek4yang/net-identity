@@ -162,6 +162,14 @@ the options page is showing the map, with no referrer. Indexes that fall outside
 zoom are omitted. The CSS grid under the images is the offline surface, so coordinate
 entry does not depend on the tile host. No script is loaded from that host.
 
+## Setting changes after activation
+
+`browser.proxy.settings.onChange` and `privacy.network.webRTCIPHandlingPolicy.onChange`
+re-read those settings and broadcast the audit. The handlers do not call `set` or
+`clear`, and a WebRTC event whose value and `levelOfControl` already match the
+published state is ignored, so this extension's own write does not loop. The profile
+is not activated again and its generation does not change.
+
 ## Page-shim diagnostics
 
 Each content-script report is stored by tab id and frame id. Those ids come from

@@ -35,6 +35,63 @@ export interface WebRtcController {
   release(): Promise<WebRtcRuntimeState>;
 }
 
+/**
+ * True when an `onChange` event is the echo of a value this extension already
+ * published. A different value or a different `levelOfControl` is external.
+ */
+export function isOwnWebRtcEcho(
+  state: WebRtcRuntimeState,
+  change: { value: unknown; levelOfControl?: string },
+): boolean {
+  if (typeof change.value !== "string" || change.value !== state.actual) return false;
+  if (change.levelOfControl === undefined) return true;
+  return change.levelOfControl === state.levelOfControl;
+}
+
+/**
+ * Describes the setting Firefox is exposing now, without writing it.
+ * `desired` stays the profile's policy so a later external value is visible.
+ */
+export function describeObservedWebRtc(
+  desired: WebRTCPolicy,
+  read: WebRtcReadResult,
+): WebRtcRuntimeState {
+  if (
+    read.levelOfControl === "not_controllable" ||
+    read.levelOfControl === "controlled_by_other_extensions"
+  ) {
+    return {
+      desired,
+      levelOfControl: read.levelOfControl,
+      status:
+        read.levelOfControl === "not_controllable" ? "not_controllable" : "controlled_by_other",
+      ...(read.value === undefined ? {} : { actual: read.value }),
+      message:
+        read.levelOfControl === "not_controllable"
+          ? "This Firefox build does not allow extensions to change the WebRTC policy."
+          : "Another extension controls the WebRTC policy; net-identity did not change it.",
+    };
+  }
+  if (read.value === desired) {
+    return { desired, levelOfControl: read.levelOfControl, status: "already", actual: desired };
+  }
+  if (read.value === undefined) {
+    return {
+      desired,
+      levelOfControl: read.levelOfControl,
+      status: "error",
+      message: "The WebRTC policy could not be read on this Firefox build.",
+    };
+  }
+  return {
+    desired,
+    levelOfControl: read.levelOfControl,
+    status: "unsupported",
+    actual: read.value,
+    message: `Firefox is using "${read.value}" instead of "${desired}".`,
+  };
+}
+
 export function createPendingWebRtcState(desired: WebRTCPolicy): WebRtcRuntimeState {
   return { desired, levelOfControl: "unknown", status: "pending" };
 }

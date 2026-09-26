@@ -74,7 +74,7 @@ import {
   type ProxyAuthChallenge,
   type ProxyAuthCredentials,
 } from "./proxy";
-import { createPendingWebRtcState, type WebRtcController } from "./webrtc";
+import { createPendingWebRtcState, describeObservedWebRtc, type WebRtcController } from "./webrtc";
 
 export interface ActivationDeps {
   profiles: ProfileStore;
@@ -515,6 +515,37 @@ export class ActivationController {
       updatedAt: this.deps.now(),
     });
     this.replaceContent(this.snapshotContent(this.state.identity.timezone));
+  }
+
+  /**
+   * Re-reads Firefox proxy and WebRTC settings and broadcasts the audit.
+   * Does not activate a profile, change generation, or write either setting.
+   */
+  async refreshObservedSettings(): Promise<RuntimeState> {
+    if (!this.initialized || this.isBusy()) return this.state;
+    const read = await this.deps.webrtc.read();
+    const webrtc = describeObservedWebRtc(this.state.webrtc.desired, read);
+    const state = await this.composeState({
+      status: this.state.status,
+      generation: this.state.generation,
+      profile: this.currentProfileForCompose(),
+      hasCredentials: this.state.proxy.hasCredentials,
+      identity: this.state.identity,
+      webrtc,
+      providerFailed: this.state.lastError?.code === "provider_error",
+      content: this.content,
+      ...(this.state.lastError === undefined ? {} : { lastError: this.state.lastError }),
+    });
+    const unchanged =
+      state.firefoxProxy.proxyType === this.state.firefoxProxy.proxyType &&
+      state.firefoxProxy.levelOfControl === this.state.firefoxProxy.levelOfControl &&
+      state.webrtc.status === this.state.webrtc.status &&
+      state.webrtc.actual === this.state.webrtc.actual &&
+      state.webrtc.levelOfControl === this.state.webrtc.levelOfControl;
+    if (unchanged) return this.state;
+    this.state = state;
+    await this.deps.broadcastState(this.state);
+    return this.state;
   }
 
   /** Drops every frame of a tab that Firefox has closed. */

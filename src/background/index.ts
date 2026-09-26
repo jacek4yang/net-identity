@@ -29,7 +29,7 @@ import { createAuthAttemptTracker, readFirefoxProxySettings } from "./proxy";
 import {
   createUnavailableWebRtcController,
   createWebRtcController,
-  type WebRtcController,
+  isOwnWebRtcEcho,
   type WebRtcSettingLike,
 } from "./webrtc";
 
@@ -42,22 +42,22 @@ const targetStore = createActiveTargetStore(sessionArea);
 const geoProvider = createDefaultGeoIpProvider();
 
 /** Resolves the privacy setting, degrading gracefully on unusual builds. */
-function createWebRtc(): WebRtcController {
-  let setting: WebRtcSettingLike | null = null;
-  try {
-    setting = browser.privacy.network.webRTCIPHandlingPolicy;
-  } catch {
-    // Builds without the privacy API stay on the unavailable controller below.
-  }
-  if (setting === null || setting === undefined) {
-    return createUnavailableWebRtcController(
-      "This Firefox build does not expose privacy.network.webRTCIPHandlingPolicy.",
-    );
-  }
-  return createWebRtcController(setting);
-}
+const webrtcSetting = readWebRtcSetting();
+const webrtc =
+  webrtcSetting === null
+    ? createUnavailableWebRtcController(
+        "This Firefox build does not expose privacy.network.webRTCIPHandlingPolicy.",
+      )
+    : createWebRtcController(webrtcSetting);
 
-const webrtc = createWebRtc();
+function readWebRtcSetting(): WebRtcSettingLike | null {
+  try {
+    const setting = browser.privacy.network.webRTCIPHandlingPolicy;
+    return setting ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function broadcastState(state: RuntimeState): Promise<void> {
   try {
@@ -148,6 +148,36 @@ const controller = new ActivationController({
   },
   now,
 });
+
+subscribeToSettingChanges();
+
+/**
+ * Firefox can change proxy or WebRTC control after activation. Re-read the
+ * audit only. Writing the setting again would loop on our own `onChange`.
+ */
+function subscribeToSettingChanges(): void {
+  addSettingListener(browser.proxy.settings, () => {
+    void controller.refreshObservedSettings();
+  });
+  if (webrtcSetting !== null) {
+    addSettingListener(webrtcSetting, (details) => {
+      if (isOwnWebRtcEcho(controller.getState().webrtc, details)) return;
+      void controller.refreshObservedSettings();
+    });
+  }
+}
+
+function addSettingListener(
+  setting: object,
+  listener: (details: { value: unknown; levelOfControl?: string }) => void,
+): void {
+  if (!("onChange" in setting)) return;
+  const onChange = setting.onChange;
+  if (typeof onChange !== "object" || onChange === null || !("addListener" in onChange)) return;
+  const addListener = onChange.addListener;
+  if (typeof addListener !== "function") return;
+  addListener.call(onChange, listener);
+}
 
 /* ------------------------------------------------------------------ listeners */
 
