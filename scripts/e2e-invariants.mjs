@@ -249,6 +249,8 @@ function probePage(zone) {
     );
     function send(position) {
       const payload = {
+        at: Date.now(),
+        href: location.href,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         offsetMinutes: now.getTimezoneOffset(),
         localMatchesTarget: same(local, target),
@@ -283,6 +285,7 @@ const FRAME_PAGE = `<!doctype html><script>
 function startProbe(port) {
   let lastReport = null;
   let geoRequests = 0;
+  let reportCount = 0;
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url.startsWith("/geo")) {
@@ -308,6 +311,7 @@ function startProbe(port) {
       request.on("end", () => {
         try {
           lastReport = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+          reportCount += 1;
         } catch {
           log("received an unparsable report");
         }
@@ -329,8 +333,12 @@ function startProbe(port) {
         geoRequests() {
           return geoRequests;
         },
+        reportCount() {
+          return reportCount;
+        },
         reset() {
           lastReport = null;
+          reportCount = 0;
         },
       });
     });
@@ -587,13 +595,22 @@ async function main() {
       restored?.value === baseline.value,
       `WebRTC policy restored to ${baseline.value} (saw ${restored?.value})`,
     );
+    const stateAfterDeactivate = await client.send(
+      "WebDriver:ExecuteAsyncScript",
+      { script: CALL, args: [{ type: "state:get" }] },
+      40000,
+    );
+    const stateValue = (stateAfterDeactivate?.value ?? stateAfterDeactivate)?.value;
+    log(
+      `diagnostic: after deactivate status=${stateValue?.state?.status} activeProfileId=${stateValue?.state?.activeProfileId}`,
+    );
 
     probe.reset();
     await client.send("WebDriver:Navigate", { url: pageUrl });
     const released = await waitForReport(probe.read, isNativePosition, Date.now() + timeoutMs);
     if (released === null) {
       log(
-        `diagnostic: after deactivation the probe saw ${probe.geoRequests()} provider request(s); last report ${JSON.stringify(probe.read())}`,
+        `diagnostic: after deactivation the probe saw ${probe.geoRequests()} provider request(s) and ${probe.reportCount()} report(s); last report ${JSON.stringify(probe.read())}`,
       );
     }
     check(released !== null, "deactivation returns the native geolocation sentinel");
@@ -669,7 +686,7 @@ async function main() {
     );
     if (restoredNative === null) {
       log(
-        `diagnostic: after clearing the failed profile the probe saw ${probe.geoRequests()} provider request(s); last report ${JSON.stringify(probe.read())}`,
+        `diagnostic: after clearing the failed profile the probe saw ${probe.geoRequests()} provider request(s) and ${probe.reportCount()} report(s); last report ${JSON.stringify(probe.read())}`,
       );
     }
     check(
