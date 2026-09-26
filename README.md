@@ -122,7 +122,8 @@ first tagged release is submitted and reviewed, so this README does not link to 
 listing page yet. The reviewer package and the pre-submission checklist are in
 [`docs/AMO-REVIEW.md`](docs/AMO-REVIEW.md) and
 [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md); the privacy policy is
-[`docs/PRIVACY.md`](docs/PRIVACY.md).
+[`docs/PRIVACY.md`](docs/PRIVACY.md); the release process is
+[`docs/RELEASING.md`](docs/RELEASING.md).
 
 A GitHub Release for a tag is the engineering record: source, checksums and the
 package that was submitted. It is not the signed installer.
@@ -278,13 +279,14 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 287 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 293 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract, the
   manual location map (projection, seeding, tile URLs), profile schema migration,
   per-frame page-shim diagnostics, audit updates after external proxy or WebRTC setting
-  changes, the AMO reviewer metadata, and the real-Firefox CI gate.
+  changes, the AMO reviewer metadata, the real-Firefox CI gate, and the AMO submission
+  workflow.
 - `npm run check` – adds ESLint (type-aware), `tsc --noEmit`, a production-shaped build,
   and `web-ext lint` where _every_ error and any unexpected warning fails the build.
 - `npm run package` – builds and then inspects the zip: required entries present, and no
