@@ -22,15 +22,16 @@ runs the three deterministic harnesses:
   timezone consistency, supported frames, and WebRTC apply/restore.
 - `npm run e2e:websocket` – `ws`/`wss` routing through the active proxy while a
   loopback WebSocket stays bypassed.
-- `npm run e2e:proxy-auth` – an authenticated HTTP proxy, with a correct password
-  accepted and a wrong password challenged a bounded number of times.
 
 Every request goes to a loopback page, proxy or WebSocket server. The harnesses never
 contact the public GeoIP provider, so the gate cannot fail because an external service
 is slow or down.
 
-`npm run e2e` (the smoke test) is deliberately **not** in CI: it needs the public GeoIP
-provider. It stays a release-candidate smoke item (#21) and a local check.
+`npm run e2e:proxy-auth` is deliberately **not** in CI. Its assertion counts 407
+responses across all proxy traffic, and a fresh CI Firefox profile makes many unrelated
+proxied requests (Remote Settings, OpenStreetMap tiles). That count is a clean-profile
+release-candidate smoke item (#21), not a deterministic gate. `npm run e2e` (the GeoIP
+smoke test) is out for the same reason: it needs the public provider.
 
 On failure the job uploads `firefox-*.log`. The logs contain loopback ports and the
 bundled test proxy's throwaway `user:pass`; no repository secret is used by this job.
@@ -41,16 +42,19 @@ bundled test proxy's throwaway `user:pass`; no repository secret is used by this
 merges as well, add `firefox` to the required status checks:
 
 1. Repository **Settings → Branches → Branch protection rules → `main`**.
-2. Under **Require status checks to pass before merging**, add **`firefox`** in
-   addition to `quality`.
+2. Under **Require status checks to pass before merging**, add **`firefox / invariants`**
+   in addition to `quality`.
 
 The exact API call is:
 
 ```bash
 gh api -X PATCH \
   repos/jacek4yang/net-identity/branches/main/protection/required_status_checks \
-  -f strict=true -f 'contexts[]=quality' -f 'contexts[]=firefox'
+  -f strict=true -f 'contexts[]=quality' -f 'contexts[]=firefox / invariants'
 ```
+
+A reusable workflow reports the check as `<caller job> / <called job>`, which is why
+the context is `firefox / invariants` rather than `firefox`.
 
 Until the setting is changed, the job still runs on every pull request and its result
 is visible, but a merge is not blocked by it. It is added to the required context list
@@ -64,7 +68,7 @@ npm ci
 npm run build
 npm run e2e:invariants -- --firefox "<path to Firefox>"
 npm run e2e:websocket -- --firefox "<path to Firefox>"
-npm run e2e:proxy-auth -- --firefox "<path to Firefox>"
+npm run e2e:proxy-auth -- --firefox "<path to Firefox>"   # clean-profile smoke (#21)
 ```
 
 A missing Firefox binary exits with code `2` and an `INCONCLUSIVE` message; it is never

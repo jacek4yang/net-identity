@@ -50,7 +50,8 @@ jobs:
   # A separate real-Firefox job. The reusable workflow is deterministic and only
   # talks to loopback servers; `npm run e2e` stays out because it needs the public
   # GeoIP provider. Add `firefox` to main's required status checks (see
-  # docs/CI.md) so this gate, not just the fast job, protects merges.
+  # docs/CI.md) so this gate, not just the fast job, protects merges. The reported
+  # check name is `firefox / invariants` because it comes from a reusable workflow.
   firefox:
     name: firefox
     uses: ./.github/workflows/firefox-invariants.yml

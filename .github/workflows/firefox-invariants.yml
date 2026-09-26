@@ -49,10 +49,15 @@ jobs:
       - name: Build the extension
         run: npm run build
 
-      # The three harnesses print their progress to stderr and exit non-zero when a
-      # check fails. Run all of them even if one fails so a single job log shows the
+      # The harnesses print their progress to stderr and exit non-zero when a check
+      # fails. Run every one of them even if one fails so a single job log shows the
       # full picture, then fail if any harness failed. `tee` keeps a log for the
       # failure artifact; `pipefail` makes each pipeline inherit the harness exit code.
+      #
+      # `npm run e2e:proxy-auth` is deliberately not here. Its bounded-407 count is
+      # measured over all proxy traffic, and a fresh CI Firefox profile makes many
+      # unrelated proxied requests (Remote Settings, OSM tiles). That is a #21
+      # clean-profile smoke item, not a deterministic gate.
       - name: Run the deterministic Firefox harnesses
         env:
           MOZ_HEADLESS: "1"
@@ -70,7 +75,6 @@ jobs:
           }
           run invariants npm run e2e:invariants -- --firefox "$firefox"
           run websocket npm run e2e:websocket -- --firefox "$firefox"
-          run proxy-auth npm run e2e:proxy-auth -- --firefox "$firefox"
           exit "$status"
 
       # Uploaded only on failure. The output contains loopback ports and the bundled

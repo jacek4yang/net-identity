@@ -8,8 +8,14 @@ describe("real-Firefox release gate", () => {
   it("runs the deterministic Firefox invariants as a separate CI job", () => {
     expect(ci).toContain("uses: ./.github/workflows/firefox-invariants.yml");
     expect(firefox).toContain("workflow_call");
-    expect(firefox).toContain("e2e:invariants");
-    expect(firefox).toContain("e2e:websocket");
+    expect(firefox).toContain("run invariants npm run e2e:invariants");
+    expect(firefox).toContain("run websocket npm run e2e:websocket");
+  });
+
+  it("keeps the environment-sensitive authenticated-proxy count out of CI", () => {
+    // A fresh CI Firefox profile makes many unrelated proxied requests, so the
+    // global 407 count is a #21 clean-profile smoke item instead of a gate.
+    expect(firefox).not.toContain("run proxy-auth");
     expect(firefox).toContain("e2e:proxy-auth");
   });
 
