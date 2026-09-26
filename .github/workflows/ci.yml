@@ -14,14 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # One primary job on purpose: the checks are fast and sequential, so parallel jobs
-  # would only duplicate setup. This job name is the required status check on main.
-  #
-  # Firefox integration stays off this job. `npm run e2e` needs the public GeoIP
-  # provider, and the deterministic scripts (`e2e:websocket`, `e2e:proxy-auth`,
-  # `e2e:invariants`) need a desktop Firefox binary plus Marionette. A required
-  # browser job would fail unrelated changes when that host or browser is
-  # unavailable. Run those scripts locally; they are the regression coverage.
+  # The fast check job. It stays sequential on purpose: the checks are quick and
+  # parallel jobs would only duplicate setup. `quality` is a required status check
+  # on main.
   quality:
     name: quality
     runs-on: ubuntu-latest
@@ -51,3 +46,11 @@ jobs:
           name: net-identity-package
           path: artifacts/*.zip
           if-no-files-found: error
+
+  # A separate real-Firefox job. The reusable workflow is deterministic and only
+  # talks to loopback servers; `npm run e2e` stays out because it needs the public
+  # GeoIP provider. Add `firefox` to main's required status checks (see
+  # docs/CI.md) so this gate, not just the fast job, protects merges.
+  firefox:
+    name: firefox
+    uses: ./.github/workflows/firefox-invariants.yml
