@@ -246,6 +246,91 @@ describe("activation", () => {
     expect(harness.envelopes.slice(0, -1).every((envelope) => envelope.controlled)).toBe(true);
   });
 
+  it("does not let a setting refresh change state during deactivation", async () => {
+    const harness = createHarness();
+    const profile = makeProfile({
+      id: "profile-0041",
+      identity: {
+        mode: "manual",
+        latitude: 48.2,
+        longitude: 11.4,
+        accuracy: 1500,
+        timezone: "Pacific/Auckland",
+      },
+    });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+
+    // Hold the WebRTC release open. Firefox schedules the privacy setting's
+    // `onChange` after `clear()` writes the value, so `refreshObservedSettings()`
+    // can run while the target is already gone but the old identity is still in
+    // `state`. The refresh must not commit that torn combination.
+    const clearGate = createDeferred<boolean>();
+    let clearStarted = false;
+    const originalClear = harness.webrtcSetting.clear.bind(harness.webrtcSetting);
+    harness.webrtcSetting.clear = async () => {
+      clearStarted = true;
+      await clearGate.promise;
+      return originalClear({});
+    };
+
+    const deactivation = harness.controller.deactivate();
+    await waitUntil(() => clearStarted);
+
+    const duringTransition = harness.controller.getState();
+    await harness.controller.refreshObservedSettings();
+    // The refresh must return the current state untouched instead of publishing a
+    // profile-less state that still carries the old coordinates.
+    expect(harness.controller.getState()).toBe(duringTransition);
+
+    clearGate.resolve(true);
+    const state = await deactivation;
+
+    expect(state.status).toBe("idle");
+    expect(state.activeProfileId).toBeNull();
+    expect(state.identity.latitude).toBeUndefined();
+    expect(state.identity.timezone).toBeUndefined();
+    expect(harness.controller.getEnvelope().payload).toBeNull();
+  });
+
+  it("never publishes identity coordinates while no profile is active", async () => {
+    const harness = createHarness();
+    const profile = makeProfile({
+      id: "profile-0042",
+      identity: {
+        mode: "manual",
+        latitude: 48.2,
+        longitude: 11.4,
+        accuracy: 1500,
+        timezone: "Pacific/Auckland",
+      },
+    });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+
+    // A proxy error arriving during teardown composes a state with no active
+    // profile but the previous coordinates. Pages must never receive them.
+    const clearGate = createDeferred<boolean>();
+    let clearStarted = false;
+    const originalClear = harness.webrtcSetting.clear.bind(harness.webrtcSetting);
+    harness.webrtcSetting.clear = async () => {
+      clearStarted = true;
+      await clearGate.promise;
+      return originalClear({});
+    };
+
+    const deactivation = harness.controller.deactivate();
+    await waitUntil(() => clearStarted);
+    harness.controller.recordProxyError(new Error("boom"));
+    await waitUntil(() => harness.controller.getState().lastError?.code === "proxy_error");
+
+    expect(harness.controller.getState().activeProfileId).toBeNull();
+    expect(harness.controller.getEnvelope().payload).toBeNull();
+
+    clearGate.resolve(true);
+    await deactivation;
+  });
+
   it("reports an error state instead of throwing when the profile is unknown", async () => {
     const harness = createHarness();
     const state = await harness.controller.activate("profile-9999");
