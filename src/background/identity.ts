@@ -154,6 +154,15 @@ export class ActivationController {
   private abortController: AbortController | null = null;
   private pendingTargetLoad: Promise<ActiveProxyTarget | null> | null = null;
   /**
+   * `absent` means a restore already found no usable snapshot. Further requests
+   * answer from that memory until activation or deactivation changes it.
+   */
+  private snapshotRestore: "unknown" | "absent" = "unknown";
+
+  private snapshotWasCleared(): boolean {
+    return this.snapshotRestore === "absent";
+  }
+  /**
    * False until the first committed startup result. Content scripts that ask
    * before then are told geolocation is controlled, so a restoring profile
    * cannot leak the host position.
@@ -203,22 +212,33 @@ export class ActivationController {
    */
   decideProxyForRequest(url: string): browser.proxy.ProxyInfo | Promise<browser.proxy.ProxyInfo> {
     if (this.target !== null) return decideProxy(this.target, url);
+    if (this.snapshotRestore === "absent") return decideProxy(null, url);
     if (this.pendingTargetLoad === null) {
       this.pendingTargetLoad = this.loadTargetFromSnapshot().finally(() => {
         this.pendingTargetLoad = null;
       });
     }
-    return this.pendingTargetLoad.then((target) => decideProxy(target, url));
+    return this.pendingTargetLoad.then((target) => decideProxy(this.target ?? target, url));
   }
 
   private async loadTargetFromSnapshot(): Promise<ActiveProxyTarget | null> {
     if (this.target !== null) return this.target;
 
     const snapshot = await this.deps.targets.load();
-    if (snapshot === null) return null;
+    // Activation or deactivation can win while the session read is in flight.
+    if (this.snapshotWasCleared() || this.target !== null) return this.target;
+
+    if (snapshot === null) {
+      this.snapshotRestore = "absent";
+      return null;
+    }
 
     const stored = await this.deps.profiles.load();
-    if (stored.activeProfileId !== snapshot.profileId) return null;
+    if (this.snapshotWasCleared() || this.target !== null) return this.target;
+    if (stored.activeProfileId !== snapshot.profileId) {
+      this.snapshotRestore = "absent";
+      return null;
+    }
 
     this.generation = Math.max(this.generation, snapshot.generation);
     this.target = {
@@ -469,6 +489,7 @@ export class ActivationController {
       this.abortController?.abort();
       this.abortController = null;
       this.target = null;
+      this.snapshotRestore = "absent";
       this.diagnostics = [];
       this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };

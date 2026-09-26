@@ -79,7 +79,9 @@ extension in ways tests will not catch:
 4. **`onAuthRequired` is only fired for HTTP/HTTPS proxies, never SOCKS.**
 5. **The MV3 background page can be suspended.** The active target is mirrored into
    `storage.session`; `decideProxyForRequest` falls back to that snapshot instead of
-   answering `direct`. Never make the in-memory target the only source of truth.
+   answering `direct`. Never make the in-memory target the only source of truth. A
+   completed restore that finds no usable snapshot is remembered, so later requests
+   do not read `storage.session` again until activation or deactivation.
 6. **`proxy.onRequest` may return a Promise.** The cold-start fallback depends on it.
 7. **`content_scripts[].world: "MAIN"` requires Firefox 128+**. The manifest floor is
    **140.0** because that is when Firefox shows built-in data-collection consent.

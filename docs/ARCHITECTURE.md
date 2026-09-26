@@ -44,7 +44,9 @@ Two mechanisms prevent that:
 2. **Async fallback** — `ActivationController.decideProxyForRequest()` returns the
    in-memory decision synchronously when it can, and otherwise returns a Promise that
    first restores the snapshot. Firefox explicitly allows `proxy.onRequest` to return a
-   Promise, which is what makes this possible.
+   Promise, which is what makes this possible. A restore that finds no usable snapshot
+   is remembered, so later requests while nothing is active do not read
+   `storage.session` again. Activation and deactivation clear that memory.
 
 `storage.session` is cleared when Firefox exits, so a fresh browser session always
 performs a full activation and re-resolves the identity from the observed egress IP.
