@@ -30,15 +30,10 @@ const sourceDir = path.resolve(
  */
 const ALLOWED_WARNINGS = [
   {
-    code: "KEY_FIREFOX_UNSUPPORTED_BY_MIN_VERSION",
-    descriptionIncludes: "data_collection_permissions",
-    reason:
-      "strict_min_version is pinned to 128.0 so the extension runs on Firefox ESR 128+; Firefox before 140 ignores data_collection_permissions, which AMO requires for new submissions.",
-  },
-  {
     code: "KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION",
     descriptionIncludes: "data_collection_permissions",
-    reason: "Same as above for Firefox for Android; this project targets desktop Firefox only.",
+    reason:
+      "Desktop strict_min_version is 140, which satisfies Firefox's built-in data-consent floor. Firefox for Android's floor for the same key is 142, and this project does not ship an Android build.",
   },
 ];
 

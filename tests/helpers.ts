@@ -251,6 +251,7 @@ export interface HarnessOptions {
   firefoxProxy?: FirefoxProxySettingsSnapshot;
   probeContent?: (generation: number) => Promise<ContentRuntimeState>;
   now?: () => number;
+  readDataCollection?: () => Promise<{ apiAvailable: boolean; optionalGranted: readonly string[] }>;
   /** Reuse the storage areas of a previous harness to simulate an event page restart. */
   localArea?: MemoryStorage;
   sessionArea?: MemoryStorage;
@@ -316,6 +317,12 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       envelopes.push(envelope);
     },
     probeContent: (generation) => probeContent(generation),
+    readDataCollection:
+      options.readDataCollection ??
+      (async () => ({
+        apiAvailable: true,
+        optionalGranted: ["personallyIdentifyingInfo"],
+      })),
     now,
   };
 

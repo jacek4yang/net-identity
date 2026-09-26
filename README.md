@@ -9,7 +9,7 @@ abstraction layer: the extension uses Firefox's native `browser.*` APIs (`proxy.
 content scripts) precisely because those APIs allow a correct implementation.
 
 - Licence: MIT
-- Minimum Firefox: **128.0** (desktop)
+- Minimum Firefox: **140.0** (desktop)
 - Node.js for development: **>= 22** (required by `web-ext` 10)
 - No runtime dependencies, no telemetry, no remote code
 
@@ -87,11 +87,12 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 ## Privacy considerations
 
-- **Automatic profiles contact a third-party GeoIP provider** (`ipwho.is`) over HTTPS.
-  The request is sent from the active proxy egress, so that provider sees the proxy's
-  public IP — and, if your profile is a _direct_ one, your own. The request sends no
-  credentials, no cookies and no referrer, and the response is never cached. Manual and
-  direct profiles that you do not refresh make no such request.
+- **Activating or refreshing a profile can contact a third-party GeoIP provider**
+  (`ipwho.is`) over HTTPS. A proxied profile shows that provider the proxy's public IP.
+  A direct profile shows it your own public IP, and that lookup waits until you allow
+  optional personal-data collection. The request sends no credentials, no cookies and
+  no referrer, and the response is never cached. Installing the extension does not
+  create or activate a profile, so a fresh install makes no such request.
 - This is declared to AMO as required `locationInfo` collection, with
   `personallyIdentifyingInfo` as optional; see
   [`docs/SECURITY.md`](docs/SECURITY.md#data-collection-declaration).
@@ -104,8 +105,8 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 ## Requirements
 
-- Firefox 128 or newer (desktop). Firefox Developer Edition is recommended for
-  development.
+- Firefox 140 or newer (desktop). Firefox Developer Edition is recommended for
+  development. 140 is the floor for Firefox's built-in data-collection consent.
 - Node.js 22 or newer and npm (for building and testing).
 
 ## Installation
@@ -261,7 +262,7 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 237 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – 243 unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
   credential separation, message-router authorisation, the manifest contract.
@@ -295,7 +296,7 @@ misconfigured manifest cannot produce a silently broken extension.
 
 ## Known limitations
 
-- Firefox desktop only, 128+.
+- Firefox desktop only, 140+.
 - A sandboxed frame that Firefox will not inject a content script into can still see
   the host timezone and geolocation.
 - Bypass lists do not support IPv6 CIDR ranges.

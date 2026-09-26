@@ -42,6 +42,7 @@ import {
   type RuntimeStatus,
   type WebRtcRuntimeState,
 } from "../shared/state";
+import { decideGeoIpConsent, type DataCollectionSnapshot } from "./consent";
 import { describeGeoIpFailure, type GeoIpProvider, type GeoIpResult } from "../geo/provider";
 import { isProxied, type IdentityProfile } from "../profile/schema";
 import {
@@ -79,6 +80,8 @@ export interface ActivationDeps {
   broadcastIdentity: (envelope: IdentityEnvelope) => void | Promise<void>;
   /** Asks open tabs what their page shim actually applied. Diagnostic only. */
   probeContent: (generation: number) => Promise<ContentRuntimeState>;
+  /** Firefox's optional data-collection grants. Fail closed when this throws. */
+  readDataCollection: () => Promise<DataCollectionSnapshot>;
   now: () => number;
 }
 
@@ -86,6 +89,7 @@ interface IdentityResolution {
   identity: ResolvedIdentity;
   providerFailed: boolean;
   providerError: string | undefined;
+  consentBlocked: boolean;
 }
 
 const EMPTY_CONTENT_STATE: ContentRuntimeState = { hasShim: false, reportedGeneration: null };
@@ -383,8 +387,12 @@ export class ActivationController {
         status: "ready",
       });
 
-      const lastError: RuntimeErrorInfo | undefined =
-        resolution.providerFailed && resolution.providerError !== undefined
+      const lastError: RuntimeErrorInfo | undefined = resolution.consentBlocked
+        ? {
+            code: "consent_required",
+            message: resolution.providerError ?? "GeoIP consent is required.",
+          }
+        : resolution.providerFailed && resolution.providerError !== undefined
           ? { code: "provider_error", message: resolution.providerError }
           : undefined;
 
@@ -630,12 +638,25 @@ export class ActivationController {
     let geo: GeoIpResult | null = null;
     let providerFailed = false;
     let providerError: string | undefined;
+    let consentBlocked = false;
 
-    try {
-      geo = await this.deps.provider.resolve(signal);
-    } catch (error) {
-      providerFailed = true;
-      providerError = describeGeoIpFailure(error);
+    const consent = decideGeoIpConsent(
+      profile.proxy.type,
+      await this.deps.readDataCollection().catch(() => ({
+        apiAvailable: false,
+        optionalGranted: [],
+      })),
+    );
+    if (!consent.allowed) {
+      consentBlocked = true;
+      providerError = consent.message;
+    } else {
+      try {
+        geo = await this.deps.provider.resolve(signal);
+      } catch (error) {
+        providerFailed = true;
+        providerError = describeGeoIpFailure(error);
+      }
     }
 
     const observedIp = geo === null ? undefined : geo.ip;
@@ -645,6 +666,7 @@ export class ActivationController {
         identity: { source: profile.identity.mode, publicIpVerified: false },
         providerFailed,
         providerError,
+        consentBlocked,
       };
     }
 
@@ -666,7 +688,7 @@ export class ActivationController {
       if (profile.identity.timezone !== undefined) identity.timezone = profile.identity.timezone;
       identity.resolvedAt = this.deps.now();
       if (geo !== null) identity.provider = this.deps.provider.id;
-      return { identity, providerFailed, providerError };
+      return { identity, providerFailed, providerError, consentBlocked };
     }
 
     const identity: ResolvedIdentity = {
@@ -691,7 +713,7 @@ export class ActivationController {
       identity.provider = this.deps.provider.id;
     }
     identity.resolvedAt = this.deps.now();
-    return { identity, providerFailed, providerError };
+    return { identity, providerFailed, providerError, consentBlocked };
   }
 
   private async persistResolvedIdentity(

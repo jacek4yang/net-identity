@@ -2,7 +2,9 @@
  * End-to-end smoke test against real Firefox.
  *
  * This is the only check that exercises the whole pipeline: Firefox loads the built
- * extension, the background script activates the default profile, the GeoIP provider
+ * extension, the harness activates an HTTP profile through a local forwarding
+ * proxy (install-time location consent; the user's own IP is not sent), the
+ * GeoIP provider
  * is queried through the active route, the identity is broadcast to a content script,
  * and the MAIN-world shim changes what the page observes.
  *
@@ -29,6 +31,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createServer } from "node:http";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -276,7 +279,185 @@ function offsetMinutesFor(timeZone, epochMs) {
   return offset === 0 ? 0 : offset;
 }
 
-function startFirefox(onOutput) {
+function createMarionette(port) {
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection({ host: "127.0.0.1", port });
+    let buffer = Buffer.alloc(0);
+    const pending = new Map();
+    let nextId = 1;
+    let handshake = false;
+    const take = () => {
+      const colon = buffer.indexOf(0x3a);
+      if (colon < 1) return null;
+      const length = Number(buffer.subarray(0, colon).toString("utf8"));
+      if (!Number.isInteger(length) || length < 0) throw new Error("bad marionette packet");
+      const start = colon + 1;
+      if (buffer.length < start + length) return null;
+      const payload = buffer.subarray(start, start + length).toString("utf8");
+      buffer = buffer.subarray(start + length);
+      return JSON.parse(payload);
+    };
+    const api = {
+      send(command, params = {}, commandTimeoutMs = 20000) {
+        const id = nextId++;
+        const body = JSON.stringify([0, id, command, params]);
+        return new Promise((resolveCommand, rejectCommand) => {
+          const timer = setTimeout(() => {
+            pending.delete(id);
+            rejectCommand(new Error(`Marionette command timed out: ${command}`));
+          }, commandTimeoutMs);
+          pending.set(id, {
+            resolve: (value) => {
+              clearTimeout(timer);
+              resolveCommand(value);
+            },
+            reject: (error) => {
+              clearTimeout(timer);
+              rejectCommand(error);
+            },
+          });
+          socket.write(`${Buffer.byteLength(body)}:${body}`);
+        });
+      },
+      close() {
+        socket.end();
+      },
+    };
+    socket.on("data", (chunk) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      try {
+        for (;;) {
+          const message = take();
+          if (message === null) return;
+          if (!handshake && !Array.isArray(message)) {
+            handshake = true;
+            resolve(api);
+            continue;
+          }
+          if (Array.isArray(message) && message[0] === 1) {
+            const waiter = pending.get(message[1]);
+            pending.delete(message[1]);
+            if (waiter === undefined) continue;
+            if (message[2] != null) waiter.reject(new Error(JSON.stringify(message[2])));
+            else waiter.resolve(message[3]);
+          }
+        }
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+    socket.on("error", reject);
+  });
+}
+
+async function connectMarionette(port, deadline) {
+  let last = "connection refused";
+  while (Date.now() < deadline) {
+    try {
+      return await createMarionette(port);
+    } catch (error) {
+      last = error instanceof Error ? error.message : String(error);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  throw new Error(last);
+}
+
+const LOCATE_EXTENSION = `
+  const callback = arguments[arguments.length - 1];
+  try {
+    const policy = WebExtensionPolicy.getByID("net-identity@jacek4yang.github.io");
+    if (!policy) {
+      callback({ error: "extension policy is not installed yet" });
+      return;
+    }
+    callback({ ok: true, baseURL: "moz-extension://" + policy.mozExtensionHostname + "/" });
+  } catch (error) {
+    callback({ error: String(error) });
+  }
+`;
+
+const OPTIONS_CALL = `
+  const callback = arguments[arguments.length - 1];
+  const message = arguments[0];
+  try {
+    const page = window.wrappedJSObject || window;
+    const payload = page.JSON.parse(JSON.stringify(message));
+    page.browser.runtime.sendMessage(payload).then(
+      (value) => callback({ ok: true, value: page.JSON.parse(page.JSON.stringify(value)) }),
+      (error) => callback({ error: String(error) }),
+    );
+  } catch (error) {
+    callback({ error: String(error) });
+  }
+`;
+
+async function activateProxiedProfile(port, proxyPort, deadline) {
+  let client = null;
+  try {
+    client = await connectMarionette(port, deadline);
+    await client.send("WebDriver:NewSession", {
+      capabilities: { alwaysMatch: { browserName: "firefox", acceptInsecureCerts: true } },
+    });
+    await client.send("WebDriver:SetTimeouts", { script: 30000, pageLoad: 30000, implicit: 0 });
+    await client.send("Marionette:SetContext", { value: "chrome" });
+
+    let location = null;
+    while (Date.now() < deadline) {
+      const located = await client.send("WebDriver:ExecuteAsyncScript", {
+        script: LOCATE_EXTENSION,
+        args: [],
+      });
+      location = located?.value ?? located;
+      if (location && location.ok === true) break;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    if (!location || location.ok !== true) return { ok: false, error: JSON.stringify(location) };
+
+    await client.send("Marionette:SetContext", { value: "content" });
+    await client.send("WebDriver:Navigate", {
+      url: new URL("options/options.html", location.baseURL).href,
+    });
+    const profile = {
+      id: "e2e-proxy01",
+      name: "E2E proxy",
+      proxy: {
+        type: "http",
+        host: "127.0.0.1",
+        port: proxyPort,
+        proxyDNS: false,
+        bypassHosts: ["localhost", "127.0.0.1", "::1"],
+      },
+      identity: { mode: "auto" },
+      webrtcPolicy: "default",
+    };
+    const saved = await client.send("WebDriver:ExecuteAsyncScript", {
+      script: OPTIONS_CALL,
+      args: [{ type: "profiles:save", profile }],
+    });
+    const saveResult = saved?.value ?? saved;
+    if (!saveResult?.ok || saveResult.value?.ok !== true) {
+      return { ok: false, error: JSON.stringify(saveResult) };
+    }
+    const activated = await client.send(
+      "WebDriver:ExecuteAsyncScript",
+      { script: OPTIONS_CALL, args: [{ type: "profiles:activate", profileId: profile.id }] },
+      40000,
+    );
+    const activateResult = activated?.value ?? activated;
+    if (!activateResult?.ok || activateResult.value?.ok !== true) {
+      return { ok: false, error: JSON.stringify(activateResult) };
+    }
+    await client.send("WebDriver:Navigate", { url: PAGE_URL });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  } finally {
+    client?.close();
+  }
+}
+
+function startFirefox(marionettePort, onOutput) {
   const cli = path.join(root, "node_modules", "web-ext", "bin", "web-ext.js");
   const args = [
     cli,
@@ -288,6 +469,9 @@ function startFirefox(onOutput) {
     "--no-input",
     "--no-reload",
     "--browser-console",
+    `--pref=marionette.port=${marionettePort}`,
+    "--arg=--marionette",
+    "--arg=-remote-allow-system-access",
   ];
   if (firefoxPath !== undefined) args.push("--firefox", firefoxPath);
 
@@ -337,15 +521,57 @@ async function main() {
   await new Promise((resolve) => crossServer.listen(CROSS_PORT, "127.0.0.1", resolve));
   console.error(`[e2e] probe page served at ${PAGE_URL}`);
 
+  const marionettePort = await new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      probe.close(() => {
+        if (address === null || typeof address === "string")
+          reject(new Error("no marionette port"));
+        else resolve(address.port);
+      });
+    });
+  });
+
+  const proxyPort = await new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      probe.close(() => {
+        if (address === null || typeof address === "string") reject(new Error("no proxy port"));
+        else resolve(address.port);
+      });
+    });
+  });
+  const devProxy = spawn(
+    process.execPath,
+    [path.join(root, "scripts", "dev-proxy.mjs"), "--port", String(proxyPort)],
+    { cwd: root, stdio: "ignore" },
+  );
+
   let firefoxOutput = "";
-  const firefox = startFirefox((chunk) => {
+  const firefox = startFirefox(marionettePort, (chunk) => {
     firefoxOutput += chunk;
   });
 
   const deadline = Date.now() + timeoutMs;
+  const activated = await activateProxiedProfile(marionettePort, proxyPort, deadline);
+  if (!activated.ok) {
+    console.error(`[e2e] FAIL: could not activate the proxied profile: ${activated.error}`);
+    if (values["keep-open"] !== true) stopFirefox(firefox);
+    devProxy.kill();
+    server.close();
+    crossServer.close();
+    process.exit(1);
+  }
+  console.error("[e2e] proxied profile activated under install-time location consent");
+
   const report = await waitForReport((candidate) => candidate.shimInstalled === true, deadline);
 
   if (values["keep-open"] !== true) stopFirefox(firefox);
+  devProxy.kill();
   server.close();
   crossServer.close();
 

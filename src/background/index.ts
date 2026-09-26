@@ -16,15 +16,14 @@
 import { MAX_DISTINCT_TABS_TO_PROBE } from "../shared/constants";
 import { parseProbeResponse } from "../shared/messages";
 import type { IdentityEnvelope } from "../shared/public-identity";
-import { describeError } from "../shared/result";
 import { fromBrowserStorageArea } from "../shared/storage";
 import type { ContentRuntimeState, RuntimeState } from "../shared/state";
 import { createDefaultGeoIpProvider } from "../geo/ipwhois";
-import { createProfileStore, mutateProfiles, upsertProfile } from "../profile/store";
+import { createProfileStore } from "../profile/store";
 import { createActiveTargetStore } from "./active-target";
 import { createCredentialStore } from "./credentials";
 import { ActivationController } from "./identity";
-import { createDefaultProfile, createMessageHandler, type SenderInfo } from "./messages";
+import { createMessageHandler, type SenderInfo } from "./messages";
 import { readFirefoxProxySettings } from "./proxy";
 import {
   createUnavailableWebRtcController,
@@ -141,6 +140,16 @@ const controller = new ActivationController({
   broadcastState,
   broadcastIdentity,
   probeContent,
+  readDataCollection: async () => {
+    try {
+      const granted = await browser.permissions.getAll();
+      const optional = granted.data_collection;
+      if (!Array.isArray(optional)) return { apiAvailable: false, optionalGranted: [] };
+      return { apiAvailable: true, optionalGranted: optional };
+    } catch {
+      return { apiAvailable: false, optionalGranted: [] };
+    }
+  },
   now,
 });
 
@@ -194,23 +203,6 @@ browser.runtime.onMessage.addListener((message: unknown, sender) => {
     url: sender.url,
   };
   return handleMessage(message, info);
-});
-
-browser.runtime.onInstalled.addListener((details) => {
-  void (async () => {
-    try {
-      if (details.reason !== "install") return;
-      const stored = await profileStore.load();
-      if (stored.profiles.length > 0) return;
-      const profile = createDefaultProfile();
-      const saved = await mutateProfiles(profileStore, (current) =>
-        upsertProfile(current, profile),
-      );
-      if (saved.ok) await controller.activate(profile.id);
-    } catch (error) {
-      console.error("[net-identity] first-run setup failed:", describeError(error));
-    }
-  })();
 });
 
 browser.runtime.onStartup.addListener(() => {

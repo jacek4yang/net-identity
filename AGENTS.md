@@ -23,8 +23,9 @@ resolves the identity from the _observed_ egress IP, and broadcasts it to pages.
   WXT/Plasmo/Webpack/Babel.
 - **No remote code, no telemetry, no `eval`/`new Function`.** The build script fails
   if `eval`/`new Function` appears in the background bundle.
-- Minimum Firefox is **128.0** (the floor at which `content_scripts[].world = "MAIN"`
-  exists). Do not add a `strict_max_version`.
+- Minimum Firefox is **140.0**. `world: "MAIN"` exists from 128, but 140 is the
+  desktop floor for Firefox's built-in data-collection consent. One consent system,
+  not a custom fallback for older Firefox. Do not add a `strict_max_version`.
 - **Toolchain ceiling:** TypeScript is pinned to the 6.x line because
   `typescript-eslint@8.x` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`.
   TypeScript 7 breaks `npm ci` and type-aware linting, so Dependabot is configured to
@@ -79,12 +80,12 @@ extension in ways tests will not catch:
    `storage.session`; `decideProxyForRequest` falls back to that snapshot instead of
    answering `direct`. Never make the in-memory target the only source of truth.
 6. **`proxy.onRequest` may return a Promise.** The cold-start fallback depends on it.
-7. **`content_scripts[].world: "MAIN"` requires Firefox 128+**, hence
-   `strict_min_version: "128.0"`.
-8. **`data_collection_permissions` requires Firefox 140+**; older versions ignore the
-   key. It is declared because AMO requires it and because automatic profiles do contact
-   a third-party GeoIP provider (see §7). web-ext lint warns about the version gap; the
-   allowance is recorded in `scripts/lint-extension.mjs`.
+7. **`content_scripts[].world: "MAIN"` requires Firefox 128+**. The manifest floor is
+   **140.0** because that is when Firefox shows built-in data-collection consent.
+8. **`data_collection_permissions` is enforced by the 140 floor.** Required
+   `locationInfo` is accepted at install. Optional `personallyIdentifyingInfo` is
+   requested from a user gesture before a _direct_ profile may send the user's own
+   public IP to the GeoIP provider. Do not call the provider when that grant is absent.
 9. **`proxy.onRequest` sees `ws:` and `wss:` as well as `http:`/`https:`.**
    `parseRequestUrl()` treats all four as proxyable network traffic and applies the same
    bypass list. Other schemes (`moz-extension`, `about`, `file`, `data`, `blob`, `ftp`,
@@ -150,10 +151,12 @@ Storage layout:
 `browser_specific_settings.gecko.data_collection_permissions` is declared as
 `required: ["locationInfo"]` and `optional: ["personallyIdentifyingInfo"]`:
 
-- Automatic identity mode queries a third-party GeoIP provider (ipwho.is) from the
-  active egress, so location data is collected and the provider learns the egress IP.
-- With a _proxied_ profile that IP is the proxy's; with a _direct_ profile it is the
-  user's own, hence the optional PII entry.
+- Automatic and manual activation can query a third-party GeoIP provider (ipwho.is)
+  for the observed egress IP. A proxied profile shows the proxy's address. A direct
+  profile shows the user's own public IP and does not make that request until optional
+  `personallyIdentifyingInfo` is granted.
+- Installation does not create or activate a profile, so a fresh install makes no
+  GeoIP request.
 - **Do not change this to `["none"]`** while any automatic provider exists. If you add
   providers, re-review the declaration, `docs/SECURITY.md`, the README and
   `tests/manifest.test.ts` (which pins this behaviour).

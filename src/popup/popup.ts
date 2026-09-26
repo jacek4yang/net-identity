@@ -15,7 +15,12 @@ import {
   type MutationResponse,
   type ProfilesResponse,
 } from "../shared/messages";
-import { onRuntimeMessage, openOptionsPage, request } from "../shared/runtime";
+import {
+  ensureDirectIpConsent,
+  onRuntimeMessage,
+  openOptionsPage,
+  request,
+} from "../shared/runtime";
 import type { RuntimeState, RuntimeStatus, WebRtcApplyStatus } from "../shared/state";
 
 const elements = {
@@ -147,8 +152,12 @@ function renderAudit(state: RuntimeState): void {
   }
 }
 
+let knownProfiles: ProfilesResponse["profiles"] = [];
+let latestProxyType = "direct";
+
 function renderProfiles(profiles: ProfilesResponse | null): void {
   if (profiles === null) return;
+  knownProfiles = profiles.profiles;
   const previous = elements.profileSelect.value;
   clear(elements.profileSelect);
 
@@ -167,6 +176,7 @@ function renderProfiles(profiles: ProfilesResponse | null): void {
 }
 
 function renderState(state: RuntimeState): void {
+  latestProxyType = state.proxy.type;
   setChip(elements.statusChip, LIFECYCLE_LABELS[state.status], LIFECYCLE_TONES[state.status]);
   setChip(
     elements.verdictChip,
@@ -206,6 +216,13 @@ async function loadProfiles(): Promise<ProfilesResponse | null> {
 async function activateSelectedProfile(): Promise<void> {
   const profileId = elements.profileSelect.value;
   if (profileId === "") return;
+  const selected = knownProfiles.find((profile) => profile.id === profileId);
+  if (selected !== undefined && !(await ensureDirectIpConsent(selected.proxy.type))) {
+    renderError(
+      "A direct profile would send your own public IP to the GeoIP provider. Allow that collection to continue.",
+    );
+    return;
+  }
   elements.activateButton.disabled = true;
   const response = await request({ type: "profiles:activate", profileId }, parseMutationResponse);
   if (!response.ok) {
@@ -218,6 +235,12 @@ async function activateSelectedProfile(): Promise<void> {
 }
 
 async function refreshIdentity(): Promise<void> {
+  if (!(await ensureDirectIpConsent(latestProxyType))) {
+    renderError(
+      "Refreshing a direct profile would send your own public IP to the GeoIP provider. Allow that collection to continue.",
+    );
+    return;
+  }
   elements.refreshButton.disabled = true;
   const response = await request({ type: "identity:refresh" }, parseMutationResponse);
   if (!response.ok) {
