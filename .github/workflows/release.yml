@@ -1,0 +1,80 @@
+name: Release
+
+# A tag push runs the release gates and submits the version to AMO as a listed
+# add-on. A manual run only repeats the checks. It never submits and never publishes.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm run check` includes `check:version`, which validates the tag against
+      # package.json and public/manifest.json when the ref is a `vX.Y.Z` tag.
+      - name: Run checks
+        run: npm run check
+
+      - name: Build the production package
+        run: npm run package
+
+  # The same reusable definition the pull-request CI calls, so a tag cannot be
+  # submitted from a commit that has not passed the real-Firefox invariants.
+  firefox:
+    name: firefox
+    uses: ./.github/workflows/firefox-invariants.yml
+
+  submit:
+    name: submit
+    needs: [quality, firefox]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the production package
+        run: npm run package
+
+      # AMO reviewers need readable source because the shipped bundle is minified.
+      - name: Archive human-readable source
+        run: git archive --format=zip --output=net-identity-source.zip HEAD
+
+      - name: Submit the listed version to AMO
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: node scripts/submit-listed.mjs --source-dir dist --source-code net-identity-source.zip
