@@ -51,7 +51,9 @@ const timeoutMs = Number(values.timeout) * 1000;
 
 // Ports below 50000 avoid the Windows reserved ranges; 45871 is also used by no tool.
 const PAGE_PORT = 45871;
+const CROSS_PORT = 45872;
 const PAGE_URL = `http://127.0.0.1:${PAGE_PORT}/`;
+const CROSS_FRAME_URL = `http://127.0.0.1:${CROSS_PORT}/frame?name=cross`;
 
 const PROBE_PAGE = `<!doctype html>
 <html lang="en">
@@ -59,6 +61,10 @@ const PROBE_PAGE = `<!doctype html>
   <body>
     <h1>net-identity probe</h1>
     <pre id="out">waiting for the extension…</pre>
+    <iframe title="same" src="/frame?name=same"></iframe>
+    <iframe title="srcdoc" srcdoc="<script>function publish(){parent.postMessage({niFrame:'srcdoc',shim:'__netIdentityShim' in window,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},'*')}publish();var timer=setInterval(publish,200);setTimeout(function(){clearInterval(timer)},4000)</script>"></iframe>
+    <iframe title="cross" src="${CROSS_FRAME_URL}"></iframe>
+    <iframe title="sandbox" sandbox="allow-scripts" srcdoc="<script>parent.postMessage({niFrame:'sandbox',shim:'__netIdentityShim' in window,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},'*')</script>"></iframe>
     <script>
       const output = document.getElementById("out");
 
@@ -107,12 +113,37 @@ const PROBE_PAGE = `<!doctype html>
         });
       }
 
+      const frames = {};
+      window.addEventListener("message", (event) => {
+        const data = event.data;
+        if (data === null || typeof data !== "object" || typeof data.niFrame !== "string") return;
+        frames[data.niFrame] = { shim: data.shim === true, timeZone: data.timeZone };
+      });
+
       async function report() {
+        const names = ["same", "srcdoc", "cross"];
+        const frameDeadline = Date.now() + 5000;
+        while (Date.now() < frameDeadline) {
+          const topZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const ready = names.every(
+            (name) => frames[name]?.shim === true && frames[name].timeZone === topZone,
+          );
+          if (ready) break;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        let geolocationPermission = "unavailable";
+        try {
+          geolocationPermission = (await navigator.permissions.query({ name: "geolocation" })).state;
+        } catch (error) {
+          geolocationPermission = String(error);
+        }
         const payload = {
           at: Date.now(),
           url: location.href,
           ...timezoneSnapshot(),
           position: await geolocationSnapshot(),
+          geolocationPermission,
+          frames: { ...frames },
         };
         output.textContent = JSON.stringify(payload, null, 2);
         try {
@@ -137,8 +168,28 @@ const PROBE_PAGE = `<!doctype html>
 let lastReport = null;
 let reportCount = 0;
 
-const server = createServer((request, response) => {
-  if (request.method === "POST" && request.url === "/report") {
+const FRAME_PAGE = `<!doctype html><script>
+  const name = new URLSearchParams(location.search).get("name");
+  function publish() {
+    parent.postMessage({
+      niFrame: name,
+      shim: "__netIdentityShim" in window,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }, "*");
+  }
+  publish();
+  const timer = setInterval(publish, 200);
+  setTimeout(() => clearInterval(timer), 4000);
+</script>`;
+
+function serveProbe(request, response) {
+  const path = request.url ?? "/";
+  if (path.startsWith("/frame")) {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(FRAME_PAGE);
+    return;
+  }
+  if (request.method === "POST" && path === "/report") {
     let body = "";
     request.on("data", (chunk) => {
       body += chunk;
@@ -158,7 +209,10 @@ const server = createServer((request, response) => {
 
   response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   response.end(PROBE_PAGE);
-});
+}
+
+const server = createServer(serveProbe);
+const crossServer = createServer(serveProbe);
 
 function fetchExpectedIdentity() {
   const endpoint =
@@ -280,6 +334,7 @@ async function main() {
   );
 
   await new Promise((resolve) => server.listen(PAGE_PORT, "127.0.0.1", resolve));
+  await new Promise((resolve) => crossServer.listen(CROSS_PORT, "127.0.0.1", resolve));
   console.error(`[e2e] probe page served at ${PAGE_URL}`);
 
   let firefoxOutput = "";
@@ -292,6 +347,7 @@ async function main() {
 
   if (values["keep-open"] !== true) stopFirefox(firefox);
   server.close();
+  crossServer.close();
 
   if (report === null) {
     console.error("[e2e] FAIL: the probe page never reported that the shim was installed.");
@@ -327,6 +383,29 @@ async function main() {
     `[e2e] ${offsetMatches ? "PASS" : "FAIL"}  getTimezoneOffset() = ${report.offsetMinutes} (expected ${expectedOffset} for ${report.timeZone})`,
   );
   if (!offsetMatches) failures.push("getTimezoneOffset() does not match the applied timezone");
+
+  const permissionOk = report.geolocationPermission === "granted";
+  console.error(
+    `[e2e] ${permissionOk ? "PASS" : "FAIL"}  geolocation permission ${report.geolocationPermission}`,
+  );
+  if (!permissionOk) failures.push("geolocation permission does not match the active shim");
+
+  for (const name of ["same", "srcdoc", "cross"]) {
+    const frame = report.frames?.[name];
+    const frameOk = frame?.shim === true && frame.timeZone === report.timeZone;
+    console.error(
+      `[e2e] ${frameOk ? "PASS" : "FAIL"}  ${name} frame shim=${String(frame?.shim)} zone=${String(frame?.timeZone)}`,
+    );
+    if (!frameOk) failures.push(`${name} frame did not observe the same timezone shim`);
+  }
+  const sandbox = report.frames?.sandbox;
+  if (sandbox?.shim === true && sandbox.timeZone !== report.timeZone) {
+    failures.push("sandboxed frame shim observed a different timezone");
+  } else {
+    console.error(
+      `[e2e] ${sandbox?.shim === true ? "PASS" : "WARN"}  sandbox frame shim=${String(sandbox?.shim)} zone=${String(sandbox?.timeZone)}`,
+    );
+  }
 
   if (typeof report.timeZone === "string" && typeof report.epoch === "number") {
     const wall = zonedWallClock(report.timeZone, report.epoch);

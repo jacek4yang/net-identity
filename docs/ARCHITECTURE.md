@@ -139,9 +139,10 @@ expect. This is verified in real Firefox by `npm run e2e`.
 
 ## Known architectural limitations
 
-- Subframes are not patched (`all_frames: false`).
-- `navigator.permissions.query` is not patched; a page can still observe the permission
-  state, though not the real coordinates.
+- Subframes are patched (`all_frames: true`, `match_about_blank: true`). While
+  geolocation is controlled, `navigator.permissions.query({ name: "geolocation" })`
+  resolves to `granted`; other names and idle mode use the native query. A sandboxed
+  document Firefox will not inject into is unchanged.
 - Only one identity is active at a time; there is no per-tab identity.
 - The provider interface is intentionally narrow (IP + location + timezone) so replacing
   it cannot ripple through the activation logic.

@@ -209,8 +209,9 @@ Package output: `artifacts/`.
   identity data from the page; `applied` is an untrusted diagnostic used only for
   staleness detection.
 - `event.source !== window` must always be checked.
-- Content scripts run in the top frame only (`all_frames: false`) — subframes are a
-  known limitation, not a bug to fix silently.
+- Content scripts run in every frame (`all_frames: true`, `match_about_blank: true`)
+  so a subframe cannot observe the host timezone or geolocation. A sandboxed frame
+  that Firefox refuses to inject into remains a platform limit.
 
 ## 12. Files that must stay small and stable
 
@@ -221,8 +222,8 @@ Package output: `artifacts/`.
 
 ## 13. Known limitations
 
-- Top frame only; no shim in subframes.
-- `navigator.permissions.query({ name: "geolocation" })` is not patched.
+- A sandboxed frame Firefox will not inject into can still see the host timezone and
+  geolocation.
 - IPv6 CIDR entries are not supported in bypass lists (IPv4 CIDR is).
 - GeoIP coordinates are approximate (default accuracy 20 km) and are never presented as
   precise.

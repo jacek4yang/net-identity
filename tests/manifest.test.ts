@@ -16,6 +16,7 @@ interface ContentScriptShape {
   run_at?: string;
   world?: string;
   all_frames?: boolean;
+  match_about_blank?: boolean;
 }
 
 interface ManifestShape {
@@ -112,8 +113,9 @@ describe("manifest", () => {
     for (const script of scripts) {
       expect(script.run_at).toBe("document_start");
       expect(script.matches).toEqual(["<all_urls>"]);
-      // Off by default so sub-frames do not multiply the patching work.
-      expect(script.all_frames).toBe(false);
+      // Subframes, about:blank and about:srcdoc must see the same identity.
+      expect(script.all_frames).toBe(true);
+      expect(script.match_about_blank).toBe(true);
     }
   });
 
