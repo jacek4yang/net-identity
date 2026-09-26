@@ -282,9 +282,11 @@ const FRAME_PAGE = `<!doctype html><script>
 
 function startProbe(port) {
   let lastReport = null;
+  let geoRequests = 0;
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url.startsWith("/geo")) {
+      geoRequests += 1;
       response.writeHead(200, {
         "content-type": "application/json",
         "cache-control": "no-store",
@@ -323,6 +325,9 @@ function startProbe(port) {
         server,
         read() {
           return lastReport;
+        },
+        geoRequests() {
+          return geoRequests;
         },
         reset() {
           lastReport = null;
@@ -585,7 +590,12 @@ async function main() {
 
     probe.reset();
     await client.send("WebDriver:Navigate", { url: pageUrl });
-    const released = await waitForReport(probe.read, isNativePosition, deadline);
+    const released = await waitForReport(probe.read, isNativePosition, Date.now() + timeoutMs);
+    if (released === null) {
+      log(
+        `diagnostic: after deactivation the probe saw ${probe.geoRequests()} provider request(s); last report ${JSON.stringify(probe.read())}`,
+      );
+    }
     check(released !== null, "deactivation returns the native geolocation sentinel");
     if (released !== null) {
       check(released.timeZone !== MANUAL_ZONE, "deactivation stops rewriting the page timezone");
@@ -631,8 +641,11 @@ async function main() {
       (report) =>
         typeof report.position?.error === "string" &&
         report.position.error.includes("No network identity location is available"),
-      deadline,
+      Date.now() + timeoutMs,
     );
+    if (failed === null) {
+      log(`diagnostic: the failed auto profile reported ${JSON.stringify(probe.read())}`);
+    }
     check(failed !== null, "failed automatic identity keeps geolocation unavailable");
     if (failed !== null) {
       check(
@@ -649,7 +662,16 @@ async function main() {
     );
     probe.reset();
     await client.send("WebDriver:Navigate", { url: pageUrl });
-    const restoredNative = await waitForReport(probe.read, isNativePosition, deadline);
+    const restoredNative = await waitForReport(
+      probe.read,
+      isNativePosition,
+      Date.now() + timeoutMs,
+    );
+    if (restoredNative === null) {
+      log(
+        `diagnostic: after clearing the failed profile the probe saw ${probe.geoRequests()} provider request(s); last report ${JSON.stringify(probe.read())}`,
+      );
+    }
     check(
       restoredNative !== null,
       "native geolocation returns after the failed profile is cleared",

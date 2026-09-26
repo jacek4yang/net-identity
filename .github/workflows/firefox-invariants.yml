@@ -50,18 +50,28 @@ jobs:
         run: npm run build
 
       # The three harnesses print their progress to stderr and exit non-zero when a
-      # check fails. `tee` keeps a log for the failure artifact; `pipefail` makes the
-      # pipeline inherit the harness exit code.
+      # check fails. Run all of them even if one fails so a single job log shows the
+      # full picture, then fail if any harness failed. `tee` keeps a log for the
+      # failure artifact; `pipefail` makes each pipeline inherit the harness exit code.
       - name: Run the deterministic Firefox harnesses
         env:
           MOZ_HEADLESS: "1"
         run: |
-          set -euo pipefail
+          set -uo pipefail
           firefox=/usr/bin/firefox
           "$firefox" --version
-          npm run e2e:invariants -- --firefox "$firefox" 2>&1 | tee firefox-invariants.log
-          npm run e2e:websocket -- --firefox "$firefox" 2>&1 | tee firefox-websocket.log
-          npm run e2e:proxy-auth -- --firefox "$firefox" 2>&1 | tee firefox-proxy-auth.log
+          status=0
+          run() {
+            name="$1"; shift
+            if ! "$@" 2>&1 | tee "firefox-$name.log"; then
+              echo "::error::$name failed"
+              status=1
+            fi
+          }
+          run invariants npm run e2e:invariants -- --firefox "$firefox"
+          run websocket npm run e2e:websocket -- --firefox "$firefox"
+          run proxy-auth npm run e2e:proxy-auth -- --firefox "$firefox"
+          exit "$status"
 
       # Uploaded only on failure. The output contains loopback ports and the bundled
       # test proxy's throwaway user/pass; no repository secret ever reaches this job.
