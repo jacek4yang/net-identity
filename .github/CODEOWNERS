@@ -1,0 +1,15 @@
+# Default owner for everything in this repository.
+# Branch protection requires review from code owners to be *possible*; the required
+# approving review count on `main` is deliberately 0 so the maintainer can merge
+# their own pull requests.
+* @jacek4yang
+
+# Security-sensitive areas: credential handling, proxy decision logic and the
+# page-visible shims.
+/src/background/credentials.ts @jacek4yang
+/src/background/active-target.ts @jacek4yang
+/src/background/proxy.ts @jacek4yang
+/src/background/identity.ts @jacek4yang
+/src/content/ @jacek4yang
+/src/shared/public-identity.ts @jacek4yang
+/src/shared/result.ts @jacek4yang
