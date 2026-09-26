@@ -177,6 +177,7 @@ npm run check        # format + eslint + tsc + tests + build + web-ext lint
 npm run test         # vitest
 npm run package      # artifacts/<name>-<version>.zip + package verification
 npm run e2e          # real-Firefox smoke test (needs Firefox + network)
+npm run e2e:invariants  # local Firefox checks: fail-closed geo, Date, frames, WebRTC
 npm run icons        # regenerate public/icons deterministically
 ```
 
@@ -193,6 +194,10 @@ Package output: `artifacts/`.
 - Keep `tests/manifest.test.ts` honest: it pins MV3, the event page, permissions, the
   version floor and the data-collection declaration.
 - Every change that affects behaviour needs a test that fails without the change.
+- Firefox-only behaviour is covered by `npm run e2e`, `e2e:websocket`,
+  `e2e:proxy-auth` and `e2e:invariants`. They are not part of `npm run check`. The
+  required CI job stays Firefox-free so a GeoIP or Marionette outage cannot fail an
+  unrelated change.
 
 ## 10. Adding a GeoIP provider
 

@@ -276,14 +276,24 @@ tests/            vitest unit tests (no browser required)
   and `web-ext lint` where _every_ error and any unexpected warning fails the build.
 - `npm run package` – builds and then inspects the zip: required entries present, and no
   tests, sources, source maps or config files inside.
-- `npm run e2e` – launches real Firefox, activates the default profile, and asserts what
-  a page observes (shim installed, timezone and offset matching the resolved identity,
-  geolocation coordinates matching the provider with the coarse accuracy).
+- `npm run e2e` – launches real Firefox, activates an HTTP profile through a local
+  forwarding proxy, and asserts what a page observes (shim installed, timezone and
+  offset matching the resolved identity, geolocation coordinates matching the provider
+  with the coarse accuracy).
 - `npm run e2e:websocket` – launches real Firefox with a local HTTP proxy profile and
   asserts that `ws`/`wss` reach that proxy while a loopback WebSocket stays bypassed.
+- `npm run e2e:invariants` – launches real Firefox with a local page, a rejecting
+  proxy and a sentinel native geolocation provider. It checks that a failed
+  automatic identity does not reveal that sentinel, that manual coordinates and
+  `Date` getters follow the profile, that child frames see the same timezone, and
+  that deactivation restores the previous WebRTC policy and the native position.
 - `npm run e2e:proxy-auth` – launches real Firefox against the bundled authenticating
   proxy and checks that a correct password is accepted without a 407 loop, and a wrong
   password is challenged only a bounded number of times.
+
+The `quality` CI job does not launch Firefox. The smoke test depends on the public
+GeoIP provider, and the other three scripts need a desktop Firefox binary. Run them
+locally; `.github/workflows/ci.yml` records why they are not a required check.
 
 Manual proxy verification (including `407` authentication) uses the bundled test proxy:
 

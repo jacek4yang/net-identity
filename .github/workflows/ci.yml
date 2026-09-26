@@ -16,6 +16,12 @@ concurrency:
 jobs:
   # One primary job on purpose: the checks are fast and sequential, so parallel jobs
   # would only duplicate setup. This job name is the required status check on main.
+  #
+  # Firefox integration stays off this job. `npm run e2e` needs the public GeoIP
+  # provider, and the deterministic scripts (`e2e:websocket`, `e2e:proxy-auth`,
+  # `e2e:invariants`) need a desktop Firefox binary plus Marionette. A required
+  # browser job would fail unrelated changes when that host or browser is
+  # unavailable. Run those scripts locally; they are the regression coverage.
   quality:
     name: quality
     runs-on: ubuntu-latest
