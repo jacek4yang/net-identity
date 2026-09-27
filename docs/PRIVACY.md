@@ -16,7 +16,7 @@ A password is not written into the saved profile. If one is found there, migrati
 
 **Location lookup.** Activating or refreshing a profile can ask `https://ipwho.is/` where the current connection appears to come from. The request sends no cookies, no referrer, and no proxy password. A proxied profile shows that service the proxy's public address. Browser routing shows it your own public address, and only after you allow that collection in Firefox. Installing the extension does not create a profile, so a fresh install makes no such request. Coordinates from this lookup are approximate (about 20 km) and are not presented as GPS.
 
-**Map pictures.** While the options page is open, it may request map images from `https://tile.openstreetmap.org/`. The image address reveals the area on screen. Images are requested with no referrer. The extension does not send the proxy password, the profile, or an account. Typed coordinates still work when those images cannot load. The map program itself is part of the extension.
+**Map pictures.** While the options page is open, it may request map images from `https://tile.openstreetmap.org/` (© OpenStreetMap contributors). The image address reveals the area on screen. To comply with OpenStreetMap's Tile Usage Policy, requests send the browser's standard extension Referer (`moz-extension://...`). The extension never sends proxy passwords, credentials, profile secrets, or browsing URLs. Typed coordinates and map interaction still work when those images cannot load. The map program itself is bundled local code.
 
 **Proxy traffic.** Traffic you choose to send through a proxy goes to that proxy. The extension does not add its own analytics to that traffic.
 

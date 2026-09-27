@@ -75,6 +75,7 @@ jobs:
           }
           run invariants npm run e2e:invariants -- --firefox "$firefox"
           run websocket npm run e2e:websocket -- --firefox "$firefox"
+          run ui npm run e2e:ui -- --firefox "$firefox"
           exit "$status"
 
       # Uploaded only on failure. The output contains loopback ports and the bundled

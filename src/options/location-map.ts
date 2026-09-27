@@ -70,10 +70,14 @@ export function viewportPoint(
   latitude: number,
   longitude: number,
 ): MapPoint {
+  const size = worldSize(viewport.zoom);
   const center = worldPoint(viewport.center.latitude, viewport.center.longitude, viewport.zoom);
   const target = worldPoint(latitude, longitude, viewport.zoom);
+  let dx = target.x - center.x;
+  while (dx > size / 2) dx -= size;
+  while (dx < -size / 2) dx += size;
   return {
-    x: viewport.width / 2 + (target.x - center.x),
+    x: viewport.width / 2 + dx,
     y: viewport.height / 2 + (target.y - center.y),
   };
 }

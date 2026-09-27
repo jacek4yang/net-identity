@@ -18,7 +18,7 @@ A sandboxed frame Firefox refuses to inject can still see the computer's timezon
 
 ## Map
 
-The options map is local code. Optional images come from `tile.openstreetmap.org` with `referrerpolicy="no-referrer"`, and only while that page is open. No remote script is loaded. Coordinates can be typed when images fail.
+The options map is bundled local code. Optional tile images come from `tile.openstreetmap.org` (© OpenStreetMap contributors) sending standard extension Referer in compliance with OpenStreetMap's Tile Usage Policy, only while that page is open. No remote script or executable code is loaded. No credentials, profile secrets, or browsing URLs are sent. Manual coordinates and marker interaction remain fully functional when images fail or offline.
 
 ## Install channel
 

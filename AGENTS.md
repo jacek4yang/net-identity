@@ -172,8 +172,8 @@ step before changing the stored shape.
   `personallyIdentifyingInfo` is granted.
 - Installation does not create or activate a profile, so a fresh install makes no
   GeoIP request.
-- The options map may load images from `tile.openstreetmap.org`. The tile path reveals
-  the viewed area. Requests use `referrerpolicy="no-referrer"` and carry no credentials.
+- The options map may load images from `tile.openstreetmap.org` (© OpenStreetMap contributors). The tile path reveals
+  the viewed area. Requests send standard browser Referer (as required by OpenStreetMap's Tile Usage Policy) and carry no credentials.
   Document any new tile host in `docs/SECURITY.md` before adding it.
 - **Do not change this to `["none"]`** while any automatic provider exists. If you add
   providers, re-review the declaration, `docs/SECURITY.md`, the README and

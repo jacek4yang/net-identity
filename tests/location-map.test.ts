@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   accuracyRadiusPixels,
   applyResolvedLocation,
+  clampLatitude,
+  clampLongitude,
   latLngFromViewport,
   mapTileUrl,
   panViewport,
@@ -10,6 +12,7 @@ import {
   viewportPoint,
   visibleTiles,
   zoomToFitAccuracy,
+  MAP_MAX_LATITUDE,
   type MapViewport,
 } from "../src/options/location-map";
 
@@ -33,6 +36,33 @@ describe("location map projection", () => {
     expect(back.longitude).toBeCloseTo(-0.12, 4);
   });
 
+  it("handles anti-meridian wrapping across the +-180 degree boundary", () => {
+    const viewport = view(0, 179);
+    // Target is -179, which is 2 degrees east across the 180 meridian
+    const pt = viewportPoint(viewport, 0, -179);
+    // It should be positioned slightly to the right of the center (x = 200)
+    expect(pt.x).toBeGreaterThan(200);
+    expect(pt.x).toBeLessThan(250);
+
+    const back = latLngFromViewport(viewport, pt);
+    expect(back.longitude).toBeCloseTo(-179, 1);
+  });
+
+  it("clamps latitude to Web Mercator limits and handles non-finite inputs", () => {
+    expect(clampLatitude(90)).toBe(MAP_MAX_LATITUDE);
+    expect(clampLatitude(-90)).toBe(-MAP_MAX_LATITUDE);
+    expect(clampLatitude(45)).toBe(45);
+    expect(clampLatitude(Number.NaN)).toBe(0);
+    expect(clampLatitude(Number.POSITIVE_INFINITY)).toBe(0);
+  });
+
+  it("normalises longitudes wrapping around +-180 degrees", () => {
+    expect(clampLongitude(185)).toBe(-175);
+    expect(clampLongitude(-185)).toBe(175);
+    expect(clampLongitude(540)).toBe(180);
+    expect(clampLongitude(Number.NaN)).toBe(0);
+  });
+
   it("builds OpenStreetMap tile URLs and rejects indexes outside the zoom", () => {
     expect(mapTileUrl(2, 1, 1)).toBe("https://tile.openstreetmap.org/2/1/1.png");
     expect(mapTileUrl(2, 4, 0)).toBeNull();
@@ -51,8 +81,30 @@ describe("location map projection", () => {
     expect(clicked.longitude).toBeLessThan(viewport.center.longitude);
   });
 
+  it("decouples viewport panning from selected marker coordinates", () => {
+    const viewport = view(37.77, -122.41);
+    const markerLat = 37.77;
+    const markerLng = -122.41;
+
+    // Initially marker is at viewport center
+    const pt1 = viewportPoint(viewport, markerLat, markerLng);
+    expect(pt1.x).toBe(200);
+    expect(pt1.y).toBe(100);
+
+    // Pan viewport 50px east (drag mouse left)
+    const pannedCenter = panViewport(viewport, -50, 0);
+    const pannedView: MapViewport = { ...viewport, center: pannedCenter };
+
+    // Marker coordinates are unchanged, but marker screen position shifts by 50px
+    const pt2 = viewportPoint(pannedView, markerLat, markerLng);
+    expect(pt2.x).toBeCloseTo(150, 0);
+    expect(pt2.y).toBeCloseTo(100, 0);
+  });
+
   it("sizes the accuracy circle and picks a zoom that keeps a coarse radius visible", () => {
     expect(accuracyRadiusPixels(34.2, 0, 4)).toBe(0);
+    expect(accuracyRadiusPixels(34.2, -100, 4)).toBe(0);
+    expect(accuracyRadiusPixels(34.2, Number.NaN, 4)).toBe(0);
     expect(zoomToFitAccuracy(34.2, Number.NaN, 280)).toBe(4);
     const zoom = zoomToFitAccuracy(34.2, 20_000, 280);
     const radius = accuracyRadiusPixels(34.2, 20_000, zoom);
@@ -102,6 +154,11 @@ describe("manual location seeding", () => {
     const edited = { latitude: "10", longitude: "20", accuracy: "50", timezone: "UTC" };
     expect(seedBlankManualFields(edited, resolved, true)).toEqual(edited);
     expect(seedBlankManualFields({ ...blank, latitude: "1" }, resolved, false).latitude).toBe("1");
+  });
+
+  it("handles null or undefined seeds gracefully", () => {
+    expect(seedBlankManualFields(blank, null, false)).toEqual(blank);
+    expect(seedBlankManualFields(blank, {}, false)).toEqual(blank);
   });
 
   it("replaces the manual point when the user asks for the GeoIP location", () => {
