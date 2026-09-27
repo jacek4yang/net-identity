@@ -25,6 +25,7 @@ const { values } = parseArgs({
     host: { type: "string", default: "127.0.0.1" },
     "require-auth": { type: "string" },
     offline: { type: "boolean", default: false },
+    "offline-target": { type: "string" },
   },
 });
 
@@ -87,6 +88,11 @@ function forward(request, response) {
 }
 
 const server = http.createServer((request, response) => {
+  if (values.offline) {
+    response.writeHead(502);
+    response.end("offline CONNECT fixture");
+    return;
+  }
   if (request.url?.startsWith("http://") !== true) {
     response.writeHead(400, { "content-type": "text/plain" });
     response.end("this proxy expects absolute-form requests or CONNECT");
@@ -97,6 +103,17 @@ const server = http.createServer((request, response) => {
 });
 
 server.on("connect", (request, clientSocket, head) => {
+  // In the offline auth fixture only the specified connection is challenged.
+  // Firefox background services also use the active proxy; reject those locally
+  // without creating unrelated native auth dialogs or any upstream connection.
+  if (
+    values.offline &&
+    values["offline-target"] !== undefined &&
+    request.url !== values["offline-target"]
+  ) {
+    clientSocket.end("HTTP/1.1 502 Bad Gateway\r\ncontent-length: 0\r\n\r\n");
+    return;
+  }
   if (!authorized(request)) {
     log(`CONNECT ${request.url} -> 407 (authentication required)`);
     clientSocket.end(

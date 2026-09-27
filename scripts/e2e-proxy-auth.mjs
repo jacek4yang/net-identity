@@ -205,6 +205,8 @@ async function main() {
       "--port",
       String(proxyPort),
       "--offline",
+      "--offline-target",
+      "ipwho.is:443",
       "--require-auth",
       "user:pass",
     ],
