@@ -79,6 +79,8 @@ async function listHttpTabs(): Promise<browser.tabs.Tab[]> {
 
 async function broadcastIdentity(envelope: IdentityEnvelope): Promise<void> {
   const tabs = await listHttpTabs();
+  // Tab enumeration may finish after a newer route/Off committed.
+  if (JSON.stringify(envelope) !== JSON.stringify(controller.getEnvelope())) return;
   await Promise.all(
     tabs.map(async (tab) => {
       if (tab.id === undefined) return;

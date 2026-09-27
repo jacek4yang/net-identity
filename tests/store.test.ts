@@ -34,7 +34,9 @@ describe("profile store", () => {
     const loaded = await store.load();
 
     expect(loaded.activeProfileId).toBe("profile-0001");
-    expect(loaded.profiles).toEqual([createBuiltinDirectProfile(), profile]);
+    expect(loaded.profiles.map((p) => parseProfile(p))).toEqual(
+      [createBuiltinDirectProfile(), profile].map((p) => parseProfile(p)),
+    );
   });
 
   it("degrades to an empty state when stored data is corrupt", async () => {
@@ -98,6 +100,24 @@ describe("profile store", () => {
       upsertProfile(state, makeProfile({ id: "profile-99999" })),
     );
     expect(result.ok).toBe(false);
+  });
+
+  it("does not charge the virtual route against user profile capacity", async () => {
+    const store = createProfileStore(createMemoryStorage());
+    const profiles = Array.from({ length: MAX_PROFILES - 1 }, (_, index) =>
+      makeProfile({ id: `capacity-${index}` }),
+    );
+    await store.save({ schemaVersion: SCHEMA_VERSION, activeProfileId: null, profiles });
+    const result = await mutateProfiles(store, (state) =>
+      upsertProfile(state, makeProfile({ id: "last-user-profile" })),
+    );
+    expect(result.ok).toBe(true);
+    expect(
+      findProfile(
+        { schemaVersion: SCHEMA_VERSION, activeProfileId: null, profiles: [] },
+        BUILTIN_DIRECT_PROFILE_ID,
+      )?.proxy.type,
+    ).toBe("direct");
   });
 
   it("replaces an existing profile in place", async () => {

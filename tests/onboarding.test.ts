@@ -29,7 +29,9 @@ describe("first-run guidance", () => {
   });
 
   it("adds a next step for consent, provider, and proxy failures", () => {
-    expect(explainRuntimeError("consent_required", "Lookup refused.")).toContain("proxied profile");
+    expect(explainRuntimeError("consent_required", "Lookup refused.")).toContain(
+      "Routing is already active",
+    );
     expect(explainRuntimeError("provider_error", "Timed out.")).toContain("Refresh Identity");
     expect(explainRuntimeError("proxy_error", "Connection refused.")).toContain("password");
     expect(explainRuntimeError("schema_unsupported", "Left unchanged.")).toContain("newer version");

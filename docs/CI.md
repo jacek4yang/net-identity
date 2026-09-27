@@ -16,7 +16,7 @@ run the same checks.
 ## What the Firefox job runs
 
 The job installs a supported stable desktop Firefox from Mozilla's APT repository and
-runs the three deterministic harnesses:
+runs four deterministic harnesses:
 
 - `npm run e2e:invariants` – fail-closed controlled geolocation, `Date`/`Intl`
   timezone consistency, supported frames, and WebRTC apply/restore.
@@ -27,11 +27,12 @@ Every request goes to a loopback page, proxy or WebSocket server. The harnesses 
 contact the public GeoIP provider, so the gate cannot fail because an external service
 is slow or down.
 
-`npm run e2e:proxy-auth` is deliberately **not** in CI. Its assertion counts 407
-responses across all proxy traffic, and a fresh CI Firefox profile makes many unrelated
-proxied requests (Remote Settings, OpenStreetMap tiles). That count is a clean-profile
-release-candidate smoke item (#21), not a deterministic gate. `npm run e2e` (the GeoIP
-smoke test) is out for the same reason: it needs the public provider.
+`npm run e2e:proxy-auth` now uses an offline authenticated CONNECT fixture. It
+checks wrong-password rejection, correct-password acceptance and secret-free logs
+without contacting a public provider. It runs in the required Firefox gate alongside
+`npm run e2e:ui`, which drives popup routes, Save/Apply and real pointer/wheel map
+interactions, including Firefox offline mode. `npm run e2e` remains outside CI because
+it requires the public GeoIP provider.
 
 On failure the job uploads `firefox-*.log`. The logs contain loopback ports and the
 bundled test proxy's throwaway `user:pass`; no repository secret is used by this job.
@@ -68,7 +69,7 @@ npm ci
 npm run build
 npm run e2e:invariants -- --firefox "<path to Firefox>"
 npm run e2e:websocket -- --firefox "<path to Firefox>"
-npm run e2e:proxy-auth -- --firefox "<path to Firefox>"   # clean-profile smoke (#21)
+npm run e2e:proxy-auth -- --firefox "<path to Firefox>"
 ```
 
 A missing Firefox binary exits with code `2` and an `INCONCLUSIVE` message; it is never

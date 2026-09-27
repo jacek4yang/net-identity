@@ -28,10 +28,11 @@ import {
   isValidProfileId,
   parseCredentials,
   parseProxyConfig,
+  parseProfile,
   type ProxyCredentials,
 } from "../profile/validation";
 
-import type { ProxyConfig, WebRTCPolicy } from "../profile/schema";
+import type { IdentityProfile, ProxyConfig, WebRTCPolicy } from "../profile/schema";
 
 export const ACTIVE_TARGET_SCHEMA_VERSION = 1;
 
@@ -40,6 +41,8 @@ export interface ActiveTargetSnapshot {
   generation: number;
   profileId: string;
   profileName: string;
+  profile?: IdentityProfile;
+  appliedRevision?: number;
   proxy: ProxyConfig;
   /** Secret: session storage only. */
   credentials: ProxyCredentials | null;
@@ -69,6 +72,14 @@ export function parseActiveTargetSnapshot(value: unknown): Result<ActiveTargetSn
     return fail("active target status is invalid");
   }
 
+  if (
+    value.appliedRevision !== undefined &&
+    !isIntegerInRange(value.appliedRevision, 0, Number.MAX_SAFE_INTEGER)
+  )
+    return fail("invalid applied revision");
+  const profile = value.profile === undefined ? undefined : parseProfile(value.profile);
+  if (profile !== undefined && !profile.ok) return fail(...profile.errors);
+  if (profile?.ok && profile.value.id !== value.profileId) return fail("snapshot profile mismatch");
   const proxy = parseProxyConfig(value.proxy);
   if (!proxy.ok) return fail(...proxy.errors);
 
@@ -93,6 +104,8 @@ export function parseActiveTargetSnapshot(value: unknown): Result<ActiveTargetSn
     generation: value.generation,
     profileId: value.profileId,
     profileName: value.profileName,
+    ...(profile?.ok ? { profile: profile.value } : {}),
+    appliedRevision: typeof value.appliedRevision === "number" ? value.appliedRevision : 0,
     proxy: proxy.value,
     credentials,
     webrtcPolicy: policy.value,
@@ -110,6 +123,12 @@ export interface ActiveTargetStore {
 }
 
 export function createActiveTargetStore(area: StorageAreaLike): ActiveTargetStore {
+  let queue: Promise<unknown> = Promise.resolve();
+  const enqueue = (operation: () => Promise<void>): Promise<void> => {
+    const next = queue.then(operation, operation);
+    queue = next.catch(() => undefined);
+    return next;
+  };
   return {
     async load() {
       const raw = await readKey(area, ACTIVE_TARGET_KEY);
@@ -118,10 +137,10 @@ export function createActiveTargetStore(area: StorageAreaLike): ActiveTargetStor
       return parsed.ok ? parsed.value : null;
     },
     async save(snapshot) {
-      await area.set({ [ACTIVE_TARGET_KEY]: snapshot });
+      await enqueue(() => area.set({ [ACTIVE_TARGET_KEY]: snapshot }));
     },
     async clear() {
-      await area.remove(ACTIVE_TARGET_KEY);
+      await enqueue(() => area.remove(ACTIVE_TARGET_KEY));
     },
   };
 }

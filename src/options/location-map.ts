@@ -1,13 +1,12 @@
 /**
  * Local map maths for the manual location picker.
  *
- * The picker is a Web Mercator plane. Tile images are optional decoration from
- * OpenStreetMap and are not required to place a point or type coordinates.
- * No executable code is loaded from the tile host.
+ * The picker is a Web Mercator plane with a local coordinate grid. A tile
+ * provider can supply optional image decoration after policy/privacy review.
+ * Production performs no map network requests.
  */
 
-/** Raster tiles. Requests go to this host only while the map is visible. */
-export const MAP_TILE_HOST = "tile.openstreetmap.org";
+import { NO_TILES, type TileProvider } from "./tile-provider";
 export const MAP_TILE_SIZE = 256;
 /** Web Mercator is undefined at the poles. */
 export const MAP_MAX_LATITUDE = 85.05112878;
@@ -36,10 +35,8 @@ export function clampLatitude(value: number): number {
 
 export function clampLongitude(value: number): number {
   if (!Number.isFinite(value)) return 0;
-  let longitude = value;
-  while (longitude > 180) longitude -= 360;
-  while (longitude < -180) longitude += 360;
-  return longitude;
+  if (value >= -180 && value <= 180) return value;
+  return ((((value + 180) % 360) + 360) % 360) - 180;
 }
 
 export function worldSize(zoom: number): number {
@@ -94,12 +91,17 @@ export function latLngFromViewport(viewport: MapViewport, point: MapPoint): MapL
 }
 
 /** Tile URL for decoration. Returns null when the indexes are outside the zoom. */
-export function mapTileUrl(zoom: number, x: number, y: number): string | null {
+export function mapTileUrl(
+  zoom: number,
+  x: number,
+  y: number,
+  provider: TileProvider = NO_TILES,
+): string | null {
   const limit = 2 ** zoom;
   if (!Number.isInteger(zoom) || zoom < 0 || zoom > 19) return null;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
   if (x < 0 || y < 0 || x >= limit || y >= limit) return null;
-  return `https://${MAP_TILE_HOST}/${zoom}/${x}/${y}.png`;
+  return provider.url(zoom, x, y);
 }
 
 /** Equatorial circumference used only to size the accuracy circle. */
@@ -173,7 +175,10 @@ function wrapTileX(x: number, zoom: number): number {
  * Image tiles covering the viewport. Indexes past the poles are omitted so a
  * failed or missing tile never blocks the coordinate grid underneath.
  */
-export function visibleTiles(viewport: MapViewport): PlacedTile[] {
+export function visibleTiles(
+  viewport: MapViewport,
+  provider: TileProvider = NO_TILES,
+): PlacedTile[] {
   const center = worldPoint(viewport.center.latitude, viewport.center.longitude, viewport.zoom);
   const originX = Math.floor(center.x / MAP_TILE_SIZE);
   const originY = Math.floor(center.y / MAP_TILE_SIZE);
@@ -182,8 +187,22 @@ export function visibleTiles(viewport: MapViewport): PlacedTile[] {
   const tiles: PlacedTile[] = [];
   for (let dx = -spanX; dx <= spanX; dx += 1) {
     for (let dy = -spanY; dy <= spanY; dy += 1) {
-      const url = mapTileUrl(viewport.zoom, wrapTileX(originX + dx, viewport.zoom), originY + dy);
+      const url = mapTileUrl(
+        viewport.zoom,
+        wrapTileX(originX + dx, viewport.zoom),
+        originY + dy,
+        provider,
+      );
       if (url === null) continue;
+      const left = (originX + dx) * MAP_TILE_SIZE - center.x + viewport.width / 2;
+      const top = (originY + dy) * MAP_TILE_SIZE - center.y + viewport.height / 2;
+      if (
+        left >= viewport.width ||
+        top >= viewport.height ||
+        left + MAP_TILE_SIZE <= 0 ||
+        top + MAP_TILE_SIZE <= 0
+      )
+        continue;
       tiles.push({
         url,
         left: (originX + dx) * MAP_TILE_SIZE - center.x + viewport.width / 2,

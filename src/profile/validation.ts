@@ -224,20 +224,42 @@ export function parseIdentityConfig(input: unknown): Result<IdentityConfig> {
     errors.push("latitude and longitude must be provided together");
   }
 
-  if (mode === "manual") {
+  const geoIpPolicy = input.geoIpPolicy ?? "automatic";
+  const geolocationPolicy = input.geolocationPolicy ?? (mode === "manual" ? "manual" : "follow");
+  const timezonePolicy = input.timezonePolicy ?? (mode === "manual" ? "manual" : "follow");
+  if (geoIpPolicy !== "automatic" && geoIpPolicy !== "disabled")
+    return fail("invalid GeoIP policy");
+  if (
+    geolocationPolicy !== "follow" &&
+    geolocationPolicy !== "manual" &&
+    geolocationPolicy !== "disabled"
+  )
+    return fail("invalid geolocation policy");
+  if (timezonePolicy !== "follow" && timezonePolicy !== "manual")
+    return fail("invalid timezone policy");
+  if (input.providerId !== undefined && input.providerId !== "ipwho.is")
+    return fail("unsupported GeoIP provider");
+
+  if (geolocationPolicy === "manual") {
     if (!latitudeResult.ok || latitudeResult.value === undefined)
       errors.push("manual mode requires a latitude");
     if (!longitudeResult.ok || longitudeResult.value === undefined)
       errors.push("manual mode requires a longitude");
     if (!accuracyResult.ok || accuracyResult.value === undefined)
       errors.push("manual mode requires an accuracy in metres");
-    if (!timezoneResult.ok || timezoneResult.value === undefined)
-      errors.push("manual mode requires an IANA timezone");
   }
+  if (timezonePolicy === "manual" && (!timezoneResult.ok || timezoneResult.value === undefined))
+    errors.push("manual mode requires an IANA timezone");
 
   if (errors.length > 0) return fail(...errors);
 
-  const identity: IdentityConfig = { mode };
+  const identity: IdentityConfig = {
+    mode,
+    geoIpPolicy,
+    providerId: "ipwho.is",
+    geolocationPolicy,
+    timezonePolicy,
+  };
   if (publicIpResult.ok && publicIpResult.value !== undefined)
     identity.publicIp = publicIpResult.value;
   if (countryResult.ok && countryResult.value !== undefined)
@@ -274,6 +296,11 @@ export function parseProfile(input: unknown): Result<IdentityProfile> {
   const identityResult = parseIdentityConfig(input.identity);
   if (!identityResult.ok) errors.push(...identityResult.errors);
 
+  const revision = input.revision ?? 1;
+  if (typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 1)
+    return fail("invalid profile revision");
+  const webrtcMode = input.webrtcMode ?? "manual";
+  if (webrtcMode !== "manual" && webrtcMode !== "automatic") return fail("invalid WebRTC mode");
   const policyResult = parseWebRtcPolicy(input.webrtcPolicy);
   if (!policyResult.ok) errors.push(...policyResult.errors);
 
@@ -293,6 +320,8 @@ export function parseProfile(input: unknown): Result<IdentityProfile> {
     proxy: proxyResult.value,
     identity: identityResult.value,
     webrtcPolicy: policyResult.value,
+    webrtcMode,
+    revision,
   });
 }
 

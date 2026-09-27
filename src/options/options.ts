@@ -27,17 +27,16 @@ import type { RuntimeState } from "../shared/state";
 import {
   accuracyRadiusPixels,
   applyResolvedLocation,
-  latLngFromViewport,
-  panViewport,
   seedBlankManualFields,
   viewportPoint,
   visibleTiles,
   zoomToFitAccuracy,
-  MAP_MAX_LATITUDE,
   type LocationSeed,
-  type MapLatLng,
   type MapViewport,
 } from "./location-map";
+import { locationTimezoneWarning } from "./identity-warning";
+import { LocationMapModel } from "./map-model";
+import { NO_TILES, TileFailures } from "./tile-provider";
 import {
   credentialsIntentFrom,
   proxyFieldHints,
@@ -78,6 +77,12 @@ const ui = {
   removeCredentialsRow: requireElement<HTMLElement>("#remove-credentials-row"),
   proxyDns: requireElement<HTMLInputElement>("#field-proxy-dns"),
   bypass: requireElement<HTMLTextAreaElement>("#field-bypass"),
+  policyFields: requireElement<HTMLElement>("#identity-policies"),
+  geoIpPolicy: requireElement<HTMLSelectElement>("#field-geoip-policy"),
+  geolocationPolicy: requireElement<HTMLSelectElement>("#field-geolocation-policy"),
+  timezonePolicy: requireElement<HTMLSelectElement>("#field-timezone-policy"),
+  identityWarning: requireElement<HTMLElement>("#identity-warning"),
+  saveStatus: requireElement<HTMLElement>("#save-status"),
   modeAuto: requireElement<HTMLInputElement>("#field-mode-auto"),
   modeManual: requireElement<HTMLInputElement>("#field-mode-manual"),
   manualFields: requireElement<HTMLElement>("#manual-fields"),
@@ -104,23 +109,32 @@ const ui = {
 };
 
 let profiles: IdentityProfile[] = [];
+let runtimeState: RuntimeState | null = null;
 let activeProfileId: string | null = null;
 let credentialProfileIds: string[] = [];
 let selectedId: string | null = null;
 let manualUserEdited = false;
 let resolvedSeed: LocationSeed | null = null;
 
-/** Map viewport center is decoupled from the selected location. */
-let viewportCenter: MapLatLng = { latitude: 20, longitude: 0 };
-/** Null means the zoom follows the accuracy circle. A zoom button pins an explicit level. */
-let mapZoom: number | null = null;
-let activeDrag: {
-  type: "pan" | "marker";
-  originX: number;
-  originY: number;
-  lastX: number;
-  lastY: number;
-} | null = null;
+const map = new LocationMapModel();
+const tileFailures = new TileFailures();
+let capture: { element: HTMLElement; id: number } | null = null;
+let wheelDelta = 0;
+let lastWheelAt = 0;
+
+function cancelMapInteraction(): void {
+  map.cancel();
+  const previous = capture;
+  capture = null;
+  if (previous?.element.hasPointerCapture(previous.id))
+    previous.element.releasePointerCapture(previous.id);
+  ui.mapSurface.classList.remove("is-grabbing");
+  ui.mapMarker.classList.remove("is-dragging");
+}
+
+function editableLocation(): boolean {
+  return ui.modeManual.checked && ui.geolocationPolicy.value === "manual";
+}
 
 function parseCoordinate(value: string, min: number, max: number): number | null {
   const trimmed = value.trim();
@@ -143,6 +157,9 @@ function readForm(): ProfileFormValues {
     proxyDns: ui.proxyDns.checked,
     bypassHosts: ui.bypass.value,
     identityMode: ui.modeManual.checked ? "manual" : "auto",
+    geoIpPolicy: ui.geoIpPolicy.value,
+    geolocationPolicy: ui.geolocationPolicy.value,
+    timezonePolicy: ui.timezonePolicy.value,
     latitude: ui.latitude.value,
     longitude: ui.longitude.value,
     accuracy: ui.accuracy.value,
@@ -153,7 +170,7 @@ function readForm(): ProfileFormValues {
 
 function writeForm(values: ProfileFormValues): void {
   ui.name.value = values.name;
-  ui.proxyType.value = values.proxyType === "direct" ? "http" : values.proxyType;
+  ui.proxyType.value = values.proxyType;
   ui.proxyHost.value = values.proxyHost;
   ui.proxyPort.value = values.proxyPort;
   ui.proxyUsername.value = values.proxyUsername;
@@ -163,8 +180,11 @@ function writeForm(values: ProfileFormValues): void {
   ui.bypass.value = values.bypassHosts;
   ui.modeAuto.checked = values.identityMode !== "manual";
   ui.modeManual.checked = values.identityMode === "manual";
+  ui.geoIpPolicy.value = values.geoIpPolicy ?? "automatic";
+  ui.geolocationPolicy.value = values.geolocationPolicy ?? "follow";
+  ui.timezonePolicy.value = values.timezonePolicy ?? "follow";
   manualUserEdited = false;
-  mapZoom = null;
+  cancelMapInteraction();
   ui.latitude.value = values.latitude;
   ui.longitude.value = values.longitude;
   ui.accuracy.value = values.accuracy;
@@ -187,66 +207,44 @@ function selectedProfile(): IdentityProfile | null {
   return profiles.find((profile) => profile.id === selectedId) ?? null;
 }
 
-function displayedPoint(): {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  hasPoint: boolean;
-} {
-  if (
-    !ui.modeManual.checked &&
-    resolvedSeed !== null &&
-    resolvedSeed.latitude !== undefined &&
-    resolvedSeed.longitude !== undefined
-  ) {
-    return {
-      latitude: resolvedSeed.latitude,
-      longitude: resolvedSeed.longitude,
-      accuracy: resolvedSeed.accuracy ?? 20000,
-      hasPoint: true,
-    };
+function syncMapSelection(recenter = false): void {
+  map.editable = editableLocation();
+  let point = null;
+  if (editableLocation()) {
+    const latitude = parseCoordinate(ui.latitude.value, -90, 90);
+    const longitude = parseCoordinate(ui.longitude.value, -180, 180);
+    if (latitude !== null && longitude !== null) point = { latitude, longitude };
+  } else if (!ui.modeManual.checked || ui.geolocationPolicy.value === "follow") {
+    const source =
+      selectedId === activeProfileId ? runtimeState?.identity : selectedProfile()?.identity;
+    if (source?.latitude !== undefined && source.longitude !== undefined)
+      point = { latitude: source.latitude, longitude: source.longitude };
   }
-
-  const lat = parseCoordinate(ui.latitude.value, -MAP_MAX_LATITUDE, MAP_MAX_LATITUDE);
-  const lng = parseCoordinate(ui.longitude.value, -180, 180);
-  const acc = Number(ui.accuracy.value);
-
-  if (lat !== null && lng !== null) {
-    return {
-      latitude: lat,
-      longitude: lng,
-      accuracy: Number.isFinite(acc) && acc > 0 ? acc : 1000,
-      hasPoint: true,
-    };
-  }
-
-  return {
-    latitude: viewportCenter.latitude,
-    longitude: viewportCenter.longitude,
-    accuracy: 1000,
-    hasPoint: false,
-  };
+  map.select(point, recenter);
 }
 
 function mapViewport(): MapViewport {
-  const height = ui.mapSurface.clientHeight || 280;
-  const width = ui.mapSurface.clientWidth || 640;
-  const point = displayedPoint();
-  return {
-    width,
-    height,
-    zoom:
-      mapZoom ?? (point.hasPoint ? zoomToFitAccuracy(point.latitude, point.accuracy, height) : 2),
-    center: viewportCenter,
-  };
+  map.resize(ui.mapSurface.clientWidth, ui.mapSurface.clientHeight);
+  return map.viewport;
 }
 
 function renderLocationMap(): void {
   const viewport = mapViewport();
-  const point = displayedPoint();
+  const point = map.selection;
+  if (editableLocation() && ui.timezonePolicy.value === "manual") {
+    ui.identityWarning.textContent =
+      locationTimezoneWarning(Number(ui.longitude.value), ui.timezone.value, Date.now()) ??
+      "Custom overrides are applied as entered; they may differ from the observed network location.";
+  }
 
   // Render tiles
-  const tiles = visibleTiles(viewport);
+  const tiles = ui.form.hidden ? [] : visibleTiles(viewport, NO_TILES);
+  requireElement<HTMLElement>(".location-map-attribution").textContent = NO_TILES.attribution;
+  ui.mapNotice.hidden = false;
+  ui.mapNotice.textContent = `Center ${viewport.center.latitude.toFixed(3)}, ${viewport.center.longitude.toFixed(3)} ? Zoom ${viewport.zoom}`;
+  ui.mapSurface.dataset.zoom = String(viewport.zoom);
+  ui.mapSurface.dataset.center = `${viewport.center.latitude},${viewport.center.longitude}`;
+  ui.mapSurface.style.backgroundPosition = `${-viewport.center.longitude * 2 ** viewport.zoom}px ${viewport.center.latitude * 2 ** viewport.zoom}px`;
   const existing = new Map<string, HTMLImageElement>();
   for (const node of ui.mapTiles.querySelectorAll("img")) {
     if (!(node instanceof HTMLImageElement)) continue;
@@ -264,16 +262,18 @@ function renderLocationMap(): void {
   for (const tile of tiles) {
     let image = existing.get(tile.url);
     if (image === undefined) {
+      if (!tileFailures.allows(tile.url)) continue;
       const created = document.createElement("img");
       created.alt = "";
-      // NOTE: OpenStreetMap Tile Usage Policy requires standard referrer.
-      // Do not strip Referer via no-referrer.
+      created.crossOrigin = "anonymous";
+      created.referrerPolicy = "no-referrer";
       created.dataset["url"] = tile.url;
       created.src = tile.url;
       created.addEventListener("error", () => {
-        ui.mapNotice.hidden = false;
+        tileFailures.fail(tile.url);
         created.remove();
       });
+      created.addEventListener("load", () => tileFailures.success(tile.url));
       ui.mapTiles.append(created);
       image = created;
     }
@@ -282,7 +282,7 @@ function renderLocationMap(): void {
   }
 
   // Position marker and accuracy circle
-  if (!point.hasPoint) {
+  if (point === null) {
     ui.mapMarker.hidden = true;
     ui.mapAccuracy.hidden = true;
   } else {
@@ -291,7 +291,11 @@ function renderLocationMap(): void {
     ui.mapMarker.style.left = `${markerPos.x}px`;
     ui.mapMarker.style.top = `${markerPos.y}px`;
 
-    const radius = accuracyRadiusPixels(point.latitude, point.accuracy, viewport.zoom);
+    const radius = accuracyRadiusPixels(
+      point.latitude,
+      editableLocation() ? Number(ui.accuracy.value) : (resolvedSeed?.accuracy ?? 20000),
+      viewport.zoom,
+    );
     if (radius <= 0) {
       ui.mapAccuracy.hidden = true;
     } else {
@@ -306,13 +310,14 @@ function renderLocationMap(): void {
     }
   }
 
-  ui.mapSurface.classList.toggle("is-grabbing", activeDrag?.type === "pan");
+  ui.mapSurface.classList.toggle("is-grabbing", map.interaction?.kind === "pan");
 }
 
 function setManualPoint(latitude: number, longitude: number, edited: boolean): void {
   ui.latitude.value = String(Math.round(latitude * 1e6) / 1e6);
   ui.longitude.value = String(Math.round(longitude * 1e6) / 1e6);
   if (edited) manualUserEdited = true;
+  syncMapSelection();
   renderLocationMap();
 }
 
@@ -320,8 +325,22 @@ function updateVisibility(): void {
   const isManual = ui.modeManual.checked;
   const hasCredentials = selectedId !== null && credentialProfileIds.includes(selectedId);
 
+  ui.policyFields.hidden = !isManual;
   ui.manualFields.hidden = !isManual;
-  ui.mapSurface.classList.toggle("is-preview", !isManual);
+  ui.latitude.disabled =
+    ui.longitude.disabled =
+    ui.accuracy.disabled =
+      !isManual || ui.geolocationPolicy.value !== "manual";
+  ui.timezone.disabled = !isManual || ui.timezonePolicy.value !== "manual";
+  ui.proxyAddressFields.hidden = ui.proxyType.value === "direct";
+  ui.identityWarning.hidden = !isManual;
+  ui.identityWarning.textContent =
+    "Custom overrides are applied as entered. A manual location or timezone may disagree with the observed network location.";
+  ui.useGeoIpLocation.disabled =
+    resolvedSeed?.latitude === undefined || resolvedSeed.longitude === undefined;
+  ui.mapSurface.classList.toggle("is-preview", !editableLocation());
+  cancelMapInteraction();
+  syncMapSelection();
   renderLocationMap();
   ui.removeCredentialsRow.hidden = !hasCredentials;
 
@@ -382,11 +401,20 @@ function renderProfileList(): void {
         }),
       ],
     });
+    item.setAttribute("role", "option");
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectProfile(profile.id);
+      }
+    });
     ui.list.append(item);
   }
 }
 
 function selectProfile(profileId: string | null): void {
+  cancelMapInteraction();
+  wheelDelta = 0;
   selectedId = profileId;
   const isDirect = profileId === BUILTIN_DIRECT_PROFILE_ID;
 
@@ -411,41 +439,41 @@ function selectProfile(profileId: string | null): void {
     ui.saveActivate.disabled = false;
     ui.deactivate.disabled = activeProfileId === null;
 
-    // Recenter map on profile coordinates
-    if (
-      profile?.identity.mode === "manual" &&
-      profile.identity.latitude !== undefined &&
-      profile.identity.longitude !== undefined
-    ) {
-      viewportCenter = {
-        latitude: profile.identity.latitude,
-        longitude: profile.identity.longitude,
-      };
-      mapZoom = zoomToFitAccuracy(
-        profile.identity.latitude,
-        profile.identity.accuracy ?? 1000,
-        280,
-      );
-    } else if (resolvedSeed?.latitude !== undefined && resolvedSeed?.longitude !== undefined) {
-      viewportCenter = { latitude: resolvedSeed.latitude, longitude: resolvedSeed.longitude };
-      mapZoom = zoomToFitAccuracy(resolvedSeed.latitude, resolvedSeed.accuracy ?? 20000, 280);
-    } else {
-      viewportCenter = { latitude: 20, longitude: 0 };
-      mapZoom = 2;
-    }
+    syncMapSelection();
+    map.reset(
+      map.selection,
+      map.selection === null
+        ? 2
+        : zoomToFitAccuracy(map.selection.latitude, Number(ui.accuracy.value) || 20000, 280),
+      editableLocation(),
+    );
     updateVisibility();
   }
 
   renderProfileList();
+  renderSaveStatus();
+}
+
+function renderSaveStatus(): void {
+  const profile = selectedProfile();
+  const pending =
+    profile !== null &&
+    profile.id === runtimeState?.activeProfileId &&
+    (profile.revision ?? 1) !== runtimeState.appliedRevision;
+  ui.saveStatus.textContent = pending
+    ? "Saved changes are pending. Apply to update the active route."
+    : "Save stores configuration. Save & Activate applies it to the active route.";
+  ui.saveActivate.textContent =
+    profile?.id === runtimeState?.activeProfileId ? "Save & Apply" : "Save & Activate";
 }
 
 function renderStatus(state: RuntimeState): void {
-  resolvedSeed = {
-    latitude: state.identity.latitude,
-    longitude: state.identity.longitude,
-    accuracy: state.identity.accuracy,
-    timezone: state.identity.timezone,
-  };
+  runtimeState = state;
+  activeProfileId = state.activeProfileId;
+  renderSaveStatus();
+  resolvedSeed = state.identity.geoIpLocation ?? null;
+  ui.useGeoIpLocation.disabled =
+    resolvedSeed?.latitude === undefined || resolvedSeed.longitude === undefined;
   clear(ui.status);
 
   const addRow = (label: string, value: string, status: string): void => {
@@ -518,6 +546,7 @@ function renderStatus(state: RuntimeState): void {
   if (state.lastError !== undefined) {
     addRow("Last error", state.lastError.message, "error");
   }
+  syncMapSelection();
   renderLocationMap();
 }
 
@@ -589,13 +618,7 @@ async function saveProfile(): Promise<IdentityProfile | null> {
   return profile;
 }
 
-async function activateProfileById(profileId: string, proxyType: string): Promise<void> {
-  if (!(await ensureDirectIpConsent(proxyType))) {
-    showErrors([
-      "A direct profile would send your own public IP to the GeoIP provider. Allow that collection to continue.",
-    ]);
-    return;
-  }
+async function activateProfileById(profileId: string): Promise<void> {
   const response = await request({ type: "profiles:activate", profileId }, parseMutationResponse);
   if (!response.ok) {
     showErrors(response.errors);
@@ -630,7 +653,12 @@ async function duplicateSelected(): Promise<void> {
 async function deleteSelected(): Promise<void> {
   const profile = selectedProfile();
   if (profile === null || profile.id === BUILTIN_DIRECT_PROFILE_ID) return;
-  if (!window.confirm(`Delete the profile “${profile.name}”?`)) return;
+  if (
+    !window.confirm(
+      `Delete${profile.id === activeProfileId ? " and deactivate" : ""} the profile “${profile.name}”?`,
+    )
+  )
+    return;
 
   const response = await request(
     { type: "profiles:delete", profileId: profile.id },
@@ -671,6 +699,9 @@ async function refreshIdentity(): Promise<void> {
   await reload(selectedId);
 }
 
+for (const field of [ui.geoIpPolicy, ui.geolocationPolicy, ui.timezonePolicy])
+  field.addEventListener("change", updateVisibility);
+
 // Event Listeners
 ui.form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -685,7 +716,7 @@ ui.newProfile.addEventListener("click", () => {
 async function saveAndActivate(): Promise<void> {
   const profile = await saveProfile();
   if (profile === null) return;
-  await activateProfileById(profile.id, profile.proxy.type);
+  await activateProfileById(profile.id);
 }
 
 ui.saveActivate.addEventListener("click", () => {
@@ -705,7 +736,13 @@ ui.deactivate.addEventListener("click", () => {
 });
 
 ui.directActivate.addEventListener("click", () => {
-  void activateProfileById(BUILTIN_DIRECT_PROFILE_ID, "direct");
+  void activateProfileById(BUILTIN_DIRECT_PROFILE_ID);
+});
+
+requireElement<HTMLButtonElement>("#direct-resolve").addEventListener("click", () => {
+  void (async () => {
+    if (await ensureDirectIpConsent("direct")) await activateProfileById(BUILTIN_DIRECT_PROFILE_ID);
+  })();
 });
 
 ui.directDeactivate.addEventListener("click", () => {
@@ -726,6 +763,8 @@ ui.modeAuto.addEventListener("change", () => {
 
 ui.modeManual.addEventListener("change", () => {
   if (ui.modeManual.checked && !manualUserEdited) {
+    ui.geolocationPolicy.value = "manual";
+    ui.timezonePolicy.value = "manual";
     const seeded = seedBlankManualFields(
       {
         latitude: ui.latitude.value,
@@ -744,33 +783,14 @@ ui.modeManual.addEventListener("change", () => {
   updateVisibility();
 });
 
-ui.latitude.addEventListener("input", () => {
-  manualUserEdited = true;
-  const lat = parseCoordinate(ui.latitude.value, -MAP_MAX_LATITUDE, MAP_MAX_LATITUDE);
-  const lng = parseCoordinate(ui.longitude.value, -180, 180);
-  if (lat !== null && lng !== null) {
-    const viewport = mapViewport();
-    const pos = viewportPoint(viewport, lat, lng);
-    if (pos.x < 20 || pos.x > viewport.width - 20 || pos.y < 20 || pos.y > viewport.height - 20) {
-      viewportCenter = { latitude: lat, longitude: lng };
-    }
-  }
-  renderLocationMap();
-});
+for (const field of [ui.latitude, ui.longitude])
+  field.addEventListener("input", () => {
+    manualUserEdited = true;
+    syncMapSelection(true);
+    renderLocationMap();
+  });
 
-ui.longitude.addEventListener("input", () => {
-  manualUserEdited = true;
-  const lat = parseCoordinate(ui.latitude.value, -MAP_MAX_LATITUDE, MAP_MAX_LATITUDE);
-  const lng = parseCoordinate(ui.longitude.value, -180, 180);
-  if (lat !== null && lng !== null) {
-    const viewport = mapViewport();
-    const pos = viewportPoint(viewport, lat, lng);
-    if (pos.x < 20 || pos.x > viewport.width - 20 || pos.y < 20 || pos.y > viewport.height - 20) {
-      viewportCenter = { latitude: lat, longitude: lng };
-    }
-  }
-  renderLocationMap();
-});
+ui.timezone.addEventListener("input", () => renderLocationMap());
 
 ui.accuracy.addEventListener("input", () => {
   renderLocationMap();
@@ -794,103 +814,88 @@ ui.useGeoIpLocation.addEventListener("click", () => {
     resolvedSeed,
   );
   ui.modeManual.checked = true;
+  ui.geolocationPolicy.value = "manual";
   ui.modeAuto.checked = false;
   ui.latitude.value = next.latitude;
   ui.longitude.value = next.longitude;
   ui.accuracy.value = next.accuracy;
   ui.timezone.value = next.timezone;
   manualUserEdited = false;
-  viewportCenter = { latitude: resolvedSeed.latitude, longitude: resolvedSeed.longitude };
-  mapZoom = null;
+  syncMapSelection(true);
+  cancelMapInteraction();
   updateVisibility();
 });
 
 function adjustZoom(delta: number): void {
-  const currentZoom = mapViewport().zoom;
-  mapZoom = Math.min(18, Math.max(2, currentZoom + delta));
+  map.zoom(delta);
   renderLocationMap();
 }
+ui.mapZoomIn.addEventListener("click", () => adjustZoom(1));
+ui.mapZoomOut.addEventListener("click", () => adjustZoom(-1));
 
-ui.mapZoomIn.addEventListener("click", () => {
-  adjustZoom(1);
-});
-
-ui.mapZoomOut.addEventListener("click", () => {
-  adjustZoom(-1);
-});
-
-// Map pointer interactions: background pan vs marker drag vs click
-ui.mapMarker.addEventListener("pointerdown", (event) => {
-  if (!ui.modeManual.checked) return;
-  event.stopPropagation();
-  activeDrag = {
-    type: "marker",
-    originX: event.clientX,
-    originY: event.clientY,
-    lastX: event.clientX,
-    lastY: event.clientY,
-  };
-  ui.mapMarker.setPointerCapture(event.pointerId);
-  ui.mapMarker.classList.add("is-dragging");
-});
-
+function pointerPoint(event: MouseEvent): { x: number; y: number } {
+  const bounds = ui.mapSurface.getBoundingClientRect();
+  return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+}
+function writeMapSelection(): void {
+  if (map.selection !== null) setManualPoint(map.selection.latitude, map.selection.longitude, true);
+}
 ui.mapSurface.addEventListener("pointerdown", (event) => {
-  if (!ui.modeManual.checked) return;
-  if (event.target instanceof HTMLButtonElement || event.target instanceof HTMLAnchorElement) {
-    return;
-  }
-  activeDrag = {
-    type: "pan",
-    originX: event.clientX,
-    originY: event.clientY,
-    lastX: event.clientX,
-    lastY: event.clientY,
-  };
-  ui.mapSurface.setPointerCapture(event.pointerId);
-  ui.mapSurface.classList.add("is-grabbing");
+  if (event.button !== 0) return;
+  if (event.target instanceof Element && event.target.closest("button, a")) return;
+  const marker = event.target === ui.mapMarker;
+  if (!map.begin(event.pointerId, marker ? "marker" : "pan", pointerPoint(event))) return;
+  event.preventDefault();
+  const element = marker ? ui.mapMarker : ui.mapSurface;
+  element.setPointerCapture(event.pointerId);
+  capture = { element, id: event.pointerId };
+  renderLocationMap();
 });
-
 window.addEventListener("pointermove", (event) => {
-  if (activeDrag === null) return;
-
-  if (activeDrag.type === "pan") {
-    const deltaX = event.clientX - activeDrag.lastX;
-    const deltaY = event.clientY - activeDrag.lastY;
-    activeDrag.lastX = event.clientX;
-    activeDrag.lastY = event.clientY;
-    viewportCenter = panViewport(mapViewport(), deltaX, deltaY);
-    renderLocationMap();
-    return;
-  }
-
-  if (activeDrag.type === "marker") {
-    const bounds = ui.mapSurface.getBoundingClientRect();
-    const cursorX = event.clientX - bounds.left;
-    const cursorY = event.clientY - bounds.top;
-    const picked = latLngFromViewport(mapViewport(), { x: cursorX, y: cursorY });
-    setManualPoint(picked.latitude, picked.longitude, true);
-  }
+  if (map.move(event.pointerId, pointerPoint(event))) writeMapSelection();
+  if (map.interaction !== null) renderLocationMap();
 });
-
 window.addEventListener("pointerup", (event) => {
-  if (activeDrag === null) return;
-  const isPan = activeDrag.type === "pan";
-  const distance = Math.hypot(
-    event.clientX - activeDrag.originX,
-    event.clientY - activeDrag.originY,
-  );
-  activeDrag = null;
-  ui.mapSurface.classList.remove("is-grabbing");
-  ui.mapMarker.classList.remove("is-dragging");
-
-  if (isPan && distance <= 4) {
-    // Click on map moves marker to clicked location
-    const bounds = ui.mapSurface.getBoundingClientRect();
-    const clickX = event.clientX - bounds.left;
-    const clickY = event.clientY - bounds.top;
-    const picked = latLngFromViewport(mapViewport(), { x: clickX, y: clickY });
-    setManualPoint(picked.latitude, picked.longitude, true);
-  }
+  if (map.interaction?.id !== event.pointerId) return;
+  if (map.end(event.pointerId, pointerPoint(event))) writeMapSelection();
+  cancelMapInteraction();
+  renderLocationMap();
+});
+for (const name of ["pointercancel", "lostpointercapture"] as const)
+  ui.mapSurface.addEventListener(name, (event) => {
+    if (map.interaction?.id === event.pointerId) cancelMapInteraction();
+  });
+window.addEventListener("blur", cancelMapInteraction);
+window.addEventListener("pagehide", cancelMapInteraction);
+ui.mapSurface.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+    if (Date.now() - lastWheelAt > 180) wheelDelta = 0;
+    lastWheelAt = Date.now();
+    wheelDelta +=
+      event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? map.viewport.height : 1);
+    if (Math.abs(wheelDelta) < 40) return;
+    map.zoom(-Math.sign(wheelDelta), pointerPoint(event));
+    wheelDelta = 0;
+    renderLocationMap();
+  },
+  { passive: false },
+);
+ui.mapSurface.addEventListener("keydown", (event) => {
+  const deltas: Record<string, [number, number]> = {
+    ArrowLeft: [32, 0],
+    ArrowRight: [-32, 0],
+    ArrowUp: [0, 32],
+    ArrowDown: [0, -32],
+  };
+  const delta = deltas[event.key];
+  if (delta === undefined) return;
+  event.preventDefault();
+  const marker = event.target === ui.mapMarker;
+  map.nudge(delta[0], delta[1], marker);
+  if (marker) writeMapSelection();
+  renderLocationMap();
 });
 
 // Robust Map Sizing with ResizeObserver
@@ -903,7 +908,7 @@ const mapResizeObserver = new ResizeObserver((entries) => {
 });
 mapResizeObserver.observe(ui.mapSurface);
 
-onRuntimeMessage(async (message) => {
+onRuntimeMessage((message) => {
   const parsed = parseOutboundMessage(message);
   if (!parsed.ok) return undefined;
   if (parsed.value.type === "state:changed") {

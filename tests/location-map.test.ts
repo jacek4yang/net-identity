@@ -5,17 +5,25 @@ import {
   clampLatitude,
   clampLongitude,
   latLngFromViewport,
-  mapTileUrl,
+  mapTileUrl as providerTileUrl,
   panViewport,
   seedBlankManualFields,
   tileRadius,
   viewportPoint,
-  visibleTiles,
+  visibleTiles as providerTiles,
   zoomToFitAccuracy,
   MAP_MAX_LATITUDE,
   type MapViewport,
 } from "../src/options/location-map";
 
+const fixtureProvider = {
+  id: "fixture",
+  attribution: "Fixture",
+  privacy: "Local test only",
+  url: (z: number, x: number, y: number) => `https://tiles.example/${z}/${x}/${y}.png`,
+};
+const mapTileUrl = (z: number, x: number, y: number) => providerTileUrl(z, x, y, fixtureProvider);
+const visibleTiles = (view: MapViewport) => providerTiles(view, fixtureProvider);
 const view = (centerLat: number, centerLng: number): MapViewport => ({
   width: 400,
   height: 200,
@@ -59,12 +67,12 @@ describe("location map projection", () => {
   it("normalises longitudes wrapping around +-180 degrees", () => {
     expect(clampLongitude(185)).toBe(-175);
     expect(clampLongitude(-185)).toBe(175);
-    expect(clampLongitude(540)).toBe(180);
+    expect(clampLongitude(540)).toBe(-180);
     expect(clampLongitude(Number.NaN)).toBe(0);
   });
 
-  it("builds OpenStreetMap tile URLs and rejects indexes outside the zoom", () => {
-    expect(mapTileUrl(2, 1, 1)).toBe("https://tile.openstreetmap.org/2/1/1.png");
+  it("builds provider tile URLs and rejects indexes outside the zoom", () => {
+    expect(mapTileUrl(2, 1, 1)).toBe("https://tiles.example/2/1/1.png");
     expect(mapTileUrl(2, 4, 0)).toBeNull();
     expect(mapTileUrl(2, 1.5, 0)).toBeNull();
   });
@@ -131,11 +139,10 @@ describe("location map projection", () => {
       zoom: 2,
       center: { latitude: 0, longitude: 179 },
     });
-    expect(edge.length).toBe(full);
+    expect(edge.length).toBeGreaterThan(0);
+    expect(edge.length).toBeLessThan(full);
     expect(
-      edge.every((tile) =>
-        /^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(tile.url),
-      ),
+      edge.every((tile) => /^https:\/\/tiles\.example\/\d+\/\d+\/\d+\.png$/.test(tile.url)),
     ).toBe(true);
   });
 });

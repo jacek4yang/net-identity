@@ -5,7 +5,7 @@
  *   - reject anything that does not come from this extension
  *   - validate every inbound payload
  *   - keep credential handling in one place (session storage only)
- *   - re-activate a profile when it is edited while active
+ *   - save configuration independently from explicit activation
  *
  * The router is pure with respect to Firefox: it receives plain sender
  * information, so the whole request surface is unit testable.
@@ -21,7 +21,6 @@ import {
   type UiRequest,
 } from "../shared/messages";
 import {
-  BUILTIN_DIRECT_NAME,
   createProfile,
   canStoreMoreProfiles,
   isBuiltinDirectProfile,
@@ -83,33 +82,18 @@ async function saveProfile(
   const profile = parsed.value;
 
   if (isBuiltinDirectProfile(profile.id)) {
-    if (
-      profile.proxy.type !== "direct" ||
-      profile.name !== BUILTIN_DIRECT_NAME ||
-      profile.webrtcPolicy !== "default" ||
-      profile.identity.mode !== "auto"
-    ) {
-      return mutation(
-        false,
-        ["The built-in Direct profile is read-only and cannot be modified."],
-        deps.controller,
-      );
-    }
+    return mutation(false, ["The built-in Direct route is read-only."], deps.controller);
   }
 
-  if (request.credentials === null) {
-    await deps.credentials.remove(profile.id);
-  } else if (request.credentials !== undefined) {
-    const username = request.credentials.username ?? "";
-    const password = request.credentials.password ?? "";
-    if (username === "" && password === "") {
-      await deps.credentials.remove(profile.id);
-    } else {
-      const credentials = parseCredentials({ username, password });
-      if (!credentials.ok) return mutation(false, credentials.errors, deps.controller);
-      await deps.credentials.set(profile.id, credentials.value);
-    }
-  }
+  const credentialInput = request.credentials;
+  const parsedCredentials =
+    credentialInput === undefined ||
+    credentialInput === null ||
+    (credentialInput.username === "" && credentialInput.password === "")
+      ? null
+      : parseCredentials(credentialInput);
+  if (parsedCredentials !== null && !parsedCredentials.ok)
+    return mutation(false, parsedCredentials.errors, deps.controller);
 
   const existing = await deps.profiles.load();
   const isNew = findProfile(existing, profile.id) === null;
@@ -117,13 +101,19 @@ async function saveProfile(
     return mutation(false, ["The profile limit has been reached."], deps.controller);
   }
 
-  const saved = await mutateProfiles(deps.profiles, (current) => upsertProfile(current, profile));
+  const saved = await mutateProfiles(deps.profiles, (current) =>
+    upsertProfile(current, {
+      ...profile,
+      revision: (findProfile(current, profile.id)?.revision ?? 0) + 1,
+    }),
+  );
   if (!saved.ok) return mutation(false, saved.errors, deps.controller);
 
-  // Editing the active profile applies the change immediately.
-  if (saved.value.activeProfileId === profile.id) {
-    await deps.controller.activate(profile.id);
-  }
+  if (credentialInput === null || (credentialInput !== undefined && parsedCredentials === null))
+    await deps.credentials.remove(profile.id);
+  else if (parsedCredentials?.ok) await deps.credentials.set(profile.id, parsedCredentials.value);
+
+  // Saving configuration deliberately leaves the applied target and credentials untouched.
   return mutation(true, [], deps.controller);
 }
 
@@ -168,6 +158,7 @@ async function duplicateProfile(
     name: `${source.name} copy`.slice(0, 64),
     proxy: { ...source.proxy, bypassHosts: [...source.proxy.bypassHosts] },
     identity: { ...source.identity },
+    revision: 1,
   };
   const saved = await mutateProfiles(deps.profiles, (current) => upsertProfile(current, copy));
   if (!saved.ok) return mutation(false, saved.errors, deps.controller);

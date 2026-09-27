@@ -140,16 +140,38 @@ Reasoning, so a reviewer can verify it:
   `permissions.request({ data_collection: ["personallyIdentifyingInfo"] })` succeeds.
 - A fresh install does not create or activate a profile, so it does not contact the
   provider.
-- The options page may request map images from `https://tile.openstreetmap.org/{z}/{x}/{y}.png`
-  (© OpenStreetMap contributors) while that page is open. The tile path reveals the area on screen.
-  Requests send standard browser Referer as required by OpenStreetMap's Tile Usage Policy.
-  The extension attaches no proxy credentials, profile contents, browsing URLs, or `Authorization` header.
-  Picker code is bundled; a failed image is removed and coordinates and marker interactions keep working.
-  This is location data shown to a second host, covered by the required `locationInfo` declaration, and
-  it is not executable code.
+- The options location picker is a local coordinate grid. It sends no tile requests,
+  location data, credentials or headers to any map host. There is no Referer workaround.
+  The image-provider contract is disabled in production; new hosts require policy and
+  privacy review before activation (`docs/TILE-POLICY.md`).
 - `tests/manifest.test.ts` asserts that the declaration exists, uses only documented
   categories and is not `["none"]` while an automatic provider exists.
 
 If you add another provider, re-review this declaration, this document, the README and
 the test. `docs/ROADMAP.md` tracks making the provider selectable so the declaration can
 stay accurate per configuration.
+
+## Post-v1 profile configuration (schema 2)
+
+The durable `ni.state.v1` document now has `schemaVersion: 2`. The key stays stable
+so version-1 documents migrate in place. Migration validates every profile, preserves
+routing and explicit WebRTC choices, strips secret keys and leaves unsupported or
+unsafe documents unchanged. The reserved `builtin-direct` route is projected in the
+domain/UI and is never a persisted user profile. Existing legitimate built-in Direct
+records are removed during migration; a reserved record with a proxy is held as unsafe.
+
+Identity policies are independent: GeoIP automatic/disabled with provider id `ipwho.is`,
+geolocation follow/manual/disabled (position unavailable, never native), timezone
+follow/manual, and WebRTC automatic/manual. Automatic WebRTC uses the route recommendation.
+Expert overrides are preserved. Follow-timezone uses the provider's resolved timezone;
+manual coordinates alone do not imply a locally inferred timezone.
+
+Save increments the configuration revision and does not alter runtime. Apply activates
+the saved revision. Runtime and the session snapshot retain the applied revision and
+configuration; Refresh uses that applied configuration, including its session credentials.
+Blank passwords retain saved credentials. Clear changes the saved session credentials;
+Apply removes them from a currently active target. Duplicate does not copy passwords.
+Deleting an active profile deactivates it. Off releases WebRTC and synthetic identity.
+Direct switches without optional GeoIP permission; without consent it commits an empty,
+controlled identity. Firefox/system routing still applies. No lookup occurs merely
+because Direct exists. No version or release tag is changed by this overhaul.

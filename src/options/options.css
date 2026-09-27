@@ -152,9 +152,6 @@ details summary {
   padding: 8px 10px;
   cursor: pointer;
   background: transparent;
-  transition:
-    border-color 0.15s,
-    background-color 0.15s;
 }
 
 .profile-list li:hover {
@@ -533,10 +530,6 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background-color 0.15s,
-    border-color 0.15s,
-    opacity 0.15s;
 }
 
 button:hover:not(:disabled) {
@@ -671,4 +664,8 @@ button.danger:hover:not(:disabled) {
 
 .page-footer p {
   margin: 0 0 8px;
+}
+
+[hidden] {
+  display: none !important;
 }

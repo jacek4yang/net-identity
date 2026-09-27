@@ -61,7 +61,7 @@ a signed build, a real proxy or a second Firefox version.
       recentres.
 - [ ] Save and activate. A page's geolocation matches the selected point and the page
       timezone matches the chosen zone.
-- [ ] Block or fail `tile.openstreetmap.org` and repeat the click and the typed
+- [ ] Use offline mode (there is no external tile provider) and repeat the click and the typed
       coordinates. Both still update the fields and can be saved.
 
 ## 6. Upgrade and persistence

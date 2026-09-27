@@ -242,7 +242,7 @@ describe("parseProfileState", () => {
   it("keeps valid profiles, drops invalid ones and de-duplicates ids", () => {
     const profile = makeProfile({ id: "profile-0030" });
     const parsed = parseProfileState({
-      schemaVersion: 1,
+      schemaVersion: 2,
       activeProfileId: "profile-0030",
       profiles: [profile, { ...profile, name: "duplicate id" }, { id: "broken" }],
     });
@@ -255,7 +255,7 @@ describe("parseProfileState", () => {
 
   it("clears an active pointer that does not resolve", () => {
     const parsed = parseProfileState({
-      schemaVersion: 1,
+      schemaVersion: 2,
       activeProfileId: "profile-9999",
       profiles: [makeProfile({ id: "profile-0031" })],
     });

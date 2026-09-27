@@ -13,7 +13,7 @@ export interface GuideSection {
 export const GUIDE: readonly GuideSection[] = [
   {
     title: "What a profile does",
-    body: "A profile applies one network identity together: how Firefox connects, the location pages see, the timezone pages see, and WebRTC address handling. Nothing is activated until you create a profile and press Activate.",
+    body: "A profile applies one network identity together: how Firefox connects, the location pages see, the timezone pages see, and WebRTC address handling. Choose Direct or a proxy row to activate it. Off releases identity and WebRTC control. Save stores edits; Save & Activate applies them.",
   },
   {
     title: "Browser routing",
@@ -53,9 +53,9 @@ export function describeRouting(
 export function explainRuntimeError(code: string | undefined, message: string): string {
   switch (code) {
     case "consent_required":
-      return `${message} Use a proxied profile, or allow the personal-data prompt and activate again.`;
+      return `${message} Routing is already active. Press Refresh to allow the personal-data lookup, or keep using the route without GeoIP.`;
     case "provider_error":
-      return `${message} Check that the proxy can reach the internet, then press Refresh Identity. Pages keep the previous location.`;
+      return `${message} Check that the proxy can reach the internet, then press Refresh Identity. Native geolocation remains blocked while controlled.`;
     case "proxy_error":
       return `${message} Check the proxy host, port, and password. The password is kept only until Firefox exits.`;
     case "schema_unsupported":

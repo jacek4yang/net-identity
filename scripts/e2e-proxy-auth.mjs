@@ -204,6 +204,9 @@ async function main() {
       path.join(root, "scripts", "dev-proxy.mjs"),
       "--port",
       String(proxyPort),
+      "--offline",
+      "--offline-target",
+      "ipwho.is:443",
       "--require-auth",
       "user:pass",
     ],
@@ -282,17 +285,29 @@ async function main() {
     }
     if (!optionsReady) throw new Error("the options page never became ready");
 
-    // A script reply is lost (null) when the page navigates while it runs. Retry those
-    // instead of failing the smoke.
+    // A modal auth dialog can interrupt an async script with {value: null}.
+    // Unwrap before checking: nullish coalescing would return the wrapper itself
+    // and accidentally bypass this bounded retry. Real error replies still fail.
     async function call(message, script = CALL, timeout = 20000) {
       for (let attempt = 0; attempt < 6; attempt += 1) {
-        const result = await client.send(
-          "WebDriver:ExecuteAsyncScript",
-          { script, args: [message] },
-          timeout,
-        );
-        const value = result?.value ?? result;
-        if (value !== null && value !== undefined) return value;
+        try {
+          const result = await client.send(
+            "WebDriver:ExecuteAsyncScript",
+            { script, args: [message] },
+            timeout,
+          );
+          const value = Object.hasOwn(result ?? {}, "value") ? result.value : result;
+          if (value !== null && value !== undefined) return value;
+        } catch (error) {
+          // Wrong credentials intentionally produce native proxy-auth dialogs.
+          // A dialog can arrive between DismissAlert and the next command; the
+          // configured handler dismisses it and reports this specific error.
+          if (
+            !(error instanceof Error) ||
+            !error.message.includes('"error":"unexpected alert open"')
+          )
+            throw error;
+        }
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
       return null;

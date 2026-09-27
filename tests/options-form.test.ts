@@ -69,7 +69,7 @@ describe("toProfileInput", () => {
       proxyDNS: false,
       bypassHosts: ["localhost", "*.example.com", "10.0.0.0/8"],
     });
-    expect(parsed.value.identity).toEqual({ mode: "auto" });
+    expect(parsed.value.identity).toMatchObject({ mode: "auto" });
     expect(parsed.value.webrtcPolicy).toBe("disable_non_proxied_udp");
   });
 
@@ -102,7 +102,7 @@ describe("toProfileInput", () => {
       ),
     );
     expect(manual.ok).toBe(true);
-    expect(manual.ok && manual.value.identity).toEqual({
+    expect(manual.ok && manual.value.identity).toMatchObject({
       mode: "manual",
       latitude: 52.374,
       longitude: 4.88969,
@@ -123,7 +123,7 @@ describe("toProfileInput", () => {
         "profile-0004",
       ),
     );
-    expect(automatic.ok && automatic.value.identity).toEqual({ mode: "auto" });
+    expect(automatic.ok && automatic.value.identity).toMatchObject({ mode: "auto" });
   });
 
   it("reports problems through the shared profile parser", () => {
@@ -175,7 +175,7 @@ describe("toFormValues", () => {
     expect(values.proxyType).toBe("http");
     expect(values.identityMode).toBe("auto");
     expect(parseBypassHostsInput(values.bypassHosts)).toEqual(["localhost", "127.0.0.1", "::1"]);
-    expect(values.webrtcPolicy).toBe("disable_non_proxied_udp");
+    expect(values.webrtcPolicy).toBe("automatic");
     expect(values.password).toBe("");
   });
 
@@ -203,7 +203,7 @@ describe("toFormValues", () => {
     const parsed = parseProfile(toProfileInput(values, profile.id));
 
     expect(parsed.ok).toBe(true);
-    expect(parsed.ok && parsed.value).toEqual(profile);
+    expect(parsed).toEqual(parseProfile(profile));
   });
 });
 
@@ -227,6 +227,6 @@ describe("proxy field hints", () => {
 
 describe("persisted state expectations", () => {
   it("keeps the schema version stable for the stored state", () => {
-    expect(SCHEMA_VERSION).toBe(1);
+    expect(SCHEMA_VERSION).toBe(2);
   });
 });

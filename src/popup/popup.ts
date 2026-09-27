@@ -36,7 +36,6 @@ const elements = {
   identityIp: requireElement<HTMLElement>("#identity-ip"),
   identityLocation: requireElement<HTMLElement>("#identity-location"),
   identityTimezone: requireElement<HTMLElement>("#identity-timezone"),
-  identityWebrtc: requireElement<HTMLElement>("#identity-webrtc"),
   refreshButton: requireElement<HTMLButtonElement>("#refresh-button"),
   toggleDetails: requireElement<HTMLButtonElement>("#toggle-details"),
   errorBox: requireElement<HTMLElement>("#error-box"),
@@ -97,6 +96,7 @@ let currentActiveId: string | null = null;
 let currentStatus: RuntimeStatus = "idle";
 let activatingProfileId: string | null = null;
 let isDeactivating = false;
+let displayedGeneration = -1;
 
 function setStatusPill(status: RuntimeStatus): void {
   const label = LIFECYCLE_LABELS[status] ?? status;
@@ -115,20 +115,10 @@ function renderError(message: string | null): void {
   elements.errorBox.textContent = message;
 }
 
-function describeEndpoint(profile: IdentityProfile | null, state: RuntimeState): string {
-  if (state.status === "idle" || profile === null) return "No proxy active";
-  if (profile.proxy.type === "direct") return "Direct (browser / system)";
-  return `${profile.proxy.type.toUpperCase()} · ${profile.proxy.host ?? "unknown"}:${String(profile.proxy.port ?? "")}`;
-}
-
-function describeWebRtcConcise(state: RuntimeState): string {
-  if (state.status === "idle") return "Native / default";
-  const webrtc = state.webrtc;
-  if (webrtc.desired === "default") return "Default (unmodified)";
-  if (webrtc.status === "applied" || webrtc.status === "already") {
-    return `Protected (${webrtc.desired})`;
-  }
-  return `${webrtc.desired} (${webrtc.status})`;
+function describeEndpoint(state: RuntimeState): string {
+  if (state.activeProfileId === null) return "No proxy active";
+  if (state.proxy.type === "direct") return "Direct (Firefox / system routing)";
+  return `${state.proxy.type.toUpperCase()} ${state.proxy.host ?? "unknown"}:${String(state.proxy.port ?? "")}`;
 }
 
 function renderRoutes(): void {
@@ -197,7 +187,6 @@ function renderIdentity(state: RuntimeState): void {
     elements.identityIp.textContent = "—";
     elements.identityLocation.textContent = "—";
     elements.identityTimezone.textContent = "—";
-    elements.identityWebrtc.textContent = "Default";
   } else {
     elements.identityIp.textContent = identity.publicIp
       ? `${identity.publicIp}${identity.publicIpVerified ? "" : " (unverified)"}`
@@ -208,7 +197,6 @@ function renderIdentity(state: RuntimeState): void {
     );
     elements.identityLocation.textContent = parts.length > 0 ? parts.join(", ") : "—";
     elements.identityTimezone.textContent = identity.timezone ?? "—";
-    elements.identityWebrtc.textContent = describeWebRtcConcise(state);
   }
 
   // Consistency badge
@@ -218,8 +206,7 @@ function renderIdentity(state: RuntimeState): void {
 }
 
 function renderDetails(state: RuntimeState): void {
-  const activeProfile = knownProfiles.find((p) => p.id === state.activeProfileId) ?? null;
-  elements.detailsEndpoint.textContent = describeEndpoint(activeProfile, state);
+  elements.detailsEndpoint.textContent = describeEndpoint(state);
 
   elements.detailsIpVerified.textContent =
     state.status === "idle"
@@ -260,6 +247,8 @@ function renderDetails(state: RuntimeState): void {
 }
 
 function renderState(state: RuntimeState): void {
+  if (state.generation < displayedGeneration) return;
+  displayedGeneration = state.generation;
   currentStatus = state.status;
   currentActiveId = state.activeProfileId;
   activatingProfileId = null;
@@ -302,20 +291,8 @@ async function loadProfiles(): Promise<ProfilesResponse | null> {
 }
 
 async function activateRoute(profileId: string): Promise<void> {
-  if (profileId === currentActiveId && currentStatus === "ready") {
-    return;
-  }
   const target = knownProfiles.find((p) => p.id === profileId);
   if (target === undefined) return;
-
-  if (target.proxy.type === "direct") {
-    if (!(await ensureDirectIpConsent("direct"))) {
-      renderError(
-        "A direct profile sends your own public IP to the GeoIP provider. Allow personal-data collection to proceed.",
-      );
-      return;
-    }
-  }
 
   activatingProfileId = profileId;
   setStatusPill("activating");
@@ -408,6 +385,25 @@ async function bootstrap(): Promise<void> {
   renderState(stateResponse.value.state);
 }
 
+// Arrow keys move between routes; Enter/Space retain native button activation.
+requireElement<HTMLElement>(".routes-container").addEventListener("keydown", (event) => {
+  if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+  const rows = [
+    elements.routeOff,
+    ...elements.routeList.querySelectorAll<HTMLButtonElement>("button"),
+  ];
+  const index = rows.findIndex((row) => row === document.activeElement);
+  if (index < 0) return;
+  event.preventDefault();
+  const next =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? rows.length - 1
+        : (index + (event.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length;
+  rows[next]?.focus();
+});
+
 // Event bindings
 elements.routeOff.addEventListener("click", () => {
   void deactivateRoute();
@@ -425,7 +421,7 @@ elements.toggleDetails.addEventListener("click", () => {
   toggleDetailsVisibility();
 });
 
-onRuntimeMessage(async (message) => {
+onRuntimeMessage((message) => {
   const parsed = parseOutboundMessage(message);
   if (!parsed.ok) return undefined;
   if (parsed.value.type === "state:changed") {

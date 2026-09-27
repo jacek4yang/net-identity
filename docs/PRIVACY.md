@@ -16,7 +16,7 @@ A password is not written into the saved profile. If one is found there, migrati
 
 **Location lookup.** Activating or refreshing a profile can ask `https://ipwho.is/` where the current connection appears to come from. The request sends no cookies, no referrer, and no proxy password. A proxied profile shows that service the proxy's public address. Browser routing shows it your own public address, and only after you allow that collection in Firefox. Installing the extension does not create a profile, so a fresh install makes no such request. Coordinates from this lookup are approximate (about 20 km) and are not presented as GPS.
 
-**Map pictures.** While the options page is open, it may request map images from `https://tile.openstreetmap.org/` (© OpenStreetMap contributors). The image address reveals the area on screen. To comply with OpenStreetMap's Tile Usage Policy, requests send the browser's standard extension Referer (`moz-extension://...`). The extension never sends proxy passwords, credentials, profile secrets, or browsing URLs. Typed coordinates and map interaction still work when those images cannot load. The map program itself is bundled local code.
+**Location picker.** The map uses a bundled local coordinate grid. No tile provider is enabled and no map requests leave the options page. Typed coordinates, panning, zoom, selection and marker drag work offline. Neither a Referer override nor a spoofed web origin is used.
 
 **Proxy traffic.** Traffic you choose to send through a proxy goes to that proxy. The extension does not add its own analytics to that traffic.
 
@@ -28,5 +28,9 @@ Pages receive the location and timezone of the active profile through compatibil
 
 - Do not activate a profile, and the extension does not contact the location service.
 - Use a proxy profile when the location lookup should see the proxy's address.
-- Use manual coordinates when you want to choose the place yourself.
+- Use Custom identity policies for manual coordinates, a timezone override, unavailable geolocation, or disabled GeoIP lookup. Disabled GeoIP makes no provider request.
+- Direct switches routing immediately even without optional consent. It keeps native geolocation blocked until Off; identity is unavailable until a permitted lookup succeeds.
+- Save stores edits; Apply updates the active route. A blank password keeps existing session credentials, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
+
+These notes describe post-v1 main. The immutable v1.0.0 AMO submission retains the privacy behavior documented in its tagged source archive. A future submission must use the updated notes and new UI screenshots.

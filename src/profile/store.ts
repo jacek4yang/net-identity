@@ -12,17 +12,16 @@ import { MAX_PROFILES, STORAGE_KEY } from "../shared/constants";
 import { type Result } from "../shared/result";
 import { readKey, type StorageAreaLike } from "../shared/storage";
 import {
-  BUILTIN_DIRECT_NAME,
-  BUILTIN_DIRECT_PROFILE_ID,
-  DEFAULT_DIRECT_WEBRTC_POLICY,
   EMPTY_PROFILE_STATE,
   SCHEMA_VERSION,
   ensureBuiltinDirect,
+  durableProfileState,
   isBuiltinDirectProfile,
+  createBuiltinDirectProfile,
+  canStoreMoreProfiles,
   type IdentityProfile,
   type ProfileState,
 } from "./schema";
-import { DEFAULT_BYPASS_HOSTS } from "../shared/constants";
 import { migrateStoredProfileState, migrationHoldMessage } from "./migrate";
 
 export interface ProfileStore {
@@ -67,8 +66,8 @@ export function createProfileStore(area: StorageAreaLike): ProfileStore {
     }
     warning = null;
     const state = ensureBuiltinDirect(migrated.state);
-    if (migrated.persist || JSON.stringify(migrated.state) !== JSON.stringify(state)) {
-      await area.set({ [STORAGE_KEY]: state });
+    if (migrated.persist) {
+      await area.set({ [STORAGE_KEY]: durableProfileState(state) });
     }
     return state;
   };
@@ -86,7 +85,7 @@ export function createProfileStore(area: StorageAreaLike): ProfileStore {
       enqueue(async () => {
         const current = await accept(await readMigration());
         if (current === null) return;
-        await area.set({ [STORAGE_KEY]: ensureBuiltinDirect(state) });
+        await area.set({ [STORAGE_KEY]: durableProfileState(state) });
       }),
 
     mutate: (apply) =>
@@ -102,7 +101,7 @@ export function createProfileStore(area: StorageAreaLike): ProfileStore {
         const result = apply(ensuredCurrent);
         if (!result.ok) return result;
         const finalState = ensureBuiltinDirect(result.value);
-        await area.set({ [STORAGE_KEY]: finalState });
+        await area.set({ [STORAGE_KEY]: durableProfileState(finalState) });
         return { ok: true, value: finalState };
       }),
   };
@@ -123,35 +122,17 @@ export function mutateProfiles(
 
 export function findProfile(state: ProfileState, profileId: string | null): IdentityProfile | null {
   if (profileId === null) return null;
+  if (isBuiltinDirectProfile(profileId)) return createBuiltinDirectProfile();
   return state.profiles.find((profile) => profile.id === profileId) ?? null;
 }
 
 export function upsertProfile(state: ProfileState, profile: IdentityProfile): Result<ProfileState> {
   if (isBuiltinDirectProfile(profile.id)) {
-    const direct: IdentityProfile = {
-      ...profile,
-      id: BUILTIN_DIRECT_PROFILE_ID,
-      name: BUILTIN_DIRECT_NAME,
-      proxy: {
-        type: "direct",
-        proxyDNS: false,
-        bypassHosts: [...DEFAULT_BYPASS_HOSTS],
-      },
-      webrtcPolicy: DEFAULT_DIRECT_WEBRTC_POLICY,
-    };
-    const otherProfiles = state.profiles.filter((p) => p.id !== BUILTIN_DIRECT_PROFILE_ID);
-    return {
-      ok: true,
-      value: {
-        schemaVersion: SCHEMA_VERSION,
-        activeProfileId: state.activeProfileId,
-        profiles: [direct, ...otherProfiles],
-      },
-    };
+    return { ok: false, errors: ["The built-in Direct route is read-only."] };
   }
 
   const existingIndex = state.profiles.findIndex((candidate) => candidate.id === profile.id);
-  if (existingIndex === -1 && state.profiles.length >= MAX_PROFILES) {
+  if (existingIndex === -1 && !canStoreMoreProfiles(state)) {
     return { ok: false, errors: [`profile limit reached (max ${MAX_PROFILES})`] };
   }
   const profiles = [...state.profiles];

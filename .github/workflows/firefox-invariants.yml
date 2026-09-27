@@ -54,10 +54,7 @@ jobs:
       # full picture, then fail if any harness failed. `tee` keeps a log for the
       # failure artifact; `pipefail` makes each pipeline inherit the harness exit code.
       #
-      # `npm run e2e:proxy-auth` is deliberately not here. Its bounded-407 count is
-      # measured over all proxy traffic, and a fresh CI Firefox profile makes many
-      # unrelated proxied requests (Remote Settings, OSM tiles). That is a #21
-      # clean-profile smoke item, not a deterministic gate.
+      # Auth uses an offline local CONNECT fixture; no public provider is contacted.
       - name: Run the deterministic Firefox harnesses
         env:
           MOZ_HEADLESS: "1"
@@ -76,6 +73,7 @@ jobs:
           run invariants npm run e2e:invariants -- --firefox "$firefox"
           run websocket npm run e2e:websocket -- --firefox "$firefox"
           run ui npm run e2e:ui -- --firefox "$firefox"
+          run proxy-auth npm run e2e:proxy-auth -- --firefox "$firefox"
           exit "$status"
 
       # Uploaded only on failure. The output contains loopback ports and the bundled

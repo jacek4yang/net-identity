@@ -51,7 +51,12 @@ import {
 } from "../shared/state";
 import { decideGeoIpConsent, type DataCollectionSnapshot } from "./consent";
 import { describeGeoIpFailure, type GeoIpProvider, type GeoIpResult } from "../geo/provider";
-import { isProxied, type IdentityProfile } from "../profile/schema";
+import {
+  isBuiltinDirectProfile,
+  defaultWebRtcPolicyFor,
+  isProxied,
+  type IdentityProfile,
+} from "../profile/schema";
 import {
   findProfile,
   mutateProfiles,
@@ -124,29 +129,11 @@ function identityConfigFrom(identity: ResolvedIdentity): IdentityProfile["identi
   };
 }
 
-function identityFromProfile(profile: IdentityProfile): ResolvedIdentity {
-  const identity: ResolvedIdentity = {
-    source: profile.identity.mode,
-    publicIpVerified: false,
-  };
-  if (profile.identity.publicIp !== undefined) identity.publicIp = profile.identity.publicIp;
-  if (profile.identity.countryCode !== undefined)
-    identity.countryCode = profile.identity.countryCode;
-  if (profile.identity.region !== undefined) identity.region = profile.identity.region;
-  if (profile.identity.city !== undefined) identity.city = profile.identity.city;
-  if (profile.identity.latitude !== undefined) identity.latitude = profile.identity.latitude;
-  if (profile.identity.longitude !== undefined) identity.longitude = profile.identity.longitude;
-  if (profile.identity.accuracy !== undefined) identity.accuracy = profile.identity.accuracy;
-  if (profile.identity.timezone !== undefined) identity.timezone = profile.identity.timezone;
-  if (profile.identity.lastResolvedAt !== undefined)
-    identity.resolvedAt = profile.identity.lastResolvedAt;
-  return identity;
-}
-
 export class ActivationController {
   private readonly deps: ActivationDeps;
   private generation = 0;
   private target: ActiveProxyTarget | null = null;
+  private appliedProfile: IdentityProfile | null = null;
   private state: RuntimeState;
   private content: ContentRuntimeState = { ...EMPTY_CONTENT_STATE };
   private diagnostics: ContentDiagnostic[] = [];
@@ -174,6 +161,12 @@ export class ActivationController {
    * profile-less state that still carries the old identity coordinates.
    */
   private deactivating = false;
+  private settingsQueue: Promise<unknown> = Promise.resolve();
+  private changeWebRtc(operation: () => Promise<WebRtcRuntimeState>): Promise<WebRtcRuntimeState> {
+    const next = this.settingsQueue.then(operation, operation);
+    this.settingsQueue = next.catch(() => undefined);
+    return next;
+  }
 
   constructor(deps: ActivationDeps) {
     this.deps = deps;
@@ -204,7 +197,11 @@ export class ActivationController {
     // (a transition, or a setting refresh racing a deactivation) cannot leak them
     // to pages.
     if (this.state.activeProfileId === null) {
-      return createIdentityEnvelope(null, pending, this.isBusy());
+      return createIdentityEnvelope(
+        null,
+        pending,
+        this.isBusy() || (this.deactivating && this.state.status !== "idle"),
+      );
     }
     const payload = createPublicIdentity({
       generation: this.state.generation,
@@ -304,12 +301,13 @@ export class ActivationController {
         // in-memory routing immediately, without another GeoIP request.
         // Routing is published only after the settings read, and only if no
         // activation started while that read was in flight.
-        const profile: IdentityProfile = {
+        const profile: IdentityProfile = snapshot.profile ?? {
           id: snapshot.profileId,
           name: snapshot.profileName,
           proxy: snapshot.proxy,
           identity: identityConfigFrom(snapshot.identity),
           webrtcPolicy: snapshot.webrtcPolicy,
+          revision: snapshot.appliedRevision ?? 1,
         };
         const restored = await this.composeState({
           status: "ready",
@@ -330,6 +328,7 @@ export class ActivationController {
           proxy: snapshot.proxy,
           credentials: snapshot.credentials,
         };
+        this.appliedProfile = profile;
         return await this.commit(restored, false);
       }
 
@@ -344,10 +343,19 @@ export class ActivationController {
     }
   }
 
-  async activate(profileId: string): Promise<RuntimeState> {
+  async activate(
+    profileId: string,
+    applied?: { profile: IdentityProfile; credentials: ActiveProxyTarget["credentials"] },
+  ): Promise<RuntimeState> {
+    const generation = ++this.generation;
+    this.abortController?.abort();
+    const controller = new AbortController();
+    this.abortController = controller;
+    this.deactivating = false;
     try {
       const stored = await this.deps.profiles.load();
-      const found = findProfile(stored, profileId);
+      if (generation !== this.generation) return this.state;
+      const found = applied?.profile ?? findProfile(stored, profileId);
       if (found === null) {
         return await this.failWith("profile_missing", "That profile no longer exists.");
       }
@@ -357,17 +365,17 @@ export class ActivationController {
         return await this.failWith("profile_invalid", validated.errors.join("; "));
       }
       const profile = validated.value;
-      const credentials = await this.deps.credentials.get(profile.id);
+      if (profile.webrtcMode === "automatic")
+        profile.webrtcPolicy = defaultWebRtcPolicyFor(profile.proxy.type);
+      const credentials =
+        applied === undefined ? await this.deps.credentials.get(profile.id) : applied.credentials;
 
-      const generation = this.generation + 1;
-      this.generation = generation;
-      this.abortController?.abort();
-      const controller = new AbortController();
-      this.abortController = controller;
+      if (generation !== this.generation) return this.state;
       this.diagnostics = [];
       this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };
 
+      this.appliedProfile = profile;
       // Proxy routing becomes effective for subsequent requests immediately.
       this.target = {
         profileId: profile.id,
@@ -378,13 +386,16 @@ export class ActivationController {
       };
 
       const activeResult = await mutateProfiles(this.deps.profiles, (current) =>
-        setActiveProfile(current, profile.id),
+        generation === this.generation
+          ? setActiveProfile(current, profile.id)
+          : { ok: true, value: current },
       );
+      if (generation !== this.generation) return this.state;
       if (!activeResult.ok) {
         return await this.failWith("profile_not_persisted", activeResult.errors.join("; "));
       }
 
-      const provisionalIdentity = identityFromProfile(profile);
+      const provisionalIdentity = { source: profile.identity.mode, publicIpVerified: false };
       const provisionalWebrtc = createPendingWebRtcState(profile.webrtcPolicy);
 
       // Snapshot first: a suspended background page must be able to restore routing
@@ -411,7 +422,8 @@ export class ActivationController {
         true,
       );
 
-      const webrtc = await this.deps.webrtc.apply(profile.webrtcPolicy);
+      if (this.generation !== generation) return this.state;
+      const webrtc = await this.changeWebRtc(() => this.deps.webrtc.apply(profile.webrtcPolicy));
       if (this.generation !== generation) return this.state;
 
       await this.commit(
@@ -427,14 +439,21 @@ export class ActivationController {
         true,
       );
 
+      if (this.generation !== generation) return this.state;
       const resolution = await this.resolveIdentity(profile, controller.signal);
       // Stale guard: a newer activation (or a deactivation) won the race.
       if (this.generation !== generation) return this.state;
 
-      if (profile.identity.mode === "auto" && !resolution.providerFailed) {
-        await this.persistResolvedIdentity(profile, resolution.identity);
+      if (
+        profile.identity.mode === "auto" &&
+        profile.identity.geolocationPolicy !== "manual" &&
+        profile.identity.timezonePolicy !== "manual" &&
+        !resolution.providerFailed
+      ) {
+        await this.persistResolvedIdentity(profile, resolution.identity, generation);
       }
 
+      if (this.generation !== generation) return this.state;
       const probed = await this.deps.probeContent(generation);
       if (this.generation !== generation) return this.state;
       this.activeTabId = probed.activeTabId;
@@ -481,6 +500,7 @@ export class ActivationController {
         false,
       );
     } catch (error) {
+      if (this.generation !== generation) return this.state;
       return await this.failWith(
         "activation_failed",
         describeError(error, "Profile activation failed."),
@@ -492,28 +512,40 @@ export class ActivationController {
   async refresh(): Promise<RuntimeState> {
     const profileId = this.state.activeProfileId;
     if (profileId === null) return this.state;
-    return this.activate(profileId);
+    return this.appliedProfile === null
+      ? this.activate(profileId)
+      : this.activate(profileId, {
+          profile: this.appliedProfile,
+          credentials: this.target?.credentials ?? null,
+        });
   }
 
   /** Clears routing, relinquishes the WebRTC override and stops spoofing. */
   async deactivate(): Promise<RuntimeState> {
     this.deactivating = true;
+    const generation = ++this.generation;
     try {
-      this.generation += 1;
       this.abortController?.abort();
       this.abortController = null;
       this.target = null;
+      this.appliedProfile = null;
       this.snapshotRestore = "absent";
       this.diagnostics = [];
       this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };
       await this.deps.targets.clear();
-      await mutateProfiles(this.deps.profiles, (current) => setActiveProfile(current, null));
-      const webrtc = await this.deps.webrtc.release();
+      await mutateProfiles(this.deps.profiles, (current) =>
+        generation === this.generation
+          ? setActiveProfile(current, null)
+          : { ok: true, value: current },
+      );
+      if (this.generation !== generation) return this.state;
+      const webrtc = await this.changeWebRtc(() => this.deps.webrtc.release());
+      if (this.generation !== generation) return this.state;
       return await this.commit(
         await this.composeState({
           status: "idle",
-          generation: this.generation,
+          generation,
           profile: null,
           hasCredentials: false,
           identity: { source: "auto", publicIpVerified: false },
@@ -524,12 +556,13 @@ export class ActivationController {
         false,
       );
     } catch (error) {
+      if (this.generation !== generation) return this.state;
       return await this.failWith(
         "deactivate_failed",
         describeError(error, "Could not deactivate the profile."),
       );
     } finally {
-      this.deactivating = false;
+      if (this.generation === generation) this.deactivating = false;
     }
   }
 
@@ -584,6 +617,7 @@ export class ActivationController {
       state.webrtc.actual === this.state.webrtc.actual &&
       state.webrtc.levelOfControl === this.state.webrtc.levelOfControl;
     if (unchanged) return this.state;
+    if (state.generation !== this.generation) return this.state;
     this.state = state;
     await this.deps.broadcastState(this.state);
     return this.state;
@@ -620,17 +654,20 @@ export class ActivationController {
   }
 
   private async recordDiagnostic(code: string, message: string): Promise<void> {
+    const generation = this.generation;
     const state = await this.composeState({
-      status: this.state.status === "idle" ? "idle" : "ready",
-      generation: this.state.generation,
+      status: this.state.status,
+      generation,
       profile: this.currentProfileForCompose(),
       hasCredentials: this.state.proxy.hasCredentials,
-      identity: this.state.identity,
+      identity:
+        this.target === null ? { source: "auto", publicIpVerified: false } : this.state.identity,
       webrtc: this.state.webrtc,
       providerFailed: this.state.lastError?.code === "provider_error",
       content: this.content,
       lastError: { code, message },
     });
+    if (state.generation !== this.generation) return;
     this.state = state;
     await this.deps.broadcastState(this.state);
   }
@@ -652,6 +689,7 @@ export class ActivationController {
   }
 
   private async commit(state: RuntimeState, pending: boolean): Promise<RuntimeState> {
+    if (state.generation !== this.generation) return this.state;
     this.state = state;
     this.initialized = true;
     await this.deps.broadcastIdentity(this.buildEnvelope(pending || this.isBusy()));
@@ -671,6 +709,7 @@ export class ActivationController {
       content: this.content,
       ...(this.state.lastError === undefined ? {} : { lastError: this.state.lastError }),
     });
+    if (state.generation !== this.generation) return;
     this.state = state;
     await this.deps.broadcastState(state);
   }
@@ -702,6 +741,7 @@ export class ActivationController {
       proxy: target.proxy,
       identity: identityConfigFrom(this.state.identity),
       webrtcPolicy: this.state.webrtc.desired,
+      revision: this.state.appliedRevision ?? 1,
     };
   }
 
@@ -756,6 +796,7 @@ export class ActivationController {
       generation: params.generation,
       activeProfileId: profile === null ? null : profile.id,
       activeProfileName: profile === null ? null : profile.name,
+      appliedRevision: profile === null ? 0 : (profile.revision ?? 1),
       proxy,
       identity: params.identity,
       webrtc: params.webrtc,
@@ -789,7 +830,16 @@ export class ActivationController {
         optionalGranted: [],
       })),
     );
-    if (!consent.allowed) {
+    if (signal.aborted)
+      return {
+        identity: { source: profile.identity.mode, publicIpVerified: false },
+        providerFailed: false,
+        providerError: undefined,
+        consentBlocked: false,
+      };
+    if (profile.identity.geoIpPolicy === "disabled") {
+      // Explicitly disabled: no request and no direct/native fallback.
+    } else if (!consent.allowed) {
       consentBlocked = true;
       providerError = consent.message;
     } else {
@@ -812,27 +862,6 @@ export class ActivationController {
       };
     }
 
-    if (profile.identity.mode === "manual") {
-      const publicIp = profile.identity.publicIp ?? observedIp;
-      const identity: ResolvedIdentity = {
-        source: "manual",
-        publicIpVerified: observedIp !== undefined && publicIp === observedIp,
-      };
-      if (publicIp !== undefined) identity.publicIp = publicIp;
-      if (observedIp !== undefined) identity.observedIp = observedIp;
-      if (profile.identity.countryCode !== undefined)
-        identity.countryCode = profile.identity.countryCode;
-      if (profile.identity.region !== undefined) identity.region = profile.identity.region;
-      if (profile.identity.city !== undefined) identity.city = profile.identity.city;
-      if (profile.identity.latitude !== undefined) identity.latitude = profile.identity.latitude;
-      if (profile.identity.longitude !== undefined) identity.longitude = profile.identity.longitude;
-      if (profile.identity.accuracy !== undefined) identity.accuracy = profile.identity.accuracy;
-      if (profile.identity.timezone !== undefined) identity.timezone = profile.identity.timezone;
-      identity.resolvedAt = this.deps.now();
-      if (geo !== null) identity.provider = this.deps.provider.id;
-      return { identity, providerFailed, providerError, consentBlocked };
-    }
-
     const identity: ResolvedIdentity = {
       source: "auto",
       publicIpVerified: observedIp !== undefined,
@@ -850,10 +879,36 @@ export class ActivationController {
         identity.longitude = geo.longitude;
         // GeoIP coordinates are approximate: never present them as precise.
         identity.accuracy = GEOIP_ACCURACY_METERS;
+        identity.geoIpLocation = {
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+          accuracy: GEOIP_ACCURACY_METERS,
+          ...(geo.timezone === undefined ? {} : { timezone: geo.timezone }),
+        };
       }
       if (geo.timezone !== undefined) identity.timezone = geo.timezone;
       identity.provider = this.deps.provider.id;
     }
+    const locationPolicy =
+      profile.identity.geolocationPolicy ??
+      (profile.identity.mode === "manual" ? "manual" : "follow");
+    const timezonePolicy =
+      profile.identity.timezonePolicy ?? (profile.identity.mode === "manual" ? "manual" : "follow");
+    if (locationPolicy !== "follow") {
+      delete identity.latitude;
+      delete identity.longitude;
+      delete identity.accuracy;
+      if (locationPolicy === "manual") {
+        if (profile.identity.latitude !== undefined) identity.latitude = profile.identity.latitude;
+        if (profile.identity.longitude !== undefined)
+          identity.longitude = profile.identity.longitude;
+        if (profile.identity.accuracy !== undefined) identity.accuracy = profile.identity.accuracy;
+      }
+    }
+    if (timezonePolicy === "manual") {
+      if (profile.identity.timezone !== undefined) identity.timezone = profile.identity.timezone;
+    }
+    if (locationPolicy === "manual" || timezonePolicy === "manual") identity.source = "manual";
     identity.resolvedAt = this.deps.now();
     return { identity, providerFailed, providerError, consentBlocked };
   }
@@ -861,13 +916,26 @@ export class ActivationController {
   private async persistResolvedIdentity(
     profile: IdentityProfile,
     identity: ResolvedIdentity,
+    generation: number,
   ): Promise<void> {
+    if (isBuiltinDirectProfile(profile.id)) return;
     await mutateProfiles(this.deps.profiles, (current) => {
       const existing = findProfile(current, profile.id);
-      if (existing === null) return { ok: true, value: current };
+      if (
+        existing === null ||
+        generation !== this.generation ||
+        existing.revision !== profile.revision
+      )
+        return { ok: true, value: current };
       return upsertProfile(current, {
         ...existing,
-        identity: identityConfigFrom({ ...identity, source: "auto" }),
+        identity: {
+          ...identityConfigFrom({ ...identity, source: "auto" }),
+          geoIpPolicy: existing.identity.geoIpPolicy ?? "automatic",
+          providerId: "ipwho.is",
+          geolocationPolicy: existing.identity.geolocationPolicy ?? "follow",
+          timezonePolicy: existing.identity.timezonePolicy ?? "follow",
+        },
       });
     });
   }
@@ -880,11 +948,14 @@ export class ActivationController {
     webrtc: WebRtcRuntimeState;
     status: RuntimeStatus;
   }): Promise<void> {
+    if (params.generation !== this.generation) return;
     const snapshot: ActiveTargetSnapshot = {
       schemaVersion: ACTIVE_TARGET_SCHEMA_VERSION,
       generation: params.generation,
       profileId: params.profile.id,
+      profile: params.profile,
       profileName: params.profile.name,
+      appliedRevision: params.profile.revision ?? 1,
       proxy: params.profile.proxy,
       credentials: params.credentials,
       webrtcPolicy: params.profile.webrtcPolicy,

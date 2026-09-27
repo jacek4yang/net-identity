@@ -188,7 +188,7 @@ describe("message router", () => {
     expect(harness.controller.getTarget()).toBeNull();
   });
 
-  it("re-activates the edited profile so changes take effect immediately", async () => {
+  it("saves active edits without altering runtime until explicitly applied", async () => {
     const { handler, ui, harness } = setup();
     await handler({ type: "profiles:save", profile: PROXIED_PROFILE }, ui);
     await handler({ type: "profiles:activate", profileId: "profile-0001" }, ui);
@@ -202,8 +202,17 @@ describe("message router", () => {
       ui,
     );
 
-    expect(harness.providerResolveCount()).toBe(2);
+    expect(harness.providerResolveCount()).toBe(1);
+    expect(harness.controller.getTarget()?.proxy.port).toBe(8080);
+    expect(harness.controller.getState().appliedRevision).toBe(1);
+    const saved = (await harness.profileStore.load()).profiles.find(
+      (p) => p.id === PROXIED_PROFILE.id,
+    );
+    expect(saved?.revision).toBe(2);
+    await handler({ type: "profiles:activate", profileId: PROXIED_PROFILE.id }, ui);
     expect(harness.controller.getTarget()?.proxy.port).toBe(3128);
+    expect(harness.controller.getState().appliedRevision).toBe(2);
+    expect(harness.providerResolveCount()).toBe(2);
   });
 
   it("reports a failed activation for an unknown profile", async () => {
