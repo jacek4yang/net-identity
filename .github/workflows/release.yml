@@ -1,7 +1,7 @@
 name: Release
 
-# A tag push runs the release gates and submits the version to AMO as a listed
-# add-on. Approval is finalized separately. A manual run repeats checks only.
+# A tag push runs the release gates and submits the version to the channel in release-config.json.
+# Approval is finalized separately. A manual run repeats checks only.
 on:
   push:
     tags:
@@ -53,6 +53,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -63,9 +64,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run package
-      - name: Record draft provenance and submit exact listed version
+      - name: Record draft provenance and submit exact configured version
         env:
           GH_TOKEN: ${{ github.token }}
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: node --experimental-strip-types scripts/release-control.mjs submit
+      - name: Dispatch signature verification and finalization
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh workflow run amo-finalize.yml --ref main -f tag="$RELEASE_TAG"

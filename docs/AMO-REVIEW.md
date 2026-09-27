@@ -31,13 +31,14 @@ and credentials survive event-page suspension in session storage. Unsafe or newe
 profile documents are held unchanged. A failed teardown does not release native
 geolocation until Off successfully commits.
 
-These notes describe version 1.1.0 and its schema-2 migration. Use the immutable v1.0.0 tagged
+These notes describe version 1.1.1 with the schema-2 migration introduced in 1.1.0. Use the immutable v1.0.0 tagged
 source archive when reviewing that historical version.
 
 ## Install channel
 
-AMO is the canonical listed install and automatic-update channel. The GitHub Release
-remains draft until approval. Its primary installer is the exact XPI downloaded from
+Listed releases use AMO for public installation and automatic updates. Version 1.1.1
+uses unlisted signing as described below. Each GitHub Release remains draft until its
+exact AMO file is public and the Mozilla signature has been verified. Its primary installer is the exact XPI downloaded from
 Mozilla, hash-checked and permanently installed in signature-enforcing normal Firefox.
 No unsigned submission ZIP is presented as a signed installer. Source and provenance
 refer to the same tag, version and commit. See `docs/RELEASING.md`.
@@ -58,3 +59,12 @@ not verify.
 ## After a review comment
 
 Fix the code on a branch, merge through CI, bump `package.json` and `public/manifest.json` together, and push a new `vX.Y.Z` tag. Do not move or reuse the rejected tag. `npm run check:version` rejects a repeated or older version.
+
+## Version 1.1.1 distribution
+
+This version retains the 1.1.0 product behavior and privacy model. It adds unlisted
+Mozilla signing for self-distribution through GitHub Actions. Existing listed submissions
+are preserved. The signed artifact is downloaded unchanged from Mozilla, verified against
+AMO SHA-256 and the tagged production payload, and installed in normal Firefox with
+signature enforcement before publication. No custom update URL is added. Unlisted signing
+is not public listing approval, and GitHub does not provide automatic extension updates.

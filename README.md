@@ -134,7 +134,10 @@ listing page yet. The reviewer package and the pre-submission checklist are in
 New releases remain draft until Mozilla approves the listed version. A finalized release
 provides `net-identity-<version>-firefox-signed.xpi`, downloaded unchanged from Mozilla
 and verified by normal Firefox, plus source, checksums and provenance. Install that XPI
-through Firefox's Add-ons Manager. AMO remains the automatic-update channel.
+through Firefox's Add-ons Manager. Version 1.1.1 uses Mozilla's unlisted signing for
+self-distribution; this does not mean public AMO listing approval. GitHub does not
+automatically update installed extensions. No custom update URL is configured; a future
+higher listed AMO version may update the installation through Firefox's AMO update service.
 The historical v1.0.0 ZIP is not the signed installer and remains unchanged.
 
 ### From a packaged build, for development

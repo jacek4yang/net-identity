@@ -69,7 +69,7 @@ export function inspectionSummary(addonValue: unknown, versionValue: unknown, ve
   const file = record(detail.file);
   if (
     detail.version !== version ||
-    detail.channel !== "listed" ||
+    (detail.channel !== "listed" && detail.channel !== "unlisted") ||
     typeof file.status !== "string" ||
     typeof file.is_mozilla_signed_extension !== "boolean"
   ) {

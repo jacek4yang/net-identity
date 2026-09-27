@@ -104,7 +104,19 @@ const RELEASE_PREAMBLE = [
  * GitHub Release text. The preamble states the install channel; the list is only the
  * supplied pull requests, never an invented changelog.
  */
-export function formatGithubReleaseBody(pulls: readonly ReleasePullRequest[]): string {
+export function formatGithubReleaseBody(
+  pulls: readonly ReleasePullRequest[],
+  channel: "listed" | "unlisted" = "listed",
+): string {
+  if (channel === "unlisted")
+    return [
+      "Install the Mozilla-signed XPI directly in normal Firefox: Add-ons and themes > gear > Install Add-on From File.",
+      "This is an unlisted, self-distributed release signed by Mozilla. It is not a public AMO listing approval. The XPI was downloaded from Mozilla and was not rebuilt or modified after signing.",
+      "No custom update URL is configured. GitHub releases do not automatically update this installation. A future higher listed AMO version may provide updates; do not expect an update to the older 1.1.0 submission.",
+      "The tag, version, commit, signing channel and verification hashes are recorded in release-metadata.json. SHA256SUMS.txt covers the XPI, source and metadata (not itself).",
+      "",
+      formatReleaseNotes(pulls),
+    ].join("\n");
   return `${RELEASE_PREAMBLE}\n${formatReleaseNotes(pulls)}`;
 }
 

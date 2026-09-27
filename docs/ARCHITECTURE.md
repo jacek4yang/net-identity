@@ -229,10 +229,12 @@ because Direct exists. No version or release tag is changed by this overhaul.
 
 ## Firefox distribution pipeline
 
-New tags use a two-phase release: validated listed AMO submission creates only a draft;
-hourly/manual finalization publishes only after public approval, AMO hash/payload checks
+New tags use a two-phase release: the immutable release-config.json selects listed or
+unlisted AMO submission, which creates only a draft. Historical v1.1.0 stays listed.
+Finalization checks both channels independently; publication requires a public AMO file
+(and public listing approval for listed releases), AMO hash/payload checks
 and permanent signature-enforcing normal Firefox installation. The primary asset is the
 unchanged Mozilla-signed XPI. AMO API v5 credentials are restricted to trusted tag/main
-workflows, never PRs. Preserve immutable v1.0.0 and all historical assets. The API's
+workflows, never PRs. Preserve immutable v1.0.0, v1.1.0 and all historical assets/submissions. The API's
 is_mozilla_signed_extension field denotes an internal Mozilla certificate, not ordinary
 AMO signing. See docs/RELEASING.md for provenance, rerun and failure rules.

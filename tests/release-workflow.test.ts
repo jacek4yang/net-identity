@@ -7,7 +7,7 @@ const control = readFileSync("scripts/release-control.mjs", "utf8");
 const ci = readFileSync(".github/workflows/ci.yml", "utf8");
 const firefox = readFileSync(".github/workflows/firefox-invariants.yml", "utf8");
 
-describe("two-phase AMO listed publication", () => {
+describe("two-phase AMO publication", () => {
   it("submits only from version tags after both complete gates", () => {
     expect(workflow).toContain('"v[0-9]+.[0-9]+.[0-9]+"');
     expect(workflow).toContain(
@@ -26,15 +26,19 @@ describe("two-phase AMO listed publication", () => {
     expect(workflow).not.toContain("gh release create");
     expect(control).toContain('"--draft"');
   });
-  it("uses API v5 listed submission with metadata and exact source", () => {
+  it("uses API v5 configured-channel submission with metadata and exact source", () => {
     for (const text of [
       "https://addons.mozilla.org/api/v5/",
-      "--channel=listed",
+      "--channel=${channel}",
       "--amo-metadata",
       "--upload-source-code",
       "--approval-timeout",
     ])
       expect(control).toContain(text);
+    expect(control).toContain("const channel = releaseChannel(");
+    expect(finalize).toContain("channel: [listed, unlisted]");
+    expect(finalize).toContain("SELECT_CHANNEL: ${{ matrix.channel }}");
+    expect(workflow).toContain("gh workflow run amo-finalize.yml --ref main");
     expect(control).not.toMatch(/api\/v[34]\//);
   });
   it("never grants AMO secrets to pull requests", () => {

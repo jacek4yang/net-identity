@@ -32,8 +32,8 @@ describe("release metadata", () => {
       /git object id/,
     );
     expect(() =>
-      buildReleaseMetadata({ ...base, channel: "unlisted", artifacts: [artifact] }),
-    ).toThrow(/listed/);
+      buildReleaseMetadata({ ...base, channel: "unknown", artifacts: [artifact] }),
+    ).toThrow(/channel/);
     expect(() => buildReleaseMetadata({ ...base, artifacts: [] })).toThrow(/at least one/);
     expect(() =>
       buildReleaseMetadata({ ...base, artifacts: [{ name: "x.zip", sha256: "ABC" }] }),

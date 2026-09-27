@@ -5,10 +5,12 @@ import {
   mozillaUrl,
   releaseVersion,
   HISTORICAL_COMMIT,
+  LISTED_110_COMMIT,
+  releaseChannel,
 } from "../src/release/amo-policy";
 import { distributionMetadata, parseSubmission, sameSubmission } from "../src/release/distribution";
 import { downloadSigned, sha256 } from "../src/release/download";
-import { EXTENSION_ID } from "../src/release/version";
+import { EXTENSION_ID, formatGithubReleaseBody } from "../src/release/version";
 
 const hash = "a".repeat(64);
 const addon = {
@@ -54,6 +56,33 @@ const proof = {
 };
 
 describe("AMO version state", () => {
+  it("preserves historical listed defaults and strictly validates new channel configuration", () => {
+    expect(releaseChannel(null)).toBe("listed");
+    expect(releaseChannel({ channel: "listed" })).toBe("listed");
+    expect(releaseChannel({ channel: "unlisted" })).toBe("unlisted");
+    for (const value of [undefined, {}, [], { channel: "unknown" }])
+      expect(() => releaseChannel(value)).toThrow();
+  });
+  it("allows an approved unlisted file while the independent public listing is pending", () => {
+    const nominated = { ...addon, status: "nominated", url: undefined };
+    expect(
+      amoState(nominated, { ...detail, channel: "unlisted" }, "1.1.0", "unlisted"),
+    ).toMatchObject({ state: "approved", channel: "unlisted", listingUrl: "" });
+    expect(amoState(nominated, detail, "1.1.0").state).toBe("pending");
+    expect(() => amoState(nominated, detail, "1.1.0", "unlisted")).toThrow(/channel/);
+  });
+  it("keeps unlisted review pending and disabled files rejected", () => {
+    for (const status of ["unreviewed", "disabled"]) {
+      expect(
+        amoState(
+          addon,
+          { ...detail, channel: "unlisted", file: { ...detail.file, status } },
+          "1.1.0",
+          "unlisted",
+        ).state,
+      ).toBe(status === "unreviewed" ? "pending" : "rejected");
+    }
+  });
   it("treats a URL and hash on an unreviewed file as pending", () => {
     expect(
       amoState(
@@ -151,6 +180,24 @@ describe("Mozilla download trust", () => {
 });
 
 describe("release provenance and publication guard", () => {
+  it("binds an unlisted release to the exact submission channel and Firefox proof", () => {
+    const unlisted = parseSubmission({ ...submission, channel: "unlisted" });
+    const state = amoState(addon, { ...detail, channel: "unlisted" }, "1.1.0", "unlisted");
+    expect(distributionMetadata(unlisted, state, proof)).toMatchObject({
+      channel: "unlisted",
+      mozillaSigned: true,
+    });
+    expect(sameSubmission(submission, unlisted)).toBe(false);
+    expect(() => distributionMetadata(submission, state, proof)).toThrow();
+    expect(() => distributionMetadata(unlisted, state, { ...proof, signed: false })).toThrow();
+    expect(() => parseSubmission({ ...unlisted, channel: "unknown" })).toThrow();
+  });
+  it("describes self-distribution without claiming public listing approval or GitHub updates", () => {
+    const notes = formatGithubReleaseBody([], "unlisted");
+    expect(notes).toContain("unlisted");
+    expect(notes).toContain("not a public AMO listing approval");
+    expect(notes).toContain("GitHub releases do not automatically update");
+  });
   it("records signed-XPI hash, source hash and Firefox signature evidence", () => {
     const metadata = distributionMetadata(submission, amoState(addon, detail, "1.1.0"), proof);
     expect(metadata).toMatchObject({
@@ -195,6 +242,7 @@ describe("release provenance and publication guard", () => {
     ).toBe(false);
   });
   it("protects immutable v1.0.0 and rejects tag injection and malformed records", () => {
+    expect(LISTED_110_COMMIT).toBe("e257b057a3c93e8b90fbd8de792429af2202ea35");
     expect(HISTORICAL_COMMIT).toBe("e3f8b22ed08e2acc13e93aad180b2e4e28f69325");
     for (const tag of ["v1.0.0", "v0.9.0", "main", "v1.1.0;echo", "v01.1.0"])
       expect(() => releaseVersion(tag)).toThrow();
