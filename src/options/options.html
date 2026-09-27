@@ -13,189 +13,327 @@
     </details>
 
     <header class="page-header">
-      <h1>Net Identity — Profiles</h1>
-      <p class="subtitle">
-        A profile binds one network identity together: proxy, public egress IP, geolocation,
-        timezone and WebRTC policy. Firefox only.
-      </p>
+      <div class="header-content">
+        <h1>Net Identity — Profiles</h1>
+        <p class="subtitle">
+          Manage routing profiles, identity spoofing (geolocation &amp; timezone), and WebRTC
+          policies. Firefox only.
+        </p>
+      </div>
     </header>
 
     <main class="layout">
-      <section class="panel">
+      <!-- Profiles Sidebar -->
+      <section class="panel profiles-sidebar" aria-label="Profiles list">
         <div class="panel-header">
           <h2>Profiles</h2>
-          <button id="new-profile" type="button">New profile</button>
+          <button id="new-profile" type="button" class="btn-sm">+ Add proxy</button>
         </div>
-        <ul id="profile-list" class="profile-list"></ul>
-        <p id="list-empty" class="empty">
-          No profiles yet. Press New profile, choose browser routing or a proxy, then Save and
-          Activate. Nothing is contacted until you activate.
+        <ul
+          id="profile-list"
+          class="profile-list"
+          role="listbox"
+          aria-label="Available profiles"
+        ></ul>
+        <p id="list-empty" class="empty" hidden>
+          No proxy profiles configured yet. Click "+ Add proxy" to create one.
         </p>
       </section>
 
-      <section class="panel">
-        <div class="panel-header">
-          <h2 id="form-title">New profile</h2>
-          <span id="form-badge" class="badge" hidden></span>
-        </div>
-
-        <form id="profile-form" novalidate>
-          <label class="field">
-            <span class="field-label">Name</span>
-            <input id="field-name" type="text" maxlength="64" autocomplete="off" />
-          </label>
-
-          <label class="field">
-            <span class="field-label">Proxy type</span>
-            <select id="field-proxy-type">
-              <option value="direct">Browser routing</option>
-              <option value="http">HTTP proxy</option>
-              <option value="https">HTTPS proxy</option>
-              <option value="socks4">SOCKS4 proxy</option>
-              <option value="socks5">SOCKS5 proxy</option>
-            </select>
-            <span class="hint"
-              >Browser routing does not override a proxy you already set in Firefox.</span
-            >
-          </label>
-
-          <div class="grid" id="proxy-address-fields">
-            <label class="field">
-              <span class="field-label">Proxy host</span>
-              <input id="field-proxy-host" type="text" autocomplete="off" placeholder="127.0.0.1" />
-            </label>
-            <label class="field">
-              <span class="field-label">Proxy port</span>
-              <input id="field-proxy-port" type="number" min="1" max="65535" step="1" />
-            </label>
+      <!-- Profile Editor Panel -->
+      <section class="panel editor-panel" aria-label="Profile editor">
+        <!-- Direct View (Read-Only) -->
+        <div id="direct-view" hidden>
+          <div class="panel-header">
+            <div class="title-with-badges">
+              <h2>Direct</h2>
+              <span class="badge" data-tone="ok">Built-in</span>
+              <span id="direct-active-badge" class="badge" hidden>Active</span>
+            </div>
           </div>
-
-          <div class="grid">
-            <label class="field">
-              <span class="field-label">Proxy username</span>
-              <input id="field-proxy-username" type="text" autocomplete="off" />
-            </label>
-            <label class="field">
-              <span class="field-label">Proxy password</span>
-              <input id="field-password" type="password" autocomplete="new-password" />
-            </label>
-          </div>
-          <p class="hint">Stored only for the current Firefox session.</p>
-
-          <label class="checkbox">
-            <input id="field-remove-credentials" type="checkbox" />
-            <span>Remove the stored session credentials for this profile</span>
-          </label>
-
-          <label class="checkbox">
-            <input id="field-proxy-dns" type="checkbox" />
-            <span>Resolve DNS names through the proxy (Firefox applies this to SOCKS proxies)</span>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Bypass hosts (one per line)</span>
-            <textarea id="field-bypass" rows="4" spellcheck="false"></textarea>
-          </label>
-
-          <fieldset class="field">
-            <legend class="field-label">Identity</legend>
-            <label class="radio">
-              <input type="radio" name="identityMode" value="auto" id="field-mode-auto" />
-              <span>Automatic — observe the public egress IP through the proxy</span>
-            </label>
-            <label class="radio">
-              <input type="radio" name="identityMode" value="manual" id="field-mode-manual" />
-              <span>Manual — set coordinates, accuracy and timezone yourself</span>
-            </label>
-          </fieldset>
-
-          <div class="location-map" id="location-map">
-            <div
-              class="location-map-surface"
-              id="location-map-surface"
-              role="application"
-              aria-label="Location map"
-            >
-              <div class="location-map-tiles" id="location-map-tiles"></div>
-              <div class="location-map-accuracy" id="location-map-accuracy" hidden></div>
-              <div class="location-map-marker" id="location-map-marker"></div>
-              <div class="location-map-zoom">
-                <button id="map-zoom-in" type="button" aria-label="Zoom in">+</button>
-                <button id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
+          <div class="direct-description">
+            <p class="direct-lead">
+              Net Identity does not configure an extension proxy; Firefox and system routing apply
+              as normal.
+            </p>
+            <div class="direct-specs">
+              <div class="spec-card">
+                <span class="spec-label">Proxy</span>
+                <span class="spec-value">Direct (browser / system routing)</span>
+                <span class="spec-hint"
+                  >Does not override a proxy configured in Firefox settings</span
+                >
+              </div>
+              <div class="spec-card">
+                <span class="spec-label">WebRTC</span>
+                <span class="spec-value">Default</span>
+                <span class="spec-hint">Firefox default IP handling policy</span>
+              </div>
+              <div class="spec-card">
+                <span class="spec-label">Identity</span>
+                <span class="spec-value">Automatic</span>
+                <span class="spec-hint"
+                  >Observes egress IP; requires consent before direct IP lookup</span
+                >
               </div>
             </div>
             <p class="hint">
-              Automatic mode previews the resolved location. Manual mode lets you click or drag the
-              map; the centre pin and the latitude and longitude fields stay in sync, and they still
-              work if tiles cannot load. The circle is the accuracy pages will see. Tiles are images
-              from tile.openstreetmap.org, requested only while this page shows the map, with no
-              referrer. The tile address reveals the area on screen. No proxy credentials or profile
-              secrets are sent.
+              The built-in Direct route cannot be modified, duplicated, or deleted. To deactivate
+              synthetic identity completely, click Deactivate or choose Off in the popup.
             </p>
-            <button id="use-geoip-location" type="button">Use GeoIP location</button>
           </div>
+          <div class="actions">
+            <button id="direct-activate" type="button" class="primary">Activate Direct</button>
+            <button id="direct-deactivate" type="button">Deactivate</button>
+          </div>
+        </div>
 
-          <div id="manual-fields">
-            <div class="grid">
-              <label class="field">
-                <span class="field-label">Latitude</span>
-                <input id="field-latitude" type="number" step="any" min="-90" max="90" />
-              </label>
-              <label class="field">
-                <span class="field-label">Longitude</span>
-                <input id="field-longitude" type="number" step="any" min="-180" max="180" />
-              </label>
-              <label class="field">
-                <span class="field-label">Accuracy (metres)</span>
-                <input id="field-accuracy" type="number" min="1" step="1" />
-              </label>
-              <label class="field">
-                <span class="field-label">Timezone (IANA)</span>
-                <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
-              </label>
+        <!-- Proxy Profile Form -->
+        <form id="profile-form" novalidate>
+          <div class="panel-header">
+            <div class="title-with-badges">
+              <h2 id="form-title">New profile</h2>
+              <span id="form-badge" class="badge" hidden>Active</span>
             </div>
           </div>
 
-          <label class="field">
-            <span class="field-label">WebRTC IP handling policy</span>
-            <select id="field-webrtc">
-              <option value="default">Leave Firefox's setting</option>
-              <option value="default_public_interface_only">Public addresses only</option>
-              <option value="disable_non_proxied_udp">Prefer the proxy for UDP</option>
-              <option value="proxy_only">Proxy only (strictest)</option>
-            </select>
-          </label>
+          <!-- Section A: Basic Configuration -->
+          <fieldset class="editor-section">
+            <legend class="section-title">A. Basic</legend>
+            <label class="field">
+              <span class="field-label">Profile name</span>
+              <input
+                id="field-name"
+                type="text"
+                maxlength="64"
+                autocomplete="off"
+                placeholder="e.g. Home Proxy, Lab"
+              />
+            </label>
+
+            <div class="grid">
+              <label class="field">
+                <span class="field-label">Proxy protocol</span>
+                <select id="field-proxy-type">
+                  <option value="http">HTTP proxy</option>
+                  <option value="https">HTTPS proxy</option>
+                  <option value="socks4">SOCKS4 proxy</option>
+                  <option value="socks5">SOCKS5 proxy</option>
+                </select>
+              </label>
+
+              <div class="grid" id="proxy-address-fields">
+                <label class="field">
+                  <span class="field-label">Host</span>
+                  <input
+                    id="field-proxy-host"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="127.0.0.1"
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">Port</span>
+                  <input
+                    id="field-proxy-port"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    step="1"
+                    placeholder="8080"
+                  />
+                </label>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Section B: Authentication -->
+          <fieldset class="editor-section" id="section-auth">
+            <legend class="section-title">B. Authentication</legend>
+            <div class="grid">
+              <label class="field">
+                <span class="field-label">Proxy username</span>
+                <input id="field-proxy-username" type="text" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Proxy password</span>
+                <input id="field-password" type="password" autocomplete="new-password" />
+              </label>
+            </div>
+            <p class="hint">
+              Stored in session memory only (cleared when Firefox exits). Never written to disk.
+            </p>
+            <label class="checkbox" id="remove-credentials-row">
+              <input id="field-remove-credentials" type="checkbox" />
+              <span>Remove stored session credentials for this profile</span>
+            </label>
+          </fieldset>
+
+          <!-- Section C: Identity -->
+          <fieldset class="editor-section">
+            <legend class="section-title">C. Identity</legend>
+            <div class="identity-mode-group">
+              <label class="radio">
+                <input type="radio" name="identityMode" value="auto" id="field-mode-auto" />
+                <span>Automatic — observe public egress IP through the proxy</span>
+              </label>
+              <label class="radio">
+                <input type="radio" name="identityMode" value="manual" id="field-mode-manual" />
+                <span>Manual — set custom coordinates, accuracy, and timezone</span>
+              </label>
+            </div>
+
+            <div class="location-map" id="location-map">
+              <div
+                class="location-map-surface"
+                id="location-map-surface"
+                role="application"
+                aria-label="Location map"
+              >
+                <div class="location-map-tiles" id="location-map-tiles"></div>
+                <div class="location-map-accuracy" id="location-map-accuracy" hidden></div>
+                <div
+                  class="location-map-marker"
+                  id="location-map-marker"
+                  role="button"
+                  aria-label="Selected location marker"
+                  tabindex="0"
+                ></div>
+                <div class="location-map-zoom">
+                  <button id="map-zoom-in" type="button" aria-label="Zoom in">+</button>
+                  <button id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
+                </div>
+                <div class="location-map-attribution">
+                  <a
+                    href="https://www.openstreetmap.org/copyright"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    &copy; OpenStreetMap contributors
+                  </a>
+                </div>
+                <div class="location-map-notice" id="location-map-notice" hidden>
+                  Map imagery unavailable — coordinates still work.
+                </div>
+              </div>
+              <div class="map-toolbar">
+                <button id="use-geoip-location" type="button" class="btn-sm">
+                  Use GeoIP location
+                </button>
+                <span class="hint map-mode-hint"
+                  >In manual mode, drag map to pan, click map to place marker, or drag marker.</span
+                >
+              </div>
+            </div>
+
+            <div id="manual-fields">
+              <div class="grid">
+                <label class="field">
+                  <span class="field-label">Latitude</span>
+                  <input
+                    id="field-latitude"
+                    type="number"
+                    step="any"
+                    min="-90"
+                    max="90"
+                    placeholder="e.g. 37.7749"
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">Longitude</span>
+                  <input
+                    id="field-longitude"
+                    type="number"
+                    step="any"
+                    min="-180"
+                    max="180"
+                    placeholder="e.g. -122.4194"
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">Accuracy (metres)</span>
+                  <input id="field-accuracy" type="number" min="1" step="1" placeholder="1000" />
+                </label>
+                <label class="field">
+                  <span class="field-label">Timezone (IANA)</span>
+                  <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
+                </label>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Section D: Advanced (collapsed by default) -->
+          <details class="editor-section-collapsible" id="section-advanced">
+            <summary>D. Advanced</summary>
+            <div class="collapsible-content">
+              <label class="checkbox">
+                <input id="field-proxy-dns" type="checkbox" />
+                <span
+                  >Resolve DNS names through the proxy (applied by Firefox to SOCKS proxies)</span
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label"
+                  >Bypass hosts (one per line, comma or semicolon separated)</span
+                >
+                <textarea
+                  id="field-bypass"
+                  rows="3"
+                  spellcheck="false"
+                  placeholder="localhost&#10;127.0.0.1&#10;::1"
+                ></textarea>
+              </label>
+
+              <label class="field">
+                <span class="field-label">WebRTC IP handling policy</span>
+                <select id="field-webrtc">
+                  <option value="default">Leave Firefox's setting</option>
+                  <option value="default_public_interface_only">Public addresses only</option>
+                  <option value="disable_non_proxied_udp">Prefer the proxy for UDP</option>
+                  <option value="proxy_only">Proxy only (strictest)</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <!-- Section E: Runtime details (collapsed by default) -->
+          <details class="editor-section-collapsible" id="section-runtime">
+            <summary>E. Runtime details</summary>
+            <div class="collapsible-content">
+              <div class="runtime-header">
+                <span class="hint">Active identity status and consistency audit</span>
+                <button id="refresh-identity" type="button" class="btn-sm">Refresh Identity</button>
+              </div>
+              <div id="options-status" class="status"></div>
+            </div>
+          </details>
 
           <p id="form-errors" class="errors" hidden></p>
 
+          <!-- Actions -->
           <div class="actions">
             <button id="save" type="submit" class="primary">Save</button>
-            <button id="activate" type="button">Activate</button>
+            <button id="save-activate" type="button" class="accent">Save &amp; Activate</button>
             <button id="duplicate" type="button">Duplicate</button>
             <button id="delete" type="button" class="danger">Delete</button>
             <button id="deactivate" type="button">Deactivate</button>
           </div>
-        </form>
 
-        <ul id="hints" class="hints"></ul>
+          <ul id="hints" class="hints"></ul>
+        </form>
       </section>
     </main>
-
-    <section class="panel status-panel">
-      <div class="panel-header">
-        <h2>Current state</h2>
-        <button id="refresh-identity" type="button">Refresh Identity</button>
-      </div>
-      <div id="options-status" class="status"></div>
-    </section>
 
     <footer class="page-footer">
       <p>
         Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that
         provider the proxy address. A direct profile shows it your own public IP, and only after you
         allow that collection. Map tiles, while this page is open, are images from
-        tile.openstreetmap.org. The tile address reveals the area on screen. No telemetry and no
-        remotely loaded code.
+        tile.openstreetmap.org (&copy; OpenStreetMap contributors). The tile request sends standard
+        browser Referer as required by OpenStreetMap's Tile Usage Policy and reveals the map area on
+        screen. No proxy credentials, profile secrets, or browsing URLs are sent. No telemetry and
+        no remotely loaded code.
       </p>
       <p>
         Page-level geolocation and timezone changes are compatibility shims. They are observable by

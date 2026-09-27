@@ -141,11 +141,12 @@ Reasoning, so a reviewer can verify it:
 - A fresh install does not create or activate a profile, so it does not contact the
   provider.
 - The options page may request map images from `https://tile.openstreetmap.org/{z}/{x}/{y}.png`
-  while that page is open. The tile path reveals the area on screen. Each image is loaded
-  with `referrerpolicy="no-referrer"`. The extension attaches no proxy credentials, profile
-  contents or `Authorization` header. Picker code is bundled; a failed image is removed
-  and the latitude/longitude fields keep working. This is location data shown to a second
-  host, covered by the required `locationInfo` declaration, and it is not executable code.
+  (© OpenStreetMap contributors) while that page is open. The tile path reveals the area on screen.
+  Requests send standard browser Referer as required by OpenStreetMap's Tile Usage Policy.
+  The extension attaches no proxy credentials, profile contents, browsing URLs, or `Authorization` header.
+  Picker code is bundled; a failed image is removed and coordinates and marker interactions keep working.
+  This is location data shown to a second host, covered by the required `locationInfo` declaration, and
+  it is not executable code.
 - `tests/manifest.test.ts` asserts that the declaration exists, uses only documented
   categories and is not `["none"]` while an automatic provider exists.
 

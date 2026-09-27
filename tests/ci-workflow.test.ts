@@ -10,6 +10,7 @@ describe("real-Firefox release gate", () => {
     expect(firefox).toContain("workflow_call");
     expect(firefox).toContain("run invariants npm run e2e:invariants");
     expect(firefox).toContain("run websocket npm run e2e:websocket");
+    expect(firefox).toContain("run ui npm run e2e:ui");
   });
 
   it("keeps the environment-sensitive authenticated-proxy count out of CI", () => {

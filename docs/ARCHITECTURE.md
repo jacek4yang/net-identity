@@ -159,10 +159,11 @@ longitude inputs on the same point (click, drag, or typing). The circle is the a
 value pages will receive. Zoom is chosen so a coarse accuracy stays visible, and the
 zoom buttons pin an explicit level.
 
-Raster tiles are optional `<img>` requests to `tile.openstreetmap.org`, sent only while
-the options page is showing the map, with no referrer. Indexes that fall outside the
-zoom are omitted. The CSS grid under the images is the offline surface, so coordinate
-entry does not depend on the tile host. No script is loaded from that host.
+Raster tiles are optional `<img>` requests to `tile.openstreetmap.org` (© OpenStreetMap contributors),
+sent only while the options page is showing the map, with standard browser Referer as required by
+OpenStreetMap's Tile Usage Policy. Indexes that fall outside the zoom are omitted. The CSS grid under the
+images is the offline surface, so coordinate entry does not depend on the tile host. No script is loaded
+from that host.
 
 ## Setting changes after activation
 
