@@ -283,8 +283,9 @@ async function main() {
     }
     if (!optionsReady) throw new Error("the options page never became ready");
 
-    // A script reply is lost (null) when the page navigates while it runs. Retry those
-    // instead of failing the smoke.
+    // A modal auth dialog can interrupt an async script with {value: null}.
+    // Unwrap before checking: nullish coalescing would return the wrapper itself
+    // and accidentally bypass this bounded retry. Real error replies still fail.
     async function call(message, script = CALL, timeout = 20000) {
       for (let attempt = 0; attempt < 6; attempt += 1) {
         const result = await client.send(
@@ -292,7 +293,7 @@ async function main() {
           { script, args: [message] },
           timeout,
         );
-        const value = result?.value ?? result;
+        const value = Object.hasOwn(result ?? {}, "value") ? result.value : result;
         if (value !== null && value !== undefined) return value;
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
