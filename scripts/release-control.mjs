@@ -304,6 +304,18 @@ async function main() {
     if (sha256(readFileSync(file("net-identity-source.zip"))) !== submission.sourceSha256)
       throw new Error("Source archive SHA-256 mismatch");
     const bytes = await downloadSigned(state.url, state.sha256, fetch, channel === "unlisted");
+    // Keep only AMO-hash-verified bytes for diagnosis if the payload guard fails.
+    // These are never release assets unless every subsequent check passes.
+    writeFileSync(file("amo-download-diagnostic.xpi"), bytes);
+    write("amo-download-diagnostic.json", {
+      version,
+      tag,
+      commit,
+      channel,
+      amoSha256: state.sha256,
+      expectedPayload: submission.payload,
+      downloadedPayload: payloadHashes(bytes, version),
+    });
     verifySignedPayload(bytes, version, submission.payload);
     writeFileSync(file(xpiName), bytes);
     output("approved", "true");
