@@ -71,6 +71,8 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
   synthetic position is kept until the replacement identity is committed. If none is
   available the page receives a timeout or position-unavailable error. Native
   geolocation is used only after a committed idle envelope (`controlled: false`).
+  Failed teardown is still controlled: it clears the departed route's identity and
+  does not release native geolocation until Off successfully commits.
 - **A profile-less state never carries identity.** Publishing coordinates is bound to
   `activeProfileId`. A page cannot receive the previous profile's latitude, longitude
   or timezone after deactivation, and a proxy/WebRTC `onChange` that lands while

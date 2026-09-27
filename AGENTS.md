@@ -124,6 +124,8 @@ validate profile
 - Until that idle envelope is committed — including during startup, activation,
   refresh and provider failure — the geolocation shim does not call Firefox's
   implementation. It keeps the previous synthetic position when it has one.
+- Failed teardown clears the departed route's identity and remains controlled until
+  Off successfully commits. Diagnostics must use the current routing generation.
 
 ## 6. Security invariants (do not weaken)
 
@@ -207,7 +209,7 @@ Package output: `artifacts/`.
   version floor and the data-collection declaration.
 - Every change that affects behaviour needs a test that fails without the change.
 - Firefox-only behaviour is covered by `npm run e2e:invariants`, `e2e:websocket` and
-  `e2e:proxy-auth`. Those three run in the real-Firefox CI gate (`docs/CI.md`), which
+  `e2e:proxy-auth` and `e2e:ui`. Those four run in the real-Firefox CI gate (`docs/CI.md`), which
   is required on `main`. `npm run e2e` (the smoke test) needs the public GeoIP
   provider, so it stays out of CI and out of `npm run check`.
 

@@ -1,0 +1,22 @@
+# Post-v1 acceptance evidence
+
+This audit covers epic #55 and issues #56–#59. It preserves the local overhaul
+checkpoint `43729c9`. It does not change the v1.0.0 tag or AMO submission.
+
+| Requirement                 | Implementation and evidence                                                                                                                                                                                                                                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reserved Direct             | `findProfile` resolves the reserved ID independently of stored profiles. `durableProfileState` omits it and migration removes legacy built-in records. It consumes no user-profile capacity. Store, migration and Direct tests pin these rules.                                                          |
+| Consent-independent routing | Routing and its session snapshot are established before the consent read. Denial prevents the GeoIP request, commits an empty controlled identity and does not block switching. Tested with a deferred consent read, restart and the actual Firefox toolbar popup.                                       |
+| Off / Direct / Proxy        | Generation guards reject stale responses. Off clears routing and releases WebRTC. Controlled empty identity clears stale coordinates; failed teardown stays controlled until a successful idle commit. Activation tests and real Firefox invariants/UI cover these transitions.                          |
+| Independent policies        | GeoIP automatic/disabled; geolocation follow/manual/unavailable; timezone follow/manual; WebRTC automatic/manual. The policy matrix, malformed-input tests and editor round trip preserve expert choices independently of legacy mode.                                                                   |
+| Durable migration           | `ni.state.v1` migrates v1 to schema 2, preserving routing and explicit WebRTC choices while stripping secret keys. Unsafe and newer documents are held unchanged. Migration tests verify idempotence and no silent conversion to Direct.                                                                 |
+| Save / Apply / Refresh      | Save increments the saved revision without changing runtime. Apply uses the saved revision and leaves unsaved form values alone. Ready and interrupted event-page restores retain applied configuration and session credentials; Refresh uses that configuration. Unit and Firefox UI tests verify this. |
+| Credentials                 | Passwords remain in session storage. Blank input preserves them; Clear affects saved credentials until Apply. Duplicate copies no password. Tests cover ready/interrupted restart and absence from durable storage.                                                                                      |
+| Map interactions            | Viewport and selection are separate. Model tests plus Firefox pointer/wheel actions cover pan, manual click/marker drag, automatic preview, jitter, cancellation, native lost capture, blur, typed recenter, resize and profile reset. Model tests verify pointer-focused zoom and GeoIP recenter.       |
+| Tiles / privacy             | `NO_TILES` is the production provider. Local grid only, no network imagery, no Referer spoofing. Unit tests cover negative-cache backoff, cap and bounded memory; Firefox verifies no image elements and offline interactions. See [tile policy](TILE-POLICY.md).                                        |
+| Firefox gate                | `quality` and `firefox / invariants` are required on main. The gate runs invariants, WebSocket routing, proxy auth and UI on real Firefox. No assertions or suites were removed. See [CI](CI.md).                                                                                                        |
+
+Remaining platform limits: frames Firefox refuses to inject into, observable page-level
+timezone shims, approximate GeoIP coordinates, unsupported IPv6 CIDR bypass entries,
+and Direct retaining Firefox/system proxy settings. The local grid has no geographic
+imagery. Network tile providers remain disabled pending explicit policy review.

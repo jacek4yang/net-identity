@@ -294,6 +294,40 @@ describe("activation", () => {
     expect(state.identity.timezone).toBeUndefined();
     expect(harness.controller.getEnvelope().payload).toBeNull();
   });
+  it("keeps failed teardown controlled and clears the departed route's identity", async () => {
+    const harness = createHarness();
+    const profile = makeProfile({ id: "failed-teardown" });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+    const clear = harness.targetStore.clear.bind(harness.targetStore);
+    harness.targetStore.clear = async () => {
+      throw new Error("session write failed");
+    };
+    const state = await harness.controller.deactivate();
+    expect(state.status).toBe("error");
+    expect(state.activeProfileId).toBeNull();
+    expect(state.identity.latitude).toBeUndefined();
+    expect(state.identity.timezone).toBeUndefined();
+    expect(harness.controller.getEnvelope()).toMatchObject({ payload: null, controlled: true });
+    expect(harness.envelopes.at(-1)?.controlled).toBe(true);
+    harness.targetStore.clear = clear;
+    await harness.controller.deactivate();
+    expect(harness.controller.getEnvelope().controlled).toBe(false);
+  });
+  it("does not attach the previous identity when a switched route fails to persist", async () => {
+    const harness = createHarness();
+    await harness.saveProfile(makeProfile({ id: "previous-route" }));
+    await harness.controller.activate("previous-route");
+    harness.targetStore.save = async () => {
+      throw new Error("session write failed");
+    };
+    const state = await harness.controller.activate("builtin-direct");
+    expect(state.status).toBe("error");
+    expect(state.activeProfileId).toBe("builtin-direct");
+    expect(state.identity.latitude).toBeUndefined();
+    expect(state.identity.timezone).toBeUndefined();
+    expect(harness.controller.getEnvelope()).toMatchObject({ controlled: true, payload: null });
+  });
 
   it("never publishes identity coordinates while no profile is active", async () => {
     const harness = createHarness();

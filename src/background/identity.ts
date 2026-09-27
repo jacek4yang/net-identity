@@ -197,11 +197,7 @@ export class ActivationController {
     // (a transition, or a setting refresh racing a deactivation) cannot leak them
     // to pages.
     if (this.state.activeProfileId === null) {
-      return createIdentityEnvelope(
-        null,
-        pending,
-        this.isBusy() || (this.deactivating && this.state.status !== "idle"),
-      );
+      return createIdentityEnvelope(null, pending, this.state.status !== "idle");
     }
     const payload = createPublicIdentity({
       generation: this.state.generation,
@@ -669,8 +665,7 @@ export class ActivationController {
       generation,
       profile: this.currentProfileForCompose(),
       hasCredentials: this.state.proxy.hasCredentials,
-      identity:
-        this.target === null ? { source: "auto", publicIpVerified: false } : this.state.identity,
+      identity: this.currentIdentityForCompose(),
       webrtc: this.state.webrtc,
       providerFailed: this.state.lastError?.code === "provider_error",
       content: this.content,
@@ -687,7 +682,7 @@ export class ActivationController {
       generation: this.generation,
       profile: this.currentProfileForCompose(),
       hasCredentials: this.state.proxy.hasCredentials,
-      identity: this.state.identity,
+      identity: this.currentIdentityForCompose(),
       webrtc: this.state.webrtc,
       providerFailed: false,
       content: this.content,
@@ -744,6 +739,7 @@ export class ActivationController {
   private currentProfileForCompose(): IdentityProfile | null {
     const target = this.target;
     if (target === null) return null;
+    if (this.appliedProfile !== null) return this.appliedProfile;
     return {
       id: target.profileId,
       name: target.profileName,
@@ -752,6 +748,12 @@ export class ActivationController {
       webrtcPolicy: this.state.webrtc.desired,
       revision: this.state.appliedRevision ?? 1,
     };
+  }
+
+  private currentIdentityForCompose(): ResolvedIdentity {
+    return this.target !== null && this.target.generation === this.state.generation
+      ? this.state.identity
+      : { source: "auto", publicIpVerified: false };
   }
 
   private async composeState(params: {
