@@ -193,3 +193,9 @@ AMO signing. See docs/RELEASING.md for provenance, rerun and failure rules.
 Unlisted AMO file downloads authenticate only the initial request to the AMO file endpoint;
 redirects and CDN requests never receive credentials. Finalization tools come from trusted
 main and operate in a separate checkout of the unchanged release tag.
+
+The signed manifest may omit exactly one final LF byte. The verifier proves this by
+reconstructing that single byte in memory and matching the original submission SHA-256;
+it does not normalize JSON or allow value changes. All other payload files must remain
+byte-identical. Release metadata records both manifest hashes and whether this occurred.
+The downloaded signed XPI is never rewritten.

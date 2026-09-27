@@ -124,3 +124,9 @@ No custom update URL is configured; GitHub releases do not automatically update 
 installation. A future higher listed AMO version may update it through Firefox's default
 AMO update service. The older pending 1.1.0 will not replace 1.1.1. Unlisted signing does
 not imply public listing approval; release notes and metadata explicitly record the channel.
+
+The signed manifest may omit exactly one final LF byte. The verifier proves this by
+reconstructing that single byte in memory and matching the original submission SHA-256;
+it does not normalize JSON or allow value changes. All other payload files must remain
+byte-identical. Release metadata records both manifest hashes and whether this occurred.
+The downloaded signed XPI is never rewritten.
