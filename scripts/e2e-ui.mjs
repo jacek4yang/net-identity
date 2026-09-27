@@ -542,6 +542,14 @@ async function main() {
       "Real map click selects a location",
     );
     const marker = await point("#location-map-marker");
+    await pointer(marker, { x: marker.x + 2, y: marker.y + 1 });
+    const jittered = await readMap();
+    check(
+      jittered.lat === selected.lat &&
+        jittered.lng === selected.lng &&
+        jittered.center === selected.center,
+      "Marker pointer jitter does not change selection or viewport",
+    );
     await pointer(marker, { x: marker.x + 35, y: marker.y - 15 });
     next = await readMap();
     check(
@@ -605,6 +613,37 @@ async function main() {
       args: [],
     });
     await client.send("Marionette:SetContext", { value: "content" });
+    const beforeResize = await readMap();
+    const oldWidth = await execute(
+      'return document.getElementById("location-map-surface").clientWidth;',
+    );
+    await client.send("WebDriver:SetWindowRect", { width: 900, height: 900 });
+    await waitFor(
+      `return document.getElementById("location-map-surface").clientWidth !== ${oldWidth};`,
+    );
+    const afterResize = await readMap();
+    check(
+      afterResize.lat === beforeResize.lat &&
+        afterResize.lng === beforeResize.lng &&
+        afterResize.center === beforeResize.center &&
+        afterResize.zoom === beforeResize.zoom,
+      "Resize preserves geographic selection, viewport center and zoom",
+    );
+    await click("#new-profile");
+    const reset = await readMap();
+    check(
+      reset.lat === "" && reset.lng === "" && Number(reset.zoom) === 2,
+      "New profile resets old selection and zoom",
+    );
+    const autoPoint = await point("#location-map-surface", 0.25, 0.5);
+    await pointer(autoPoint, { x: autoPoint.x + 40, y: autoPoint.y + 10 });
+    const autoPan = await readMap();
+    await pointer(await point("#location-map-surface", 0.25, 0.5));
+    const autoClick = await readMap();
+    check(
+      autoPan.center !== reset.center && autoClick.lat === "" && autoClick.lng === "",
+      "Automatic preview permits panning but never selects on click",
+    );
     await click("#deactivate");
     check(
       (await call({ type: "state:get" })).state.activeProfileId === null,
