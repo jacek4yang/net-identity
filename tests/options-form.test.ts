@@ -56,6 +56,32 @@ describe("parseBypassHostsInput", () => {
 });
 
 describe("toProfileInput", () => {
+  it("preserves independent expert policies even when the legacy mode is auto", () => {
+    const profile = makeProfile({
+      id: "independent-form",
+      identity: {
+        mode: "auto",
+        geoIpPolicy: "disabled",
+        geolocationPolicy: "disabled",
+        timezonePolicy: "manual",
+        timezone: "UTC",
+      },
+    });
+    const form = toFormValues(profile);
+    expect(form.identityMode).toBe("manual");
+    const parsed = parseProfile(toProfileInput(form, profile.id));
+    expect(parsed).toMatchObject({
+      ok: true,
+      value: {
+        identity: {
+          geoIpPolicy: "disabled",
+          geolocationPolicy: "disabled",
+          timezonePolicy: "manual",
+          timezone: "UTC",
+        },
+      },
+    });
+  });
   it("converts a proxied form into a valid profile", () => {
     const parsed = parseProfile(toProfileInput(formValues(), "profile-0001"));
 

@@ -41,6 +41,21 @@ describe("independent identity policies", () => {
     expect(parseRuntimeState({ ...state, appliedRevision: -1 }).ok).toBe(false);
     const snapshot = await h.targetStore.load();
     expect(parseActiveTargetSnapshot({ ...snapshot, appliedRevision: "1" }).ok).toBe(false);
+    expect(parseActiveTargetSnapshot({ ...snapshot, appliedRevision: 0 }).ok).toBe(false);
+    expect(parseActiveTargetSnapshot({ ...snapshot, appliedRevision: 2 }).ok).toBe(false);
+    expect(
+      parseActiveTargetSnapshot({ ...snapshot, proxy: { ...snapshot?.proxy, port: 3128 } }).ok,
+    ).toBe(false);
+    expect(
+      parseActiveTargetSnapshot({ ...snapshot, profileId: "builtin-direct", profile: undefined })
+        .ok,
+    ).toBe(false);
+    expect(
+      parseActiveTargetSnapshot({ ...snapshot, profile: undefined, appliedRevision: undefined }),
+    ).toMatchObject({
+      ok: true,
+      value: { appliedRevision: 1 },
+    });
     expect(parseProfile({ ...makeProfile({ id: "revision-bad" }), revision: 0 }).ok).toBe(false);
   });
   it("never starts an obsolete provider request after a slow consent read", async () => {
@@ -211,6 +226,89 @@ describe("independent identity policies", () => {
     expect(state.identity.timezone).toBeUndefined();
     expect(restarted.providerResolveCount()).toBe(0);
     expect(restarted.controller.getEnvelope()).toMatchObject({ controlled: true, payload: null });
+  });
+  it("resumes an interrupted Apply with its snapshot revision and credentials", async () => {
+    const h = createHarness();
+    const handler = createMessageHandler({
+      profiles: h.profileStore,
+      credentials: h.credentialStore,
+      controller: h.controller,
+      runtimeId: "test",
+    });
+    const sender = { id: "test", fromContentScript: false, url: undefined };
+    const profile = makeProfile({ id: "interrupted-apply" });
+    await handler(
+      {
+        type: "profiles:save",
+        profile,
+        credentials: { username: "fixture", password: "fixture-only" },
+      },
+      sender,
+    );
+    await h.controller.activate(profile.id);
+    const snapshot = await h.targetStore.load();
+    if (snapshot === null) throw new Error("missing applied snapshot");
+    await h.targetStore.save({ ...snapshot, status: "resolving" });
+    await handler(
+      {
+        type: "profiles:save",
+        profile: { ...profile, proxy: { ...profile.proxy, port: 3128 } },
+        credentials: null,
+      },
+      sender,
+    );
+    const restarted = createHarness({ localArea: h.localArea, sessionArea: h.sessionArea });
+    const state = await restarted.controller.initialize();
+    expect(state.appliedRevision).toBe(1);
+    expect(state.generation).toBeGreaterThan(snapshot.generation);
+    expect(restarted.controller.getTarget()?.proxy.port).toBe(8080);
+    expect(restarted.controller.getTarget()?.credentials?.username).toBe("fixture");
+    await restarted.controller.refresh();
+    expect(restarted.controller.getTarget()?.credentials?.username).toBe("fixture");
+    await restarted.controller.activate(profile.id);
+    expect(restarted.controller.getTarget()?.proxy.port).toBe(3128);
+    expect(restarted.controller.getTarget()?.credentials).toBeNull();
+    expect(h.localArea.serialized()).not.toContain("fixture-only");
+  });
+  it("keeps applied credentials through Save, Clear, duplicate and a ready restart until Apply", async () => {
+    const h = createHarness();
+    const handler = createMessageHandler({
+      profiles: h.profileStore,
+      credentials: h.credentialStore,
+      controller: h.controller,
+      runtimeId: "test",
+    });
+    const sender = { id: "test", fromContentScript: false, url: undefined };
+    const profile = makeProfile({
+      id: "credential-revision",
+      identity: { mode: "auto", geoIpPolicy: "disabled" },
+    });
+    await handler(
+      {
+        type: "profiles:save",
+        profile,
+        credentials: { username: "fixture", password: "fixture-only" },
+      },
+      sender,
+    );
+    await h.controller.activate(profile.id);
+    const generation = h.controller.getState().generation;
+    await handler({ type: "profiles:save", profile }, sender);
+    expect((await h.credentialStore.get(profile.id))?.username).toBe("fixture");
+    await handler({ type: "profiles:duplicate", profileId: profile.id }, sender);
+    const copy = (await h.profileStore.load()).profiles.find((p) => p.name.endsWith(" copy"));
+    expect(copy).toBeDefined();
+    expect(await h.credentialStore.get(copy?.id ?? "missing")).toBeNull();
+    await handler({ type: "profiles:save", profile, credentials: null }, sender);
+    expect(h.controller.getState().generation).toBe(generation);
+    expect(await h.credentialStore.get(profile.id)).toBeNull();
+    const restarted = createHarness({ localArea: h.localArea, sessionArea: h.sessionArea });
+    await restarted.controller.initialize();
+    await restarted.controller.refresh();
+    expect(restarted.controller.getTarget()?.credentials?.username).toBe("fixture");
+    await restarted.controller.activate(profile.id);
+    expect(restarted.controller.getTarget()?.credentials).toBeNull();
+    expect(h.localArea.serialized()).not.toContain("fixture-only");
   });
   it("lets Off win a lookup and an activation still loading storage", async () => {
     const deferred = createDeferred<typeof SAMPLE_GEO>();

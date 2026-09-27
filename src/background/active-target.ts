@@ -32,7 +32,12 @@ import {
   type ProxyCredentials,
 } from "../profile/validation";
 
-import type { IdentityProfile, ProxyConfig, WebRTCPolicy } from "../profile/schema";
+import {
+  isBuiltinDirectProfile,
+  type IdentityProfile,
+  type ProxyConfig,
+  type WebRTCPolicy,
+} from "../profile/schema";
 
 export const ACTIVE_TARGET_SCHEMA_VERSION = 1;
 
@@ -74,7 +79,7 @@ export function parseActiveTargetSnapshot(value: unknown): Result<ActiveTargetSn
 
   if (
     value.appliedRevision !== undefined &&
-    !isIntegerInRange(value.appliedRevision, 0, Number.MAX_SAFE_INTEGER)
+    !isIntegerInRange(value.appliedRevision, 1, Number.MAX_SAFE_INTEGER)
   )
     return fail("invalid applied revision");
   const profile = value.profile === undefined ? undefined : parseProfile(value.profile);
@@ -85,6 +90,16 @@ export function parseActiveTargetSnapshot(value: unknown): Result<ActiveTargetSn
 
   const policy = parseWebRtcPolicy(value.webrtcPolicy);
   if (!policy.ok) return fail(...policy.errors);
+  if (isBuiltinDirectProfile(value.profileId) && proxy.value.type !== "direct")
+    return fail("reserved Direct snapshot cannot contain a proxy");
+  if (
+    profile?.ok &&
+    (JSON.stringify(profile.value.proxy) !== JSON.stringify(proxy.value) ||
+      profile.value.name !== value.profileName ||
+      profile.value.webrtcPolicy !== policy.value ||
+      profile.value.revision !== value.appliedRevision)
+  )
+    return fail("snapshot applied configuration mismatch");
 
   const identity = parseResolvedIdentity(value.identity);
   if (!identity.ok) return fail(...identity.errors);
@@ -105,7 +120,7 @@ export function parseActiveTargetSnapshot(value: unknown): Result<ActiveTargetSn
     profileId: value.profileId,
     profileName: value.profileName,
     ...(profile?.ok ? { profile: profile.value } : {}),
-    appliedRevision: typeof value.appliedRevision === "number" ? value.appliedRevision : 0,
+    appliedRevision: typeof value.appliedRevision === "number" ? value.appliedRevision : 1,
     proxy: proxy.value,
     credentials,
     webrtcPolicy: policy.value,

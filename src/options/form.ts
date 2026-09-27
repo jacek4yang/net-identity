@@ -158,7 +158,14 @@ export function toFormValues(profile: IdentityProfile | null): ProfileFormValues
     removeCredentials: false,
     proxyDns: profile.proxy.proxyDNS,
     bypassHosts: formatBypassHostsInput(profile.proxy.bypassHosts),
-    identityMode: profile.identity.mode,
+    identityMode:
+      profile.identity.mode === "manual" ||
+      profile.identity.geoIpPolicy === "disabled" ||
+      profile.identity.geolocationPolicy === "manual" ||
+      profile.identity.geolocationPolicy === "disabled" ||
+      profile.identity.timezonePolicy === "manual"
+        ? "manual"
+        : "auto",
     geoIpPolicy: profile.identity.geoIpPolicy ?? "automatic",
     geolocationPolicy:
       profile.identity.geolocationPolicy ??
