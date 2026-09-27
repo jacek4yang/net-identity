@@ -1,5 +1,5 @@
 import { record } from "./amo-api.ts";
-import { releaseVersion, SHA256, type AmoState } from "./amo-policy.ts";
+import { releaseVersion, SHA256, type AmoState, type ReleaseChannel } from "./amo-policy.ts";
 import { buildReleaseMetadata } from "./metadata.ts";
 import { EXTENSION_ID } from "./version.ts";
 
@@ -9,7 +9,7 @@ export interface Submission {
   version: string;
   commit: string;
   extensionId: typeof EXTENSION_ID;
-  channel: "listed";
+  channel: ReleaseChannel;
   accepted: boolean;
   sourceSha256: string;
   payload: Record<string, string>;
@@ -22,7 +22,7 @@ export function parseSubmission(value: unknown): Submission {
     releaseVersion(data.tag) !== data.version ||
     data.schemaVersion !== 1 ||
     data.extensionId !== EXTENSION_ID ||
-    data.channel !== "listed" ||
+    (data.channel !== "listed" && data.channel !== "unlisted") ||
     typeof data.commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(data.commit) ||
     typeof data.accepted !== "boolean" ||
@@ -47,7 +47,7 @@ export function parseSubmission(value: unknown): Submission {
     version: String(data.version),
     commit: data.commit,
     extensionId: EXTENSION_ID,
-    channel: "listed",
+    channel: data.channel,
     accepted: data.accepted,
     sourceSha256: data.sourceSha256,
     payload: Object.fromEntries(
@@ -59,6 +59,7 @@ export function parseSubmission(value: unknown): Submission {
 export function sameSubmission(a: Submission, b: Submission): boolean {
   return (
     a.tag === b.tag &&
+    a.channel === b.channel &&
     a.commit === b.commit &&
     a.sourceSha256 === b.sourceSha256 &&
     Object.keys(a.payload).length === Object.keys(b.payload).length &&
@@ -110,8 +111,13 @@ export function parseSignatureProof(value: unknown, version: string, hash: strin
 }
 
 export function distributionMetadata(submission: Submission, state: AmoState, proofValue: unknown) {
-  if (!submission.accepted || state.state !== "approved" || state.version !== submission.version) {
-    throw new Error("Cannot finalize without accepted, approved exact listed version");
+  if (
+    !submission.accepted ||
+    state.state !== "approved" ||
+    state.version !== submission.version ||
+    state.channel !== submission.channel
+  ) {
+    throw new Error("Cannot finalize without accepted, approved exact configured version");
   }
   const proof = parseSignatureProof(proofValue, submission.version, state.sha256);
   const signedXpi = {
@@ -124,7 +130,7 @@ export function distributionMetadata(submission: Submission, state: AmoState, pr
       version: submission.version,
       tag: submission.tag,
       commit: submission.commit,
-      channel: "listed",
+      channel: submission.channel,
       artifacts: [signedXpi, source],
     }),
     mozillaSigned: true,
@@ -143,6 +149,6 @@ export function distributionMetadata(submission: Submission, state: AmoState, pr
     source,
     signatureVerification: proof,
     provenance:
-      "Downloaded from Mozilla after approval; not rebuilt or modified. Payload matches the tested tag submission.",
+      "Downloaded from Mozilla after signing; not rebuilt or modified. Payload matches the tested tag submission.",
   };
 }

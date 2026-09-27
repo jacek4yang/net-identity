@@ -20,6 +20,10 @@ concurrency:
 jobs:
   finalize:
     if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [listed, unlisted]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -36,6 +40,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
+          SELECT_CHANNEL: ${{ matrix.channel }}
         run: node --experimental-strip-types scripts/release-control.mjs select
       - name: Check out exact validated tag
         if: steps.select.outputs.tag != ''

@@ -45,7 +45,7 @@ describe("read-only AMO inspection", () => {
     for (const value of [
       {},
       { ...detail, version: "2.0.0" },
-      { ...detail, channel: "unlisted" },
+      { ...detail, channel: "unknown" },
       { ...detail, file: {} },
     ]) {
       expect(() => inspectionSummary(addon, value, "1.0.0")).toThrow();

@@ -1,6 +1,6 @@
 /** Trusted tag/main orchestration; all AMO requests use API v5. No raw child output. */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { amoGet } from "../src/release/amo-api.ts";
 import {
@@ -8,6 +8,8 @@ import {
   ensureSubmission,
   releaseVersion,
   HISTORICAL_COMMIT,
+  LISTED_110_COMMIT,
+  releaseChannel,
 } from "../src/release/amo-policy.ts";
 import {
   parseSubmission,
@@ -50,12 +52,23 @@ const lookup = (tag) => releases().find((release) => release.tag_name === tag);
 const download = (tag, name) =>
   gh("release", "download", tag, "--pattern", name, "--dir", directory, "--clobber");
 const upload = (tag, names) => gh("release", "upload", tag, ...names.map(file), "--clobber");
+const channel = releaseChannel(
+  existsSync("release-config.json")
+    ? JSON.parse(readFileSync("release-config.json", "utf8"))
+    : null,
+);
 const query = async (version) =>
-  amoState(await amoGet(""), await amoGet(`versions/v${version}/`), version);
+  amoState(await amoGet(""), await amoGet(`versions/v${version}/`), version, channel);
+function verifyHistoricalTags() {
+  if (
+    git("rev-parse", "v1.0.0^{commit}") !== HISTORICAL_COMMIT ||
+    git("rev-parse", "v1.1.0^{commit}") !== LISTED_110_COMMIT
+  )
+    throw new Error("Historical tag changed");
+}
 function exactTag(tag) {
   const version = releaseVersion(tag);
-  if (git("rev-parse", "v1.0.0^{commit}") !== HISTORICAL_COMMIT)
-    throw new Error("Historical tag changed");
+  verifyHistoricalTags();
   const commit = git("rev-parse", `${tag}^{commit}`);
   if (git("rev-parse", "HEAD") !== commit) throw new Error("Checkout must be the exact tag");
   git("merge-base", "--is-ancestor", commit, "origin/main");
@@ -78,7 +91,7 @@ function readPending(tag, commit) {
   const submission = parseSubmission(
     hasState ? json("submission-state.json") : json("release-metadata.json").submission,
   );
-  if (submission.tag !== tag || submission.commit !== commit)
+  if (submission.tag !== tag || submission.commit !== commit || submission.channel !== channel)
     throw new Error("Draft/tag provenance mismatch");
   return submission;
 }
@@ -141,12 +154,23 @@ async function main() {
       .sort((a, b) => a.tag_name.localeCompare(b.tag_name, "en", { numeric: true }));
     if (requested && candidates.length !== 1)
       throw new Error("Requested release record does not exist");
-    const tag = candidates[0]?.tag_name ?? "";
+    const eligible = candidates.filter((candidate) => {
+      if (!process.env.SELECT_CHANNEL) return true;
+      const config = spawnSync("git", ["show", `${candidate.tag_name}:release-config.json`], {
+        encoding: "utf8",
+      });
+      if (config.status !== 0 && candidate.tag_name !== "v1.1.0")
+        throw new Error("Missing tagged channel configuration");
+      return (
+        releaseChannel(config.status === 0 ? JSON.parse(config.stdout) : null) ===
+        process.env.SELECT_CHANNEL
+      );
+    });
+    const tag = eligible[0]?.tag_name ?? "";
     if (tag) {
       const commit = git("rev-parse", `${tag}^{commit}`);
       git("merge-base", "--is-ancestor", commit, "origin/main");
-      if (git("rev-parse", "v1.0.0^{commit}") !== HISTORICAL_COMMIT)
-        throw new Error("Historical tag changed");
+      verifyHistoricalTags();
       output("commit", commit);
     }
     output("tag", tag);
@@ -175,7 +199,7 @@ async function main() {
       version,
       commit,
       extensionId: EXTENSION_ID,
-      channel: "listed",
+      channel,
       accepted: false,
       sourceSha256: sha256(readFileSync(file("net-identity-source.zip"))),
       payload: payloadHashes(packageBytes, version),
@@ -217,7 +241,7 @@ async function main() {
             "dist",
             "--artifacts-dir",
             "web-ext-artifacts",
-            "--channel=listed",
+            `--channel=${channel}`,
             "--amo-base-url",
             "https://addons.mozilla.org/api/v5/",
             "--amo-metadata",
@@ -225,7 +249,7 @@ async function main() {
             "--upload-source-code",
             file("net-identity-source.zip"),
             "--approval-timeout",
-            "0",
+            channel === "unlisted" ? "120000" : "0",
             "--no-input",
           ],
           {
@@ -245,7 +269,7 @@ async function main() {
           const after = await query(version);
           if (after.state === "absent" || after.state === "rejected") {
             throw new Error(
-              `Listed submission failed (web-ext exit ${result.status ?? "timeout"}; AMO ${after.state}). Historical versions were not modified. Inspect AMO review activity for details.`,
+              `AMO submission failed (web-ext exit ${result.status ?? "timeout"}; AMO ${after.state}). Historical versions were not modified. Inspect AMO review activity for details.`,
             );
           }
         }
@@ -255,7 +279,7 @@ async function main() {
     write("submission-state.json", submission);
     upload(tag, ["submission-state.json", "net-identity-source.zip"]);
     console.error(
-      `AMO accepted exact listed ${version}; state=${state.state}. GitHub release remains draft.`,
+      `AMO accepted exact ${channel} ${version}; state=${state.state}. GitHub release remains draft.`,
     );
     return;
   }
@@ -334,8 +358,8 @@ async function main() {
   );
   writeFileSync(
     file("release.md"),
-    formatGithubReleaseBody(titles) +
-      `\nAMO: ${state.listingUrl}\nTag: ${tag}\nCommit: ${commit}\n`,
+    formatGithubReleaseBody(titles, channel) +
+      `\nAMO channel: ${channel}${state.listingUrl ? ` (${state.listingUrl})` : ""}\nTag: ${tag}\nCommit: ${commit}\n`,
   );
   upload(tag, [
     ...metadata.artifacts.map((artifact) => artifact.name),

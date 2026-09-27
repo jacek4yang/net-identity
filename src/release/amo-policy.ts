@@ -3,7 +3,17 @@ import { compareSemver, EXTENSION_ID, parseSemver } from "./version.ts";
 
 export const HISTORICAL_TAG = "v1.0.0";
 export const HISTORICAL_COMMIT = "e3f8b22ed08e2acc13e93aad180b2e4e28f69325";
+export const LISTED_110_COMMIT = "e257b057a3c93e8b90fbd8de792429af2202ea35";
 export const SHA256 = /^[a-f0-9]{64}$/;
+export type ReleaseChannel = "listed" | "unlisted";
+
+export function releaseChannel(value: unknown): ReleaseChannel {
+  if (value === null) return "listed"; // Immutable tags predating channel selection.
+  const config = record(value);
+  if (config.channel !== "listed" && config.channel !== "unlisted")
+    throw new Error("Invalid release channel");
+  return config.channel;
+}
 
 export function releaseVersion(tag: string): string {
   const version = tag.startsWith("v") ? parseSemver(tag.slice(1)) : null;
@@ -36,6 +46,7 @@ export type AmoState =
       state: "approved";
       status: "public";
       version: string;
+      channel: ReleaseChannel;
       versionId: number;
       fileId: number;
       url: string;
@@ -44,7 +55,12 @@ export type AmoState =
       listingUrl: string;
     };
 
-export function amoState(addonValue: unknown, versionValue: unknown, version: string): AmoState {
+export function amoState(
+  addonValue: unknown,
+  versionValue: unknown,
+  version: string,
+  channel: ReleaseChannel = "listed",
+): AmoState {
   if (!parseSemver(version)) throw new Error("Invalid version");
   const addon = record(addonValue);
   if (
@@ -64,7 +80,7 @@ export function amoState(addonValue: unknown, versionValue: unknown, version: st
   const file = record(detail.file);
   if (
     detail.version !== version ||
-    detail.channel !== "listed" ||
+    detail.channel !== channel ||
     (detail.is_disabled !== undefined && typeof detail.is_disabled !== "boolean") ||
     typeof file.is_mozilla_signed_extension !== "boolean"
   ) {
@@ -74,7 +90,7 @@ export function amoState(addonValue: unknown, versionValue: unknown, version: st
     return { state: "rejected", status: "file:disabled" };
   if (file.status === "unreviewed") return { state: "pending", status: "unreviewed" };
   if (file.status !== "public") throw new Error("Unknown AMO file status");
-  if (addon.status !== "public")
+  if (channel === "listed" && addon.status !== "public")
     return { state: "pending", status: `addon:${String(addon.status)}` };
   if (
     typeof detail.id !== "number" ||
@@ -88,10 +104,11 @@ export function amoState(addonValue: unknown, versionValue: unknown, version: st
   ) {
     throw new Error("Approved AMO file lacks a valid id or SHA-256");
   }
-  const listingUrl = mozillaUrl(addon.url);
+  const listingUrl = channel === "listed" ? mozillaUrl(addon.url) : "";
   if (
-    !listingUrl.startsWith("https://addons.mozilla.org/") ||
-    !new URL(listingUrl).pathname.includes("/addon/")
+    channel === "listed" &&
+    (!listingUrl.startsWith("https://addons.mozilla.org/") ||
+      !new URL(listingUrl).pathname.includes("/addon/"))
   ) {
     throw new Error("Invalid canonical AMO listing");
   }
@@ -99,6 +116,7 @@ export function amoState(addonValue: unknown, versionValue: unknown, version: st
     state: "approved",
     status: "public",
     version,
+    channel,
     versionId: detail.id,
     fileId: file.id,
     url: mozillaUrl(file.url),
@@ -119,6 +137,6 @@ export async function ensureSubmission(
   await submit();
   state = await query();
   if (state.state === "absent" || state.state === "rejected")
-    throw new Error("AMO did not accept the exact listed version");
+    throw new Error("AMO did not accept the exact configured version");
   return state;
 }

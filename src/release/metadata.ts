@@ -44,8 +44,8 @@ export function buildReleaseMetadata(input: ReleaseMetadataInput): ReleaseMetada
   if (!COMMIT.test(input.commit)) {
     throw new Error(`commit ${input.commit} is not a git object id`);
   }
-  if (input.channel !== "listed") {
-    throw new Error(`release channel ${input.channel} must be listed`);
+  if (input.channel !== "listed" && input.channel !== "unlisted") {
+    throw new Error(`release channel ${input.channel} must be listed or unlisted`);
   }
   if (input.artifacts.length === 0) {
     throw new Error("at least one artifact is required");
