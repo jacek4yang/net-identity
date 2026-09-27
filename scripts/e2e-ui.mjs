@@ -476,6 +476,57 @@ async function main() {
     );
 
     await fill({ "field-latitude": "35", "field-longitude": "139" });
+    for (const cancellation of ["pointercancel", "lostpointercapture", "blur"]) {
+      const prior = await readMap();
+      await execute(`const s=document.getElementById('location-map-surface');
+        s.addEventListener('pointerdown',e=>s.dataset.testPointerId=String(e.pointerId),{once:true});`);
+      const p = await point("#location-map-surface", 0.25, 0.55);
+      await client.send("WebDriver:PerformActions", {
+        actions: [
+          {
+            type: "pointer",
+            id: "mouse",
+            parameters: { pointerType: "mouse" },
+            actions: [
+              { type: "pointerMove", duration: 0, origin: "viewport", ...p },
+              { type: "pointerDown", button: 0 },
+              { type: "pointerMove", duration: 0, origin: "viewport", x: p.x + 1, y: p.y },
+            ],
+          },
+        ],
+      });
+      await execute(
+        `const s=document.getElementById('location-map-surface');
+        const id=Number(s.dataset.testPointerId);
+        if(arguments[0]==='blur') window.dispatchEvent(new Event('blur'));
+        else if(arguments[0]==='lostpointercapture') s.releasePointerCapture(id);
+        else s.dispatchEvent(new PointerEvent('pointercancel',{pointerId:id,bubbles:true}));`,
+        [cancellation],
+      );
+      await client.send("WebDriver:PerformActions", {
+        actions: [
+          {
+            type: "pointer",
+            id: "mouse",
+            parameters: { pointerType: "mouse" },
+            actions: [
+              { type: "pointerMove", duration: 0, origin: "viewport", x: p.x + 1, y: p.y },
+              { type: "pointerUp", button: 0 },
+            ],
+          },
+        ],
+      });
+      const after = await readMap();
+      check(
+        after.lat === prior.lat &&
+          after.lng === prior.lng &&
+          after.center === prior.center &&
+          (await execute(
+            'return !document.getElementById("location-map-surface").classList.contains("is-grabbing");',
+          )),
+        `${cancellation} cancels a real pointer gesture without selecting`,
+      );
+    }
     const original = await readMap();
     const background = await point("#location-map-surface", 0.25, 0.55);
     await pointer(background, { x: background.x + 65, y: background.y + 15 });

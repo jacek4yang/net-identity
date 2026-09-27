@@ -127,7 +127,9 @@ export class LocationMapModel {
         this.selection.longitude,
         this.viewport.zoom,
       );
-      this.select(latLngFromWorld({ x: point.x + dx, y: point.y + dy }, this.viewport.zoom));
+      // The key deltas describe moving the viewport content. A focused marker
+      // instead moves geographically in the arrow's direction.
+      this.select(latLngFromWorld({ x: point.x - dx, y: point.y - dy }, this.viewport.zoom));
     } else this.viewport.center = panViewport(this.viewport, dx, dy);
     this.viewport.center.longitude = clampLongitude(this.viewport.center.longitude);
   }
