@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { migrateStoredProfileState } from "../src/profile/migrate";
-import { SCHEMA_VERSION } from "../src/profile/schema";
+import { BUILTIN_DIRECT_PROFILE_ID, SCHEMA_VERSION } from "../src/profile/schema";
 import { STORAGE_KEY } from "../src/shared/constants";
 import { createHarness, createMemoryStorage, makeProfile } from "./helpers";
 
@@ -31,7 +31,8 @@ describe("profile schema migration", () => {
     expect(first.persist).toBe(true);
     expect(first.state.schemaVersion).toBe(SCHEMA_VERSION);
     expect(first.state.activeProfileId).toBe(profile.id);
-    expect(first.state.profiles[0]?.proxy).toEqual(profile.proxy);
+    expect(first.state.profiles[0]?.id).toBe(BUILTIN_DIRECT_PROFILE_ID);
+    expect(first.state.profiles[1]?.proxy).toEqual(profile.proxy);
     expect(JSON.stringify(first.state)).not.toContain(PASSWORD);
 
     const second = migrateStoredProfileState(first.state);
@@ -45,7 +46,8 @@ describe("profile schema migration", () => {
     const migrated = migrateStoredProfileState(stored);
     expect(migrated.status).toBe("ready");
     if (migrated.status !== "ready") return;
-    expect(migrated.state.profiles[0]?.proxy.type).toBe("http");
+    expect(migrated.state.profiles[0]?.id).toBe(BUILTIN_DIRECT_PROFILE_ID);
+    expect(migrated.state.profiles[1]?.proxy.type).toBe("http");
     expect(migrated.state.schemaVersion).toBe(1);
   });
 

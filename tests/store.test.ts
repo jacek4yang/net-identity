@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PROFILES } from "../src/shared/constants";
 import {
+  BUILTIN_DIRECT_PROFILE_ID,
   EMPTY_PROFILE_STATE,
   SCHEMA_VERSION,
+  createBuiltinDirectProfile,
   createProfile,
   type ProfileState,
 } from "../src/profile/schema";
@@ -32,7 +34,7 @@ describe("profile store", () => {
     const loaded = await store.load();
 
     expect(loaded.activeProfileId).toBe("profile-0001");
-    expect(loaded.profiles).toEqual([profile]);
+    expect(loaded.profiles).toEqual([createBuiltinDirectProfile(), profile]);
   });
 
   it("degrades to an empty state when stored data is corrupt", async () => {
@@ -81,8 +83,8 @@ describe("profile store", () => {
     );
 
     const loaded = await store.load();
-    expect(loaded.profiles).toHaveLength(8);
-    expect(new Set(loaded.profiles.map((profile) => profile.id)).size).toBe(8);
+    expect(loaded.profiles).toHaveLength(9);
+    expect(new Set(loaded.profiles.map((profile) => profile.id)).size).toBe(9);
   });
 
   it("enforces the profile limit", async () => {
@@ -105,8 +107,8 @@ describe("profile store", () => {
     await mutateProfiles(store, (state) => upsertProfile(state, { ...profile, name: "second" }));
 
     const loaded = await store.load();
-    expect(loaded.profiles).toHaveLength(1);
-    expect(loaded.profiles[0]?.name).toBe("second");
+    expect(loaded.profiles).toHaveLength(2);
+    expect(loaded.profiles[1]?.name).toBe("second");
   });
 
   it("clears the active pointer when the active profile is removed", async () => {
@@ -119,7 +121,20 @@ describe("profile store", () => {
     const next = removeProfile(state, profile.id);
 
     expect(next.activeProfileId).toBeNull();
-    expect(next.profiles).toHaveLength(0);
+    expect(next.profiles).toHaveLength(1);
+    expect(next.profiles[0]?.id).toBe(BUILTIN_DIRECT_PROFILE_ID);
+  });
+
+  it("never removes the built-in direct profile", () => {
+    const profile = makeProfile({ id: "profile-0004" });
+    const state: ProfileState = {
+      schemaVersion: SCHEMA_VERSION,
+      activeProfileId: null,
+      profiles: [createBuiltinDirectProfile(), profile],
+    };
+    const next = removeProfile(state, BUILTIN_DIRECT_PROFILE_ID);
+    expect(next.profiles).toHaveLength(2);
+    expect(next.profiles[0]?.id).toBe(BUILTIN_DIRECT_PROFILE_ID);
   });
 
   it("refuses to activate an unknown profile", () => {

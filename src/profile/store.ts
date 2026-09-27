@@ -12,11 +12,17 @@ import { MAX_PROFILES, STORAGE_KEY } from "../shared/constants";
 import { type Result } from "../shared/result";
 import { readKey, type StorageAreaLike } from "../shared/storage";
 import {
+  BUILTIN_DIRECT_NAME,
+  BUILTIN_DIRECT_PROFILE_ID,
+  DEFAULT_DIRECT_WEBRTC_POLICY,
   EMPTY_PROFILE_STATE,
   SCHEMA_VERSION,
+  ensureBuiltinDirect,
+  isBuiltinDirectProfile,
   type IdentityProfile,
   type ProfileState,
 } from "./schema";
+import { DEFAULT_BYPASS_HOSTS } from "../shared/constants";
 import { migrateStoredProfileState, migrationHoldMessage } from "./migrate";
 
 export interface ProfileStore {
@@ -60,15 +66,18 @@ export function createProfileStore(area: StorageAreaLike): ProfileStore {
       return null;
     }
     warning = null;
-    if (migrated.persist) await area.set({ [STORAGE_KEY]: migrated.state });
-    return migrated.state;
+    const state = ensureBuiltinDirect(migrated.state);
+    if (migrated.persist || JSON.stringify(migrated.state) !== JSON.stringify(state)) {
+      await area.set({ [STORAGE_KEY]: state });
+    }
+    return state;
   };
 
   return {
     load: () =>
       enqueue(async () => {
         const state = await accept(await readMigration());
-        return state ?? structuredClone(EMPTY_PROFILE_STATE);
+        return ensureBuiltinDirect(state ?? structuredClone(EMPTY_PROFILE_STATE));
       }),
 
     migrationWarning: () => warning,
@@ -77,7 +86,7 @@ export function createProfileStore(area: StorageAreaLike): ProfileStore {
       enqueue(async () => {
         const current = await accept(await readMigration());
         if (current === null) return;
-        await area.set({ [STORAGE_KEY]: state });
+        await area.set({ [STORAGE_KEY]: ensureBuiltinDirect(state) });
       }),
 
     mutate: (apply) =>
@@ -89,10 +98,12 @@ export function createProfileStore(area: StorageAreaLike): ProfileStore {
             errors: [warning ?? "Stored profiles were left unchanged."],
           };
         }
-        const result = apply(current);
+        const ensuredCurrent = ensureBuiltinDirect(current);
+        const result = apply(ensuredCurrent);
         if (!result.ok) return result;
-        await area.set({ [STORAGE_KEY]: result.value });
-        return result;
+        const finalState = ensureBuiltinDirect(result.value);
+        await area.set({ [STORAGE_KEY]: finalState });
+        return { ok: true, value: finalState };
       }),
   };
 }
@@ -116,6 +127,29 @@ export function findProfile(state: ProfileState, profileId: string | null): Iden
 }
 
 export function upsertProfile(state: ProfileState, profile: IdentityProfile): Result<ProfileState> {
+  if (isBuiltinDirectProfile(profile.id)) {
+    const direct: IdentityProfile = {
+      ...profile,
+      id: BUILTIN_DIRECT_PROFILE_ID,
+      name: BUILTIN_DIRECT_NAME,
+      proxy: {
+        type: "direct",
+        proxyDNS: false,
+        bypassHosts: [...DEFAULT_BYPASS_HOSTS],
+      },
+      webrtcPolicy: DEFAULT_DIRECT_WEBRTC_POLICY,
+    };
+    const otherProfiles = state.profiles.filter((p) => p.id !== BUILTIN_DIRECT_PROFILE_ID);
+    return {
+      ok: true,
+      value: {
+        schemaVersion: SCHEMA_VERSION,
+        activeProfileId: state.activeProfileId,
+        profiles: [direct, ...otherProfiles],
+      },
+    };
+  }
+
   const existingIndex = state.profiles.findIndex((candidate) => candidate.id === profile.id);
   if (existingIndex === -1 && state.profiles.length >= MAX_PROFILES) {
     return { ok: false, errors: [`profile limit reached (max ${MAX_PROFILES})`] };
@@ -125,20 +159,23 @@ export function upsertProfile(state: ProfileState, profile: IdentityProfile): Re
   else profiles[existingIndex] = profile;
   return {
     ok: true,
-    value: {
+    value: ensureBuiltinDirect({
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: state.activeProfileId,
       profiles,
-    },
+    }),
   };
 }
 
 export function removeProfile(state: ProfileState, profileId: string): ProfileState {
-  return {
+  if (isBuiltinDirectProfile(profileId)) {
+    return state;
+  }
+  return ensureBuiltinDirect({
     schemaVersion: SCHEMA_VERSION,
     activeProfileId: state.activeProfileId === profileId ? null : state.activeProfileId,
     profiles: state.profiles.filter((profile) => profile.id !== profileId),
-  };
+  });
 }
 
 export function setActiveProfile(

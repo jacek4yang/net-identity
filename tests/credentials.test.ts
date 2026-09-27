@@ -81,8 +81,8 @@ describe("credential store", () => {
     // Removing the profile's credentials leaves the profile untouched.
     await credentials.remove(profile.id);
     const reloaded = await profiles.load();
-    expect(reloaded.profiles).toHaveLength(1);
-    expect(reloaded.profiles[0]?.proxy.username).toBe("user");
+    expect(reloaded.profiles).toHaveLength(2);
+    expect(reloaded.profiles.find((p) => p.id === profile.id)?.proxy.username).toBe("user");
   });
 
   it("round-trips credential keys", () => {

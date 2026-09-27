@@ -105,11 +105,12 @@ describe("message router", () => {
     expect(harness.sessionArea.serialized()).toContain("hunter2");
 
     const list = parseProfilesResponse(await handler({ type: "profiles:list" }, ui));
-    expect(list.ok && list.value.profiles).toHaveLength(1);
-    expect(list.ok && list.value.profiles[0]?.name).toBe("Office");
+    expect(list.ok && list.value.profiles).toHaveLength(2);
+    expect(list.ok && list.value.profiles[0]?.name).toBe("Direct");
+    expect(list.ok && list.value.profiles[1]?.name).toBe("Office");
     expect(list.ok && list.value.credentialProfileIds).toEqual(["profile-0001"]);
     // The persisted profile keeps the username (not a secret) but never a password.
-    expect(list.ok && list.value.profiles[0]?.proxy.username).toBe("user");
+    expect(list.ok && list.value.profiles[1]?.proxy.username).toBe("user");
   });
 
   it("leaves stored credentials untouched when the password field is blank", async () => {
@@ -163,7 +164,8 @@ describe("message router", () => {
 
     expect(response.ok && response.value.ok).toBe(false);
     expect(response.ok && response.value.errors.length).toBeGreaterThan(0);
-    expect((await harness.profileStore.load()).profiles).toHaveLength(0);
+    expect((await harness.profileStore.load()).profiles).toHaveLength(1);
+    expect((await harness.profileStore.load()).profiles[0]?.id).toBe("builtin-direct");
   });
 
   it("activates, refreshes and deactivates", async () => {
@@ -227,8 +229,10 @@ describe("message router", () => {
 
     expect(parseMutationResponse(raw).ok).toBe(true);
     const stored = await harness.profileStore.load();
-    expect(stored.profiles).toHaveLength(2);
-    const copy = stored.profiles.find((profile) => profile.id !== "profile-0001");
+    expect(stored.profiles).toHaveLength(3);
+    const copy = stored.profiles.find(
+      (profile) => profile.id !== "profile-0001" && profile.id !== "builtin-direct",
+    );
     expect(copy?.name).toBe("Office copy");
     expect(copy?.proxy).toEqual(PROXIED_PROFILE.proxy);
     expect(harness.sessionArea.serialized().match(/hunter2/g)).toHaveLength(1);
@@ -249,7 +253,8 @@ describe("message router", () => {
     const raw = await handler({ type: "profiles:delete", profileId: "profile-0001" }, ui);
     expect(parseMutationResponse(raw).ok).toBe(true);
 
-    expect((await harness.profileStore.load()).profiles).toHaveLength(0);
+    expect((await harness.profileStore.load()).profiles).toHaveLength(1);
+    expect((await harness.profileStore.load()).profiles[0]?.id).toBe("builtin-direct");
     expect(await harness.credentialStore.get("profile-0001")).toBeNull();
     // Deleting the active profile also stops the routing.
     expect(harness.controller.getTarget()).toBeNull();
@@ -303,6 +308,51 @@ describe("message router", () => {
       accepted: false,
     });
     expect(await handler({ type: "content:report", payload: report }, ui)).toBeUndefined();
+  });
+
+  it("refuses to delete the built-in Direct profile", async () => {
+    const { handler, ui } = setup();
+    const response = parseMutationResponse(
+      await handler({ type: "profiles:delete", profileId: "builtin-direct" }, ui),
+    );
+    expect(response.ok && response.value.ok).toBe(false);
+    expect(response.ok && response.value.errors[0]).toContain("cannot be deleted");
+  });
+
+  it("refuses to duplicate the built-in Direct profile", async () => {
+    const { handler, ui } = setup();
+    const response = parseMutationResponse(
+      await handler({ type: "profiles:duplicate", profileId: "builtin-direct" }, ui),
+    );
+    expect(response.ok && response.value.ok).toBe(false);
+    expect(response.ok && response.value.errors[0]).toContain("cannot be duplicated");
+  });
+
+  it("refuses to modify the built-in Direct profile", async () => {
+    const { handler, ui } = setup();
+    const response = parseMutationResponse(
+      await handler(
+        {
+          type: "profiles:save",
+          profile: {
+            id: "builtin-direct",
+            name: "Direct Renamed",
+            proxy: {
+              type: "http",
+              host: "127.0.0.1",
+              port: 8080,
+              proxyDNS: false,
+              bypassHosts: [],
+            },
+            identity: { mode: "manual", latitude: 0, longitude: 0, accuracy: 100, timezone: "UTC" },
+            webrtcPolicy: "proxy_only",
+          },
+        },
+        ui,
+      ),
+    );
+    expect(response.ok && response.value.ok).toBe(false);
+    expect(response.ok && response.value.errors[0]).toContain("read-only");
   });
 });
 

@@ -15,6 +15,7 @@ import { isPlainObject } from "../shared/result";
 import {
   EMPTY_PROFILE_STATE,
   SCHEMA_VERSION,
+  ensureBuiltinDirect,
   type IdentityProfile,
   type ProfileState,
 } from "./schema";
@@ -80,7 +81,11 @@ function migrateVersion1(raw: Record<string, unknown>): MigrationResult {
     activeProfileId = seen.has(raw.activeProfileId) ? raw.activeProfileId : null;
   }
 
-  const state: ProfileState = { schemaVersion: SCHEMA_VERSION, activeProfileId, profiles };
+  const state: ProfileState = ensureBuiltinDirect({
+    schemaVersion: SCHEMA_VERSION,
+    activeProfileId,
+    profiles,
+  });
   return { status: "ready", state, persist: JSON.stringify(raw) !== JSON.stringify(state) };
 }
 
