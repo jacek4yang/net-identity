@@ -32,7 +32,8 @@ describe("AMO reviewer package", () => {
 
   it("documents the GeoIP, tile and session-credential behaviour a reviewer must check", () => {
     expect(privacy).toContain("ipwho.is");
-    expect(privacy).toContain("tile.openstreetmap.org");
+    expect(privacy).toContain("no map requests leave the options page");
+    expect(privacy).not.toContain("standard extension Referer");
     expect(privacy).toMatch(/storage\.session|session storage/);
     expect(privacy).toMatch(/does not include telemetry/i);
     expect(review).toContain("proxy.onRequest");

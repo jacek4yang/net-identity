@@ -204,6 +204,7 @@ async function main() {
       path.join(root, "scripts", "dev-proxy.mjs"),
       "--port",
       String(proxyPort),
+      "--offline",
       "--require-auth",
       "user:pass",
     ],

@@ -24,6 +24,7 @@ const { values } = parseArgs({
     port: { type: "string", default: "8080" },
     host: { type: "string", default: "127.0.0.1" },
     "require-auth": { type: "string" },
+    offline: { type: "boolean", default: false },
   },
 });
 
@@ -111,6 +112,13 @@ server.on("connect", (request, clientSocket, head) => {
   }
 
   log(`CONNECT ${request.url}`);
+  if (values.offline) {
+    // Test-only CONNECT acceptance: authenticate locally, then end TLS without upstream traffic.
+    clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+    clientSocket.once("data", () => clientSocket.destroy());
+    clientSocket.on("error", () => clientSocket.destroy());
+    return;
+  }
   const upstream = net.connect(Number(targetPort), targetHost, () => {
     clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
     if (head.length > 0) upstream.write(head);

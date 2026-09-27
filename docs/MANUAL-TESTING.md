@@ -34,7 +34,7 @@ Keep the browser console open (web-ext prints it with `--browser-console`).
    and longitude fields stay on the same point. Typing a latitude or longitude recentres
    the map.
 4. **Use GeoIP location** replaces the manual point with the resolved one.
-5. Disconnect the network (or block `tile.openstreetmap.org`) and repeat the click and
+5. Disconnect the network and repeat the click and
    the typed coordinates. Both still update the fields. Save and activate: a page's
    geolocation matches the coordinates you saved.
 

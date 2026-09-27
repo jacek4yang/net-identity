@@ -61,7 +61,7 @@ content/page-shim.js (MAIN world)          proxy.onRequest / webRTCIPHandlingPol
 | `src/geo/`                        | GeoIP provider interface + the `ipwho.is` implementation.                                               |
 | `src/shared/`                     | Result type, primitives, timezone maths, public identity contract, state types, audit, DOM helpers.     |
 | `src/options/form.ts`             | Pure form → profile mapping (unit tested; keeps the DOM layer thin).                                    |
-| `src/options/location-map.ts`     | Local Web Mercator picker. Tile images from `tile.openstreetmap.org` only; no remote script.            |
+| `src/options/location-map.ts`     | Local Web Mercator maths; map-model.ts owns interactions; tile-provider.ts ships no-network grid.       |
 
 ## 4. Firefox API decisions that must not be "simplified"
 
@@ -147,14 +147,13 @@ validate profile
 
 Storage layout:
 
-| Key                      | Area              | Contents                                                                  |
-| ------------------------ | ----------------- | ------------------------------------------------------------------------- |
-| `ni.state.v1`            | `storage.local`   | profiles + `activeProfileId`. **Never** a password. Schema version 1.     |
-| `ni.cred.v1.<profileId>` | `storage.session` | `{ username, password }`. Cleared when Firefox exits.                     |
-| `ni.active-target.v1`    | `storage.session` | active target snapshot incl. credentials (needed for cold-start routing). |
+| Key                      | Area              | Contents                                                                            |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------------------- |
+| `ni.state.v1`            | `storage.local`   | profiles + `activeProfileId`. **Never** a password. Schema version 2 (migrates v1). |
+| `ni.cred.v1.<profileId>` | `storage.session` | `{ username, password }`. Cleared when Firefox exits.                               |
+| `ni.active-target.v1`    | `storage.session` | active target snapshot incl. credentials (needed for cold-start routing).           |
 
-Durable profile documents are migrated by `src/profile/migrate.ts`. Version 1 is the
-only released shape. A password key found in that document is removed and not written
+Durable profile documents are migrated by `src/profile/migrate.ts`. Version 1 is the only released shape; current main migrates it to version 2. A password key found in that document is removed and not written
 back. A higher `schemaVersion`, or a version-1 profile that cannot be parsed without
 dropping the profile or its proxy, is left byte-for-byte in storage. Startup then stays
 idle and reports `schema_unsupported` instead of activating a direct connection. Session
@@ -172,9 +171,9 @@ step before changing the stored shape.
   `personallyIdentifyingInfo` is granted.
 - Installation does not create or activate a profile, so a fresh install makes no
   GeoIP request.
-- The options map may load images from `tile.openstreetmap.org` (© OpenStreetMap contributors). The tile path reveals
-  the viewed area. Requests send standard browser Referer (as required by OpenStreetMap's Tile Usage Policy) and carry no credentials.
-  Document any new tile host in `docs/SECURITY.md` before adding it.
+- The options location picker uses a bundled local grid and makes no tile requests.
+  `src/options/tile-provider.ts` defines the image-only provider contract. See
+  `docs/TILE-POLICY.md`; review policy and privacy before enabling any network provider.
 - **Do not change this to `["none"]`** while any automatic provider exists. If you add
   providers, re-review the declaration, `docs/SECURITY.md`, the README and
   `tests/manifest.test.ts` (which pins this behaviour).
@@ -297,3 +296,28 @@ not in that list.
 `main` is protected: pull requests only, linear history, conversation resolution,
 0 required approvals, admins included, no force pushes, no deletions. CI (`quality`)
 is a required check. Merge with `gh pr merge --squash --delete-branch`.
+
+## Post-v1 profile configuration (schema 2)
+
+The durable `ni.state.v1` document now has `schemaVersion: 2`. The key stays stable
+so version-1 documents migrate in place. Migration validates every profile, preserves
+routing and explicit WebRTC choices, strips secret keys and leaves unsupported or
+unsafe documents unchanged. The reserved `builtin-direct` route is projected in the
+domain/UI and is never a persisted user profile. Existing legitimate built-in Direct
+records are removed during migration; a reserved record with a proxy is held as unsafe.
+
+Identity policies are independent: GeoIP automatic/disabled with provider id `ipwho.is`,
+geolocation follow/manual/disabled (position unavailable, never native), timezone
+follow/manual, and WebRTC automatic/manual. Automatic WebRTC uses the route recommendation.
+Expert overrides are preserved. Follow-timezone uses the provider's resolved timezone;
+manual coordinates alone do not imply a locally inferred timezone.
+
+Save increments the configuration revision and does not alter runtime. Apply activates
+the saved revision. Runtime and the session snapshot retain the applied revision and
+configuration; Refresh uses that applied configuration, including its session credentials.
+Blank passwords retain saved credentials. Clear changes the saved session credentials;
+Apply removes them from a currently active target. Duplicate does not copy passwords.
+Deleting an active profile deactivates it. Off releases WebRTC and synthetic identity.
+Direct switches without optional GeoIP permission; without consent it commits an empty,
+controlled identity. Firefox/system routing still applies. No lookup occurs merely
+because Direct exists. No version or release tag is changed by this overhaul.

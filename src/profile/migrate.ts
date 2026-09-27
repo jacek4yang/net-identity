@@ -1,9 +1,8 @@
 /**
  * Forward migrations for the durable profile document (`ni.state.v1`).
  *
- * Version 1 is the only shape this project has stored. A later release adds a
- * step here and bumps `SCHEMA_VERSION`. It does not reuse version 1 for a new
- * field. Session snapshots and proxy passwords are not part of this document:
+ * Version 1 migrates to version 2 policy defaults and revisions. The durable
+ * key is unchanged; built-in Direct is projected rather than persisted. Session snapshots and proxy passwords are not part of this document:
  * a password key found in it is dropped and never written back.
  *
  * A newer schema is left byte-for-byte in storage. A version we do understand
@@ -16,6 +15,8 @@ import {
   EMPTY_PROFILE_STATE,
   SCHEMA_VERSION,
   ensureBuiltinDirect,
+  durableProfileState,
+  isBuiltinDirectProfile,
   type IdentityProfile,
   type ProfileState,
 } from "./schema";
@@ -44,41 +45,53 @@ export function migrateStoredProfileState(raw: unknown): MigrationResult {
   }
 
   const version = raw.schemaVersion;
-  if (version === undefined || version === 0 || version === 1) return migrateVersion1(raw);
+  if (version === undefined || version === 0 || version === 1 || version === SCHEMA_VERSION)
+    return migrateSupportedDocument(raw);
   if (typeof version === "number" && Number.isInteger(version) && version > SCHEMA_VERSION) {
     return { status: "hold", reason: "future-schema", schemaVersion: version };
   }
   return { status: "hold", reason: "unsafe-profile", schemaVersion: null };
 }
 
-function migrateVersion1(raw: Record<string, unknown>): MigrationResult {
+function migrateSupportedDocument(raw: Record<string, unknown>): MigrationResult {
+  const version = typeof raw.schemaVersion === "number" ? raw.schemaVersion : 1;
   if (!Array.isArray(raw.profiles)) {
-    return { status: "hold", reason: "unsafe-profile", schemaVersion: 1 };
+    return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
   }
   if (raw.profiles.length > MAX_PROFILES) {
-    return { status: "hold", reason: "unsafe-profile", schemaVersion: 1 };
+    return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
   }
 
   const profiles: IdentityProfile[] = [];
   const seen = new Set<string>();
   for (const entry of raw.profiles) {
     if (!isPlainObject(entry))
-      return { status: "hold", reason: "unsafe-profile", schemaVersion: 1 };
+      return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
     const parsed = parseProfile(stripSecrets(entry));
-    if (!parsed.ok) return { status: "hold", reason: "unsafe-profile", schemaVersion: 1 };
+    if (!parsed.ok) return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
     if (seen.has(parsed.value.id))
-      return { status: "hold", reason: "unsafe-profile", schemaVersion: 1 };
+      return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
     seen.add(parsed.value.id);
-    profiles.push(parsed.value);
+    if (isBuiltinDirectProfile(parsed.value.id)) {
+      if (parsed.value.proxy.type !== "direct")
+        return {
+          status: "hold",
+          reason: "unsafe-profile",
+          schemaVersion: Number(raw.schemaVersion),
+        };
+    } else profiles.push(parsed.value);
   }
 
   let activeProfileId: string | null;
   if (raw.activeProfileId === undefined || raw.activeProfileId === null) {
     activeProfileId = null;
   } else if (typeof raw.activeProfileId !== "string") {
-    return { status: "hold", reason: "unsafe-profile", schemaVersion: 1 };
+    return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
   } else {
-    activeProfileId = seen.has(raw.activeProfileId) ? raw.activeProfileId : null;
+    activeProfileId =
+      seen.has(raw.activeProfileId) || isBuiltinDirectProfile(raw.activeProfileId)
+        ? raw.activeProfileId
+        : null;
   }
 
   const state: ProfileState = ensureBuiltinDirect({
@@ -86,7 +99,11 @@ function migrateVersion1(raw: Record<string, unknown>): MigrationResult {
     activeProfileId,
     profiles,
   });
-  return { status: "ready", state, persist: JSON.stringify(raw) !== JSON.stringify(state) };
+  return {
+    status: "ready",
+    state,
+    persist: JSON.stringify(raw) !== JSON.stringify(durableProfileState(state)),
+  };
 }
 
 function stripSecrets(value: Record<string, unknown>): Record<string, unknown> {

@@ -46,6 +46,7 @@ export const WEBRTC_APPLY_STATUSES: readonly WebRtcApplyStatus[] = [
 
 export interface ResolvedIdentity {
   source: "auto" | "manual";
+  geoIpLocation?: { latitude: number; longitude: number; accuracy: number; timezone?: string };
   /** IP that the extension believes the site sees. */
   publicIp?: string;
   /** IP actually observed by the GeoIP provider through the active proxy. */
@@ -113,6 +114,7 @@ export interface RuntimeState {
   generation: number;
   activeProfileId: string | null;
   activeProfileName: string | null;
+  appliedRevision?: number;
   proxy: ProxyRuntimeSummary;
   identity: ResolvedIdentity;
   webrtc: WebRtcRuntimeState;
@@ -150,6 +152,7 @@ export interface RuntimeStateInput {
   generation: number;
   activeProfileId: string | null;
   activeProfileName: string | null;
+  appliedRevision?: number;
   proxy: ProxyRuntimeSummary;
   identity: ResolvedIdentity;
   webrtc: WebRtcRuntimeState;
@@ -166,6 +169,7 @@ export function createRuntimeState(input: RuntimeStateInput): RuntimeState {
     generation: input.generation,
     activeProfileId: input.activeProfileId,
     activeProfileName: input.activeProfileName,
+    appliedRevision: input.appliedRevision ?? 0,
     proxy: input.proxy,
     identity: input.identity,
     webrtc: input.webrtc,
@@ -197,6 +201,26 @@ export function parseResolvedIdentity(value: unknown): Result<ResolvedIdentity> 
     source,
     publicIpVerified: value.publicIpVerified === true,
   };
+  if (value.geoIpLocation !== undefined) {
+    const geo = value.geoIpLocation;
+    if (
+      !isPlainObject(geo) ||
+      !isFiniteNumber(geo.latitude) ||
+      Math.abs(geo.latitude) > 90 ||
+      !isFiniteNumber(geo.longitude) ||
+      Math.abs(geo.longitude) > 180 ||
+      !isFiniteNumber(geo.accuracy) ||
+      geo.accuracy <= 0 ||
+      (geo.timezone !== undefined && !isValidTimeZone(geo.timezone))
+    )
+      return fail("invalid observed GeoIP location");
+    identity.geoIpLocation = {
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+      accuracy: geo.accuracy,
+      ...(typeof geo.timezone === "string" ? { timezone: geo.timezone } : {}),
+    };
+  }
   const publicIp = readOptionalString(value, "publicIp");
   if (publicIp !== undefined) identity.publicIp = publicIp;
   const observedIp = readOptionalString(value, "observedIp");
@@ -331,6 +355,11 @@ export function parseRuntimeState(value: unknown): Result<RuntimeState> {
     return fail("runtime generation is invalid");
   }
 
+  if (
+    value.appliedRevision !== undefined &&
+    !isIntegerInRange(value.appliedRevision, 0, Number.MAX_SAFE_INTEGER)
+  )
+    return fail("invalid applied revision");
   const identityResult = parseResolvedIdentity(value.identity);
   if (!identityResult.ok) return fail(...identityResult.errors);
   const proxyResult = parseProxySummary(value.proxy);
@@ -360,6 +389,7 @@ export function parseRuntimeState(value: unknown): Result<RuntimeState> {
       generation: value.generation,
       activeProfileId,
       activeProfileName,
+      appliedRevision: typeof value.appliedRevision === "number" ? value.appliedRevision : 0,
       proxy: proxyResult.value,
       identity: identityResult.value,
       webrtc: webrtcResult.value,

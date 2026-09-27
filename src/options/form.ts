@@ -23,6 +23,9 @@ export interface ProfileFormValues {
   proxyDns: boolean;
   bypassHosts: string;
   identityMode: string;
+  geoIpPolicy?: string;
+  geolocationPolicy?: string;
+  timezonePolicy?: string;
   latitude: string;
   longitude: string;
   accuracy: string;
@@ -68,20 +71,34 @@ export function toProfileInput(values: ProfileFormValues, fallbackId: string): u
   }
   if (!isDirect && username !== "") proxy.username = username;
 
-  const identity: Record<string, unknown> = { mode };
-  if (mode === "manual") {
+  const geolocationPolicy = mode === "auto" ? "follow" : (values.geolocationPolicy ?? "manual");
+  const timezonePolicy = mode === "auto" ? "follow" : (values.timezonePolicy ?? "manual");
+  const identity: Record<string, unknown> = {
+    mode,
+    geoIpPolicy: mode === "auto" ? "automatic" : (values.geoIpPolicy ?? "automatic"),
+    providerId: "ipwho.is",
+    geolocationPolicy,
+    timezonePolicy,
+  };
+  if (geolocationPolicy === "manual") {
     identity.latitude = toNumberOrUndefined(values.latitude);
     identity.longitude = toNumberOrUndefined(values.longitude);
     identity.accuracy = toNumberOrUndefined(values.accuracy);
-    identity.timezone = values.timezone.trim();
   }
+  if (timezonePolicy === "manual") identity.timezone = values.timezone.trim();
 
   return {
     id: values.id ?? fallbackId,
     name: values.name.trim(),
     proxy,
     identity,
-    webrtcPolicy: values.webrtcPolicy,
+    webrtcMode: values.webrtcPolicy === "automatic" ? "automatic" : "manual",
+    webrtcPolicy:
+      values.webrtcPolicy === "automatic"
+        ? isDirect
+          ? "default"
+          : "disable_non_proxied_udp"
+        : values.webrtcPolicy,
   };
 }
 
@@ -119,11 +136,14 @@ export function toFormValues(profile: IdentityProfile | null): ProfileFormValues
       proxyDns: false,
       bypassHosts: "localhost\n127.0.0.1\n::1",
       identityMode: "auto",
+      geoIpPolicy: "automatic",
+      geolocationPolicy: "follow",
+      timezonePolicy: "follow",
       latitude: "",
       longitude: "",
       accuracy: "1000",
       timezone: "",
-      webrtcPolicy: "disable_non_proxied_udp",
+      webrtcPolicy: "automatic",
     };
   }
 
@@ -139,11 +159,17 @@ export function toFormValues(profile: IdentityProfile | null): ProfileFormValues
     proxyDns: profile.proxy.proxyDNS,
     bypassHosts: formatBypassHostsInput(profile.proxy.bypassHosts),
     identityMode: profile.identity.mode,
+    geoIpPolicy: profile.identity.geoIpPolicy ?? "automatic",
+    geolocationPolicy:
+      profile.identity.geolocationPolicy ??
+      (profile.identity.mode === "manual" ? "manual" : "follow"),
+    timezonePolicy:
+      profile.identity.timezonePolicy ?? (profile.identity.mode === "manual" ? "manual" : "follow"),
     latitude: profile.identity.latitude === undefined ? "" : String(profile.identity.latitude),
     longitude: profile.identity.longitude === undefined ? "" : String(profile.identity.longitude),
     accuracy: profile.identity.accuracy === undefined ? "1000" : String(profile.identity.accuracy),
     timezone: profile.identity.timezone ?? "",
-    webrtcPolicy: profile.webrtcPolicy,
+    webrtcPolicy: profile.webrtcMode === "automatic" ? "automatic" : profile.webrtcPolicy,
   };
 }
 

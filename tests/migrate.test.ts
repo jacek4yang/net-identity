@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { migrateStoredProfileState } from "../src/profile/migrate";
-import { BUILTIN_DIRECT_PROFILE_ID, SCHEMA_VERSION } from "../src/profile/schema";
+import {
+  BUILTIN_DIRECT_PROFILE_ID,
+  SCHEMA_VERSION,
+  durableProfileState,
+} from "../src/profile/schema";
 import { STORAGE_KEY } from "../src/shared/constants";
 import { createHarness, createMemoryStorage, makeProfile } from "./helpers";
 
@@ -18,6 +22,58 @@ function version1Document(
 }
 
 describe("profile schema migration", () => {
+  it("preserves version-1 manual choices and makes policy defaults explicit", () => {
+    const profile = makeProfile({
+      id: "migrate-manual",
+      identity: {
+        mode: "manual",
+        latitude: 0,
+        longitude: 180,
+        accuracy: 500,
+        timezone: "Pacific/Auckland",
+      },
+      webrtcPolicy: "default_public_interface_only",
+    });
+    const result = migrateStoredProfileState(version1Document(profile));
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.state.profiles[1]).toMatchObject({
+      revision: 1,
+      webrtcMode: "manual",
+      webrtcPolicy: "default_public_interface_only",
+      identity: {
+        geolocationPolicy: "manual",
+        timezonePolicy: "manual",
+        geoIpPolicy: "automatic",
+        providerId: "ipwho.is",
+        longitude: 180,
+      },
+    });
+    expect(durableProfileState(result.state).profiles).toHaveLength(1);
+  });
+  it("holds a reserved Direct record that would discard a proxy", () => {
+    const result = migrateStoredProfileState(
+      version1Document(makeProfile({ id: BUILTIN_DIRECT_PROFILE_ID })),
+    );
+    expect(result.status).toBe("hold");
+  });
+  it("rejects malformed version-2 policies without rewriting storage", async () => {
+    const stored = {
+      schemaVersion: 2,
+      activeProfileId: "policy-unsafe",
+      profiles: [
+        {
+          ...makeProfile({ id: "policy-unsafe" }),
+          identity: { mode: "auto", geoIpPolicy: "fallback-direct" },
+        },
+      ],
+    };
+    const area = createMemoryStorage({ [STORAGE_KEY]: stored });
+    const before = area.serialized();
+    const h = createHarness({ localArea: area });
+    expect((await h.controller.initialize()).lastError?.code).toBe("schema_unsupported");
+    expect(area.serialized()).toBe(before);
+  });
   it("is idempotent and strips passwords from a version 1 document", () => {
     const profile = makeProfile({ id: "profile-0001", name: "Amsterdam" });
     const stored = version1Document(profile, {
@@ -35,7 +91,7 @@ describe("profile schema migration", () => {
     expect(first.state.profiles[1]?.proxy).toEqual(profile.proxy);
     expect(JSON.stringify(first.state)).not.toContain(PASSWORD);
 
-    const second = migrateStoredProfileState(first.state);
+    const second = migrateStoredProfileState(durableProfileState(first.state));
     expect(second).toEqual({ status: "ready", state: first.state, persist: false });
   });
 
@@ -48,7 +104,7 @@ describe("profile schema migration", () => {
     if (migrated.status !== "ready") return;
     expect(migrated.state.profiles[0]?.id).toBe(BUILTIN_DIRECT_PROFILE_ID);
     expect(migrated.state.profiles[1]?.proxy.type).toBe("http");
-    expect(migrated.state.schemaVersion).toBe(1);
+    expect(migrated.state.schemaVersion).toBe(SCHEMA_VERSION);
   });
 
   it("does not turn a proxied profile into a direct connection when the host is missing", () => {

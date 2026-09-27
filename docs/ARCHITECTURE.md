@@ -142,7 +142,7 @@ expect. This is verified in real Firefox by `npm run e2e`.
 ## Profile schema migration
 
 `ni.state.v1` in `storage.local` is the only durable profile document. `src/profile/migrate.ts`
-reads it. Version 1 is canonicalised in place: unknown keys are dropped, and `password`,
+reads it. Version 1 migrates to schema 2 in place: unknown keys are dropped, and `password`,
 `credentials` and `proxyPassword` are never copied into the result. The same function is
 idempotent. A newer integer `schemaVersion` is not opened and not replaced. A version-1
 document that fails validation, repeats an id, or exceeds the profile limit is not
@@ -152,18 +152,24 @@ stays in `storage.session` and is not migrated into the local document.
 
 ## Options location map
 
-Manual coordinates are still a profile field. The options page projects them with a
-local Web Mercator implementation in `src/options/location-map.ts`. Automatic mode
-previews the resolved identity; Manual mode keeps the centre pin and the latitude and
-longitude inputs on the same point (click, drag, or typing). The circle is the accuracy
-value pages will receive. Zoom is chosen so a coarse accuracy stays visible, and the
-zoom buttons pin an explicit level.
+`location-map.ts` supplies Web Mercator maths. `map-model.ts` owns viewport center,
+zoom, selected location and pointer interaction separately. Dragging the background
+only pans. A click below the six-CSS-pixel movement threshold selects in manual mode;
+marker drag moves the selected point. Once a gesture crosses the threshold, returning
+to the start never turns it into a click. Cancellation, lost capture, blur and profile
+switches clear the gesture. Automatic preview still permits panning and zoom.
 
-Raster tiles are optional `<img>` requests to `tile.openstreetmap.org` (© OpenStreetMap contributors),
-sent only while the options page is showing the map, with standard browser Referer as required by
-OpenStreetMap's Tile Usage Policy. Indexes that fall outside the zoom are omitted. The CSS grid under the
-images is the offline surface, so coordinate entry does not depend on the tile host. No script is loaded
-from that host.
+Wheel zoom keeps the point under the pointer fixed. Typed coordinates and Use GeoIP
+Location explicitly recenter. A separate observed GeoIP seed prevents manual overrides
+from replacing the original lookup result. Resize uses CSS pixels, independent of DPR.
+Coordinates accept the full geographic range; only the viewport projection clamps at
+the Mercator latitude limit. No imagery is required for any interaction.
+
+`tile-provider.ts` ships `NO_TILES`, a local grid with visible attribution. No map
+requests leave the page, no external scripts/styles are loaded, and no Referer is
+spoofed. A future image provider must pass policy/privacy review. The image renderer
+has bounded negative caching with exponential backoff (30 seconds to 5 minutes), and
+requests only visible tiles. See `docs/TILE-POLICY.md`.
 
 ## Setting changes after activation
 
@@ -191,3 +197,28 @@ Closed tabs are removed. The log keeps at most 64 frames.
 - Only one identity is active at a time; there is no per-tab identity.
 - The provider interface is intentionally narrow (IP + location + timezone) so replacing
   it cannot ripple through the activation logic.
+
+## Post-v1 profile configuration (schema 2)
+
+The durable `ni.state.v1` document now has `schemaVersion: 2`. The key stays stable
+so version-1 documents migrate in place. Migration validates every profile, preserves
+routing and explicit WebRTC choices, strips secret keys and leaves unsupported or
+unsafe documents unchanged. The reserved `builtin-direct` route is projected in the
+domain/UI and is never a persisted user profile. Existing legitimate built-in Direct
+records are removed during migration; a reserved record with a proxy is held as unsafe.
+
+Identity policies are independent: GeoIP automatic/disabled with provider id `ipwho.is`,
+geolocation follow/manual/disabled (position unavailable, never native), timezone
+follow/manual, and WebRTC automatic/manual. Automatic WebRTC uses the route recommendation.
+Expert overrides are preserved. Follow-timezone uses the provider's resolved timezone;
+manual coordinates alone do not imply a locally inferred timezone.
+
+Save increments the configuration revision and does not alter runtime. Apply activates
+the saved revision. Runtime and the session snapshot retain the applied revision and
+configuration; Refresh uses that applied configuration, including its session credentials.
+Blank passwords retain saved credentials. Clear changes the saved session credentials;
+Apply removes them from a currently active target. Duplicate does not copy passwords.
+Deleting an active profile deactivates it. Off releases WebRTC and synthetic identity.
+Direct switches without optional GeoIP permission; without consent it commits an empty,
+controlled identity. Firefox/system routing still applies. No lookup occurs merely
+because Direct exists. No version or release tag is changed by this overhaul.

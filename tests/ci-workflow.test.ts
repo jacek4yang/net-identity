@@ -13,11 +13,9 @@ describe("real-Firefox release gate", () => {
     expect(firefox).toContain("run ui npm run e2e:ui");
   });
 
-  it("keeps the environment-sensitive authenticated-proxy count out of CI", () => {
-    // A fresh CI Firefox profile makes many unrelated proxied requests, so the
-    // global 407 count is a #21 clean-profile smoke item instead of a gate.
-    expect(firefox).not.toContain("run proxy-auth");
-    expect(firefox).toContain("e2e:proxy-auth");
+  it("runs authenticated proxy validation with a local offline fixture", () => {
+    expect(firefox).toContain("run proxy-auth npm run e2e:proxy-auth");
+    expect(readFileSync("scripts/e2e-proxy-auth.mjs", "utf8")).toContain('"--offline"');
   });
 
   it("keeps the public GeoIP smoke test out of the release gate", () => {

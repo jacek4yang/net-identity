@@ -18,7 +18,18 @@ A sandboxed frame Firefox refuses to inject can still see the computer's timezon
 
 ## Map
 
-The options map is bundled local code. Optional tile images come from `tile.openstreetmap.org` (© OpenStreetMap contributors) sending standard extension Referer in compliance with OpenStreetMap's Tile Usage Policy, only while that page is open. No remote script or executable code is loaded. No credentials, profile secrets, or browsing URLs are sent. Manual coordinates and marker interaction remain fully functional when images fail or offline.
+The options map is a bundled local coordinate grid. No external tile provider is enabled,
+no images are fetched, and no remote executable code is loaded. Coordinate entry, marker
+drag, selection, panning and zoom work offline. See `docs/TILE-POLICY.md` for the decision.
+
+The built-in Direct route exists virtually on fresh install; it does not trigger lookup.
+Direct switches without optional consent and withholds GeoIP until permission is granted.
+Custom policies can disable GeoIP and make geolocation unavailable without native fallback.
+Save persists configuration; Apply changes runtime. Version-1 profiles migrate to schema 2.
+
+These are reviewer notes for a future submission. v1.0.0 remains immutable and under
+review; use its tagged source archive for that submission. Refresh listing screenshots
+and privacy text when a future release is explicitly authorized.
 
 ## Install channel
 

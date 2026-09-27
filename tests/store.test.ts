@@ -34,7 +34,9 @@ describe("profile store", () => {
     const loaded = await store.load();
 
     expect(loaded.activeProfileId).toBe("profile-0001");
-    expect(loaded.profiles).toEqual([createBuiltinDirectProfile(), profile]);
+    expect(loaded.profiles.map((p) => parseProfile(p))).toEqual(
+      [createBuiltinDirectProfile(), profile].map((p) => parseProfile(p)),
+    );
   });
 
   it("degrades to an empty state when stored data is corrupt", async () => {

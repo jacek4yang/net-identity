@@ -59,7 +59,7 @@ window.addEventListener("message", (event: MessageEvent) => {
   if (report.ok) sendReport(report.value);
 });
 
-onRuntimeMessage(async (message) => {
+onRuntimeMessage((message) => {
   const parsed = parseOutboundMessage(message);
   if (!parsed.ok) return undefined;
 
@@ -72,13 +72,13 @@ onRuntimeMessage(async (message) => {
   if (parsed.value.type === "content:probe") {
     // Answer the background script's staleness probe. Reports what this frame
     // actually applied, which may legitimately be stale after a profile switch.
-    return {
+    return Promise.resolve({
       generation: currentEnvelope.payload === null ? 0 : currentEnvelope.payload.generation,
       timezone:
         currentEnvelope.payload === null ? null : (currentEnvelope.payload.timezone ?? null),
       hasShim: pageShimDetected,
       url: location.href,
-    };
+    });
   }
 
   return undefined;

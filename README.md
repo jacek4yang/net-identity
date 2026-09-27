@@ -29,6 +29,14 @@ usually still leaks:
 
 ## Features
 
+- **One-click routes:** Off, built-in Direct and user profiles in a compact popup.
+  Direct uses Firefox/system routing; Off releases synthetic identity and WebRTC control.
+  Direct needs no setup or GeoIP consent to switch routing.
+- **Save / Apply:** Save stores edits without changing runtime. Saved changes remain
+  pending until Apply. Refresh keeps the applied configuration.
+- **Independent identity policies:** GeoIP automatic/disabled, geolocation follow/manual/
+  unavailable, timezone follow/manual, and WebRTC automatic or an explicit Firefox policy.
+
 - **Profiles** binding proxy + identity + WebRTC policy into one switchable unit
   (create, edit, duplicate, delete, activate).
 - **Proxy support** for `direct`, `http`, `https`, `socks4` and `socks5`, with bypass
@@ -101,12 +109,10 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
   (20 km by default) and are never dressed up as GPS precision.
 - The timezone and geolocation shims are **compatibility shims, observable by
   sophisticated page scripts**. They are not a claim of fingerprinting invisibility, and
-  `navigator.permissions.query` is not patched.
-- The options page can load map images from `tile.openstreetmap.org` (© OpenStreetMap contributors) while it is open.
-  The tile address reveals the area on screen. Requests send standard browser Referer to comply with OpenStreetMap's Tile Usage Policy.
-  No proxy credentials, profile secrets, or browsing URLs are attached. The map still accepts typed
-  coordinates and marker interaction when those images cannot load. No telemetry, no analytics, no remote
-  JavaScript.
+  controlled geolocation reports a synthetic permission status.
+- The options location picker is a local coordinate grid with **no tile requests**.
+  Pan, zoom, click selection, marker drag and typed coordinates work offline.
+  See [the tile policy decision](docs/TILE-POLICY.md). No telemetry, analytics or remote code.
 
 ## Requirements
 
@@ -190,7 +196,7 @@ npm run e2e:websocket
    - **Automatic** – the proxy's observed egress identity is resolved and applied.
    - **Manual** – enter latitude, longitude, accuracy and an IANA timezone.
 6. Pick a WebRTC policy and **Save**.
-7. **Activate** it. The popup shows the resulting identity, the audit and the state of
+7. Click **Save & Activate**, or click its row in the popup. The popup shows the resulting identity, the audit and the state of
    open pages.
 
 ## Proxy support

@@ -222,184 +222,293 @@ async function main() {
 
     await client.send("Marionette:SetContext", { value: "content" });
 
-    // ==========================================
-    // Test 1: Popup Quick Switcher & Built-in Direct
-    // ==========================================
+    const execute = async (script, args = []) =>
+      (await client.send("WebDriver:ExecuteScript", { script, args }))?.value;
+    const call = async (message) =>
+      (
+        await client.send("WebDriver:ExecuteAsyncScript", {
+          script: `const done = arguments[arguments.length - 1]; const page = window.wrappedJSObject || window;
+        page.browser.runtime.sendMessage(page.JSON.parse(JSON.stringify(arguments[0]))).then(v => done(page.JSON.parse(page.JSON.stringify(v))), e => done({error: String(e)}));`,
+          args: [message],
+        })
+      )?.value;
+    async function waitFor(script) {
+      for (let i = 0; i < 100; i++) {
+        if (await execute(script)) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error(`UI condition not reached: ${script}`);
+    }
+    async function click(selector) {
+      const found = (
+        await client.send("WebDriver:FindElement", { using: "css selector", value: selector })
+      )?.value;
+      await client.send("WebDriver:ElementClick", {
+        id: found["element-6066-11e4-a52e-4f735466cecf"],
+      });
+    }
+    async function fill(values) {
+      await execute(
+        `for (const [id, value] of Object.entries(arguments[0])) {
+        const field = document.getElementById(id); field.value = value;
+        field.dispatchEvent(new Event("input", {bubbles: true}));
+        field.dispatchEvent(new Event("change", {bubbles: true}));
+      }`,
+        [values],
+      );
+    }
+    async function readMap() {
+      return execute(`const m=document.getElementById("location-map-surface");
+        return {lat:document.getElementById("field-latitude").value, lng:document.getElementById("field-longitude").value, center:m.dataset.center, zoom:m.dataset.zoom};`);
+    }
+    async function point(selector, x = 0.5, y = 0.5) {
+      return execute(
+        `const e=document.querySelector(arguments[0]); e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:Math.round(r.left+r.width*arguments[1]), y:Math.round(r.top+r.height*arguments[2])};`,
+        [selector, x, y],
+      );
+    }
+    async function pointer(from, to = from) {
+      await client.send("WebDriver:PerformActions", {
+        actions: [
+          {
+            type: "pointer",
+            id: "mouse",
+            parameters: { pointerType: "mouse" },
+            actions: [
+              { type: "pointerMove", duration: 0, origin: "viewport", ...from },
+              { type: "pointerDown", button: 0 },
+              { type: "pointerMove", duration: 150, origin: "viewport", ...to },
+              { type: "pointerUp", button: 0 },
+            ],
+          },
+        ],
+      });
+    }
+
     await client.send("WebDriver:Navigate", { url: popupUrl });
+    await waitFor(
+      `return !!document.querySelector('#route-list [data-profile-id="builtin-direct"]');`,
+    );
+    check(
+      await execute("return document.body.offsetWidth >= 360 && document.body.offsetWidth <= 420;"),
+      "Popup opens at compact utility width",
+    );
+    check(
+      await execute(
+        'return document.querySelector("#route-list button").dataset.profileId === "builtin-direct";',
+      ),
+      "Direct always exists on fresh install",
+    );
+    check(
+      await execute('return document.getElementById("details-panel").hidden;'),
+      "Advanced diagnostics are collapsed",
+    );
+    await click('[data-profile-id="builtin-direct"]');
+    await waitFor('return document.getElementById("status-text").textContent === "Active";');
+    const direct = await call({ type: "state:get" });
+    check(
+      direct.state.activeProfileId === "builtin-direct" &&
+        direct.state.lastError?.code === "consent_required",
+      "One click activates Direct without optional GeoIP consent",
+    );
+    await click("#route-off");
+    await waitFor('return document.getElementById("status-text").textContent === "Off";');
+    check(
+      (await call({ type: "state:get" })).state.activeProfileId === null,
+      "One click Off deactivates",
+    );
 
-    const popupCheckScript = `
-      const callback = arguments[arguments.length - 1];
-      const directRow = document.querySelector('#route-list [data-profile-id="builtin-direct"]');
-      const offBtn = document.getElementById("route-off");
-      const manageBtn = document.getElementById("manage-profiles");
-      const details = document.getElementById("details-panel");
-      const currentRoute = document.getElementById("identity-route");
-
-      callback({
-        hasDirect: directRow !== null,
-        directIsFirst: document.querySelector('#route-list .route-item') === directRow,
-        hasOff: offBtn !== null,
-        hasManage: manageBtn !== null,
-        hasDetails: details !== null,
-        hasCurrentRoute: currentRoute !== null,
-      });
-    `;
-    const popupState = (
-      await client.send("WebDriver:ExecuteAsyncScript", { script: popupCheckScript, args: [] })
-    )?.value;
-
-    check(popupState?.hasDirect === true, "Popup lists built-in Direct route");
-    check(popupState?.directIsFirst === true, "Built-in Direct is at the top of the route list");
-    check(popupState?.hasOff === true, "Popup has explicit Off / Disable button");
-    check(popupState?.hasDetails === true, "Popup has expandable Details disclosure");
-
-    // ==========================================
-    // Test 2: Options Page Sidebar & Direct View
-    // ==========================================
     await client.send("WebDriver:Navigate", { url: optionsUrl });
-
-    const optionsCheckScript = `
-      const callback = arguments[arguments.length - 1];
-      // Wait for profiles to load
-      setTimeout(() => {
-        const directItem = document.querySelector('#profile-list li[data-profile-id="builtin-direct"]');
-        const directView = document.getElementById("direct-view");
-        const proxyForm = document.getElementById("profile-form");
-        const newProfileBtn = document.getElementById("new-profile");
-
-        callback({
-          hasDirectInSidebar: directItem !== null,
-          directViewVisible: directView !== null && !directView.hidden,
-          proxyFormHidden: proxyForm !== null && proxyForm.hidden,
-          hasNewProfileBtn: newProfileBtn !== null,
-        });
-      }, 500);
-    `;
-    const optionsInitialState = (
-      await client.send("WebDriver:ExecuteAsyncScript", { script: optionsCheckScript, args: [] })
-    )?.value;
-
+    await waitFor('return !document.getElementById("direct-view").hidden;');
     check(
-      optionsInitialState?.hasDirectInSidebar === true,
-      "Options sidebar lists built-in Direct",
+      await execute('return document.getElementById("profile-form").hidden;'),
+      "Built-in Direct is read-only",
+    );
+    const originalWindow = (await client.send("WebDriver:GetWindowHandle"))?.value;
+    await client.send("Marionette:SetContext", { value: "chrome" });
+    await execute(`window.niPopupShown=false; document.addEventListener("popupshown", e=>{if(e.target.id === "customizationui-widget-panel") window.niPopupShown=true;});`);
+    await client.send("Marionette:SetContext", { value: "content" });
+    const openResult = await client.send("WebDriver:ExecuteAsyncScript", {
+      script: `const done=arguments[arguments.length-1]; const page=window.wrappedJSObject || window; page.browser.action.openPopup().then(()=>done(true),e=>done(String(e)));`,args:[]
+    });
+    log(`open action: ${JSON.stringify(openResult)}`);
+    await client.send("Marionette:SetContext", { value: "chrome" });
+    check(await execute(`return window.niPopupShown === true;`), "Firefox browser action opens the actual popup panel");
+    await execute(`for (const p of document.querySelectorAll("panel")) if (p.state === "open" || p.state === "showing") p.hidePopup();`);
+    await client.send("Marionette:SetContext", { value: "content" });
+    await client.send("WebDriver:SwitchToWindow", {handle:originalWindow});
+    await client.send("WebDriver:SwitchToFrame", {id:null});
+    await client.send("WebDriver:Navigate", { url: optionsUrl });
+    await client.send("Marionette:SetContext", {value:"chrome"});
+    log(`browser errors: ${JSON.stringify(await execute('return Services.console.getMessageArray().filter(m=>m.message?.includes("moz-extension")).slice(-8).map(m=>m.message);'))}`);
+    await client.send("Marionette:SetContext", {value:"content"});
+    log(`profiles after popup: ${JSON.stringify(await call({type:"profiles:list"}))}`);
+    await waitFor('return !document.getElementById("direct-view").hidden;');
+    await click("#new-profile");
+    await fill({
+      "field-name": "UI proxy",
+      "field-proxy-host": "127.0.0.1",
+      "field-proxy-port": "9999",
+    });
+    await click("#field-mode-manual");
+    await fill({
+      "field-geoip-policy": "disabled",
+      "field-latitude": "35",
+      "field-longitude": "139",
+      "field-accuracy": "1000",
+      "field-timezone": "Asia/Tokyo",
+    });
+    await click("#save");
+    await waitFor('return document.getElementById("form-title").textContent === "UI proxy";');
+    const list = await call({ type: "profiles:list" });
+    const id = list.profiles.find((p) => p.name === "UI proxy").id;
+    check(
+      (await call({ type: "state:get" })).state.activeProfileId === null,
+      "Save creates a profile without activation",
     );
     check(
-      optionsInitialState?.directViewVisible === true,
-      "Options displays read-only Direct view when Direct is selected",
-    );
-    check(
-      optionsInitialState?.proxyFormHidden === true,
-      "Options proxy editor is hidden when Direct is selected",
+      await execute(
+        'return !document.getElementById("section-advanced").open && !document.getElementById("section-runtime").open;',
+      ),
+      "Advanced and runtime sections start collapsed",
     );
 
-    // ==========================================
-    // Test 3: Options Editor Sections (A, B, C, D, E)
-    // ==========================================
-    const openNewProxyScript = `
-      const callback = arguments[arguments.length - 1];
-      const newBtn = document.getElementById("new-profile");
-      newBtn.click();
-      setTimeout(() => {
-        const directView = document.getElementById("direct-view");
-        const proxyForm = document.getElementById("profile-form");
-        const sectionBasic = document.getElementById("field-name");
-        const sectionAuth = document.getElementById("section-auth");
-        const sectionAdvanced = document.getElementById("section-advanced");
-        const sectionRuntime = document.getElementById("section-runtime");
-        const attribution = document.querySelector(".location-map-attribution");
-
-        callback({
-          directViewHidden: directView.hidden,
-          proxyFormVisible: !proxyForm.hidden,
-          hasSectionBasic: sectionBasic !== null,
-          hasSectionAuth: sectionAuth !== null,
-          hasSectionAdvanced: sectionAdvanced !== null,
-          hasSectionRuntime: sectionRuntime !== null,
-          hasOsmAttribution: attribution !== null && attribution.textContent.includes("OpenStreetMap contributors"),
-        });
-      }, 200);
-    `;
-    const editorSections = (
-      await client.send("WebDriver:ExecuteAsyncScript", { script: openNewProxyScript, args: [] })
-    )?.value;
-
-    check(editorSections?.proxyFormVisible === true, "Clicking + Add proxy opens editor form");
-    check(editorSections?.hasSectionBasic === true, "Editor contains Section A: Basic");
-    check(editorSections?.hasSectionAuth === true, "Editor contains Section B: Authentication");
-    check(
-      editorSections?.hasSectionAdvanced === true,
-      "Editor contains Section D: Advanced (collapsible)",
+    await client.send("WebDriver:Navigate", { url: popupUrl });
+    await waitFor(`return !!document.querySelector('[data-profile-id="${id}"]');`);
+    await click(`[data-profile-id="${id}"]`);
+    await waitFor(
+      'return document.getElementById("identity-timezone").textContent === "Asia/Tokyo";',
     );
     check(
-      editorSections?.hasSectionRuntime === true,
-      "Editor contains Section E: Runtime details (collapsible)",
+      (await call({ type: "state:get" })).state.proxy.port === 9999,
+      "Proxy row switches in one click and identity summary updates",
+    );
+    await click('[data-profile-id="builtin-direct"]');
+    await waitFor(
+      'return document.getElementById("identity-route").textContent === "Direct" && document.getElementById("status-text").textContent === "Active";',
     );
     check(
-      editorSections?.hasOsmAttribution === true,
-      "Map displays mandatory OpenStreetMap contributors attribution",
+      (await call({ type: "state:get" })).state.identity.timezone === undefined,
+      "Direct switches back in one click and clears proxy identity",
+    );
+    await click(`[data-profile-id="${id}"]`);
+    await waitFor(
+      'return document.getElementById("identity-timezone").textContent === "Asia/Tokyo";',
     );
 
-    // ==========================================
-    // Test 4: Map Viewport Decoupling & Pointer Interactions
-    // ==========================================
-    const testMapInteractionsScript = `
-      const callback = arguments[arguments.length - 1];
-
-      // Switch to manual mode
-      const manualRadio = document.getElementById("field-mode-manual");
-      manualRadio.checked = true;
-      manualRadio.dispatchEvent(new Event("change"));
-
-      const latInput = document.getElementById("field-latitude");
-      const lngInput = document.getElementById("field-longitude");
-      latInput.value = "37.7749";
-      lngInput.value = "-122.4194";
-      latInput.dispatchEvent(new Event("input"));
-      lngInput.dispatchEvent(new Event("input"));
-
-      const initialLat = latInput.value;
-      const initialLng = lngInput.value;
-
-      const mapSurface = document.getElementById("location-map-surface");
-
-      // 1. Pan map background: pointerdown -> pointermove -> pointerup
-      mapSurface.dispatchEvent(new PointerEvent("pointerdown", { clientX: 200, clientY: 100, bubbles: true }));
-      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 250, clientY: 120, bubbles: true }));
-      window.dispatchEvent(new PointerEvent("pointerup", { clientX: 250, clientY: 120, bubbles: true }));
-
-      const latAfterPan = latInput.value;
-      const lngAfterPan = lngInput.value;
-
-      // 2. Click map surface at a different location (drag distance <= 4)
-      mapSurface.dispatchEvent(new PointerEvent("pointerdown", { clientX: 300, clientY: 150, bubbles: true }));
-      window.dispatchEvent(new PointerEvent("pointerup", { clientX: 300, clientY: 150, bubbles: true }));
-
-      const latAfterClick = latInput.value;
-      const lngAfterClick = lngInput.value;
-
-      callback({
-        initialLat,
-        initialLng,
-        latAfterPan,
-        lngAfterPan,
-        panPreservedCoords: latAfterPan === initialLat && lngAfterPan === initialLng,
-        clickUpdatedCoords: latAfterClick !== latAfterPan && lngAfterClick !== lngAfterPan,
-      });
-    `;
-    const mapResults = (
-      await client.send("WebDriver:ExecuteAsyncScript", {
-        script: testMapInteractionsScript,
-        args: [],
-      })
-    )?.value;
-
+    await client.send("WebDriver:Navigate", { url: optionsUrl });
+    await waitFor(`return !!document.querySelector('[data-profile-id="${id}"]');`);
+    await click(`[data-profile-id="${id}"]`);
     check(
-      mapResults?.panPreservedCoords === true,
-      "Map dragging pans viewport only and does NOT alter coordinates",
+      await execute('return document.getElementById("field-name").value === "UI proxy";'),
+      "Existing profile opens naturally for editing",
     );
+    const before = (await call({ type: "state:get" })).state;
+    await fill({ "field-proxy-port": "9998", "field-timezone": "Europe/Paris" });
+    await click("#save");
+    await waitFor('return document.getElementById("save-status").textContent.includes("pending");');
+    const saved = (await call({ type: "state:get" })).state;
     check(
-      mapResults?.clickUpdatedCoords === true,
-      "Map click updates marker and coordinates to clicked location",
+      saved.generation === before.generation &&
+        saved.proxy.port === 9999 &&
+        saved.identity.timezone === "Asia/Tokyo",
+      "Save preserves runtime and shows pending changes",
+    );
+    await click("#save-activate");
+    await waitFor(
+      'return document.getElementById("options-status").textContent.includes("Europe/Paris");',
+    );
+    const applied = (await call({ type: "state:get" })).state;
+    check(
+      applied.generation > saved.generation &&
+        applied.proxy.port === 9998 &&
+        applied.identity.timezone === "Europe/Paris",
+      "Apply commits saved routing and identity together",
+    );
+
+    await fill({ "field-latitude": "35", "field-longitude": "139" });
+    const original = await readMap();
+    const background = await point("#location-map-surface", 0.25, 0.55);
+    await pointer(background, { x: background.x + 65, y: background.y + 15 });
+    let next = await readMap();
+    check(
+      next.lat === original.lat && next.lng === original.lng && next.center !== original.center,
+      "Real pointer drag pans without changing selection",
+    );
+    await pointer(await point("#location-map-surface", 0.25, 0.7));
+    let selected = await readMap();
+    check(
+      selected.lat !== next.lat || selected.lng !== next.lng,
+      "Real map click selects a location",
+    );
+    const marker = await point("#location-map-marker");
+    await pointer(marker, { x: marker.x + 35, y: marker.y - 15 });
+    next = await readMap();
+    check(
+      (next.lat !== selected.lat || next.lng !== selected.lng) && next.center === selected.center,
+      "Real marker drag changes selection without panning",
+    );
+    const wheelPoint = await point("#location-map-surface", 0.4, 0.6);
+    await client.send("WebDriver:PerformActions", {
+      actions: [
+        {
+          type: "wheel",
+          id: "wheel",
+          actions: [
+            {
+              type: "scroll",
+              duration: 0,
+              origin: "viewport",
+              ...wheelPoint,
+              deltaX: 0,
+              deltaY: -120,
+            },
+          ],
+        },
+      ],
+    });
+    await waitFor(
+      `return Number(document.getElementById("location-map-surface").dataset.zoom) > ${Number(next.zoom)};`,
+    );
+    selected = await readMap();
+    check(
+      Number(selected.zoom) === Number(next.zoom) + 1 && selected.lat === next.lat,
+      "Wheel zoom works independently of selection",
+    );
+    await fill({ "field-latitude": "-33", "field-longitude": "151" });
+    next = await readMap();
+    check(next.center === "-33,151", "Typed coordinates update marker and recenter predictably");
+    check(
+      await execute(
+        'return document.querySelector(".location-map-attribution").textContent.includes("No map imagery") && document.querySelectorAll("#location-map-tiles img").length === 0;',
+      ),
+      "Production tile provider makes no requests and discloses local grid",
+    );
+
+    await client.send("Marionette:SetContext", { value: "chrome" });
+    await client.send("WebDriver:ExecuteScript", {
+      script: "Services.io.offline = true;",
+      args: [],
+    });
+    await client.send("Marionette:SetContext", { value: "content" });
+    await fill({ "field-latitude": "12", "field-longitude": "45" });
+    next = await readMap();
+    await pointer(await point("#location-map-surface", 0.2, 0.6));
+    selected = await readMap();
+    check(
+      next.center === "12,45" && selected.lat !== next.lat,
+      "Offline/no-tile mode preserves typed and pointer selection",
+    );
+    await client.send("Marionette:SetContext", { value: "chrome" });
+    await client.send("WebDriver:ExecuteScript", {
+      script: "Services.io.offline = false;",
+      args: [],
+    });
+    await client.send("Marionette:SetContext", { value: "content" });
+    await click("#deactivate");
+    check(
+      (await call({ type: "state:get" })).state.activeProfileId === null,
+      "Final Off releases the test profile",
     );
   } finally {
     if (client !== null) client.close();

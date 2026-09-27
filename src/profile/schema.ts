@@ -36,6 +36,10 @@ export interface ProxyConfig {
 
 export interface IdentityConfig {
   mode: IdentityMode;
+  geoIpPolicy?: "automatic" | "disabled";
+  providerId?: "ipwho.is";
+  geolocationPolicy?: "follow" | "manual" | "disabled";
+  timezonePolicy?: "follow" | "manual";
   publicIp?: string;
   countryCode?: string;
   region?: string;
@@ -53,15 +57,17 @@ export interface IdentityProfile {
   proxy: ProxyConfig;
   identity: IdentityConfig;
   webrtcPolicy: WebRTCPolicy;
+  webrtcMode?: "automatic" | "manual";
+  revision?: number;
 }
 
 export interface ProfileState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   activeProfileId: string | null;
   profiles: IdentityProfile[];
 }
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** New proxy profiles default to the strictest practical policy. */
 export const DEFAULT_PROXY_WEBRTC_POLICY: WebRTCPolicy = "disable_non_proxied_udp";
@@ -96,26 +102,18 @@ export const EMPTY_PROFILE_STATE: ProfileState = {
 };
 
 export function ensureBuiltinDirect(state: ProfileState): ProfileState {
-  const existingIndex = state.profiles.findIndex(
-    (profile) => profile.id === BUILTIN_DIRECT_PROFILE_ID,
-  );
-  if (existingIndex === 0) {
-    return state;
-  }
-  const profiles = [...state.profiles];
-  let directProfile: IdentityProfile;
-  if (existingIndex > 0) {
-    const spliced = profiles.splice(existingIndex, 1)[0];
-    directProfile = spliced ?? createBuiltinDirectProfile();
-  } else {
-    directProfile = createBuiltinDirectProfile();
-  }
-  profiles.unshift(directProfile);
   return {
-    schemaVersion: SCHEMA_VERSION,
-    activeProfileId: state.activeProfileId,
-    profiles,
+    ...state,
+    profiles: [
+      createBuiltinDirectProfile(),
+      ...state.profiles.filter((p) => !isBuiltinDirectProfile(p.id)),
+    ],
   };
+}
+
+/** Virtual routes are projected for UI/domain use, never persisted as user profiles. */
+export function durableProfileState(state: ProfileState): ProfileState {
+  return { ...state, profiles: state.profiles.filter((p) => !isBuiltinDirectProfile(p.id)) };
 }
 
 export function defaultWebRtcPolicyFor(proxyType: ProxyType): WebRTCPolicy {
@@ -142,6 +140,8 @@ export function createProfile(
     },
     identity: { mode: "auto" },
     webrtcPolicy: defaultWebRtcPolicyFor(proxyType),
+    webrtcMode: "automatic",
+    revision: 1,
   };
 }
 
