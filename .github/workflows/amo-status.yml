@@ -2,6 +2,12 @@ name: AMO status (read only)
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version to inspect without modifying AMO"
+        default: "1.0.0"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,8 +21,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: Inspect immutable historical version without modifying AMO
+      - name: Inspect exact version without modifying AMO
         env:
+          AMO_VERSION: ${{ inputs.version }}
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-        run: node --experimental-strip-types src/release/inspect-amo.ts 1.0.0
+        run: node --experimental-strip-types src/release/inspect-amo.ts
