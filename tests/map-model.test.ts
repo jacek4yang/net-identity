@@ -94,6 +94,33 @@ describe("location picker state", () => {
     m.resize(800, 320);
     expect(m.viewport.height).toBe(320);
   });
+  it("marker arrow movement follows the key direction without moving the viewport", () => {
+    const m = model();
+    m.nudge(32, 0, true); // ArrowLeft
+    expect(m.selection?.longitude).toBeLessThan(139);
+    m.nudge(0, 32, true); // ArrowUp
+    expect(m.selection?.latitude).toBeGreaterThan(35);
+    expect(m.viewport.center).toEqual({ latitude: 35, longitude: 139 });
+  });
+  it("resizing preserves viewport center, zoom and geographic selection", () => {
+    const m = model();
+    m.resize(1000, 500);
+    expect(m.viewport).toMatchObject({
+      width: 1000,
+      height: 500,
+      zoom: 6,
+      center: { latitude: 35, longitude: 139 },
+    });
+    expect(m.selection).toEqual({ latitude: 35, longitude: 139 });
+  });
+  it("cancelled marker gestures ignore late moves and pointerup", () => {
+    const m = model();
+    m.begin(1, "marker", start);
+    m.cancel();
+    expect(m.move(1, { x: 200, y: 200 })).toBe(false);
+    expect(m.end(1, { x: 200, y: 200 })).toBe(false);
+    expect(m.selection).toEqual({ latitude: 35, longitude: 139 });
+  });
 });
 describe("tile privacy and failure contract", () => {
   it("ships a named no-network provider, visible attribution and offline selection", () => {
@@ -121,5 +148,17 @@ describe("tile privacy and failure contract", () => {
     failures.fail("tile");
     failures.success("tile");
     expect(failures.allows("tile")).toBe(true);
+  });
+  it("bounds negative-cache memory and caps retry delay at five minutes", () => {
+    let now = 1;
+    const failures = new TileFailures(() => now);
+    for (let i = 0; i < 20; i++) failures.fail("repeated");
+    now += 299_999;
+    expect(failures.allows("repeated")).toBe(false);
+    now++;
+    expect(failures.allows("repeated")).toBe(true);
+    for (let i = 0; i < 257; i++) failures.fail(`tile-${i}`);
+    expect(failures.allows("tile-0")).toBe(true);
+    expect(failures.allows("tile-256")).toBe(false);
   });
 });

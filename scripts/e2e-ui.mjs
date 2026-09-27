@@ -476,6 +476,57 @@ async function main() {
     );
 
     await fill({ "field-latitude": "35", "field-longitude": "139" });
+    for (const cancellation of ["pointercancel", "lostpointercapture", "blur"]) {
+      const prior = await readMap();
+      await execute(`const s=document.getElementById('location-map-surface');
+        s.addEventListener('pointerdown',e=>s.dataset.testPointerId=String(e.pointerId),{once:true});`);
+      const p = await point("#location-map-surface", 0.25, 0.55);
+      await client.send("WebDriver:PerformActions", {
+        actions: [
+          {
+            type: "pointer",
+            id: "mouse",
+            parameters: { pointerType: "mouse" },
+            actions: [
+              { type: "pointerMove", duration: 0, origin: "viewport", ...p },
+              { type: "pointerDown", button: 0 },
+              { type: "pointerMove", duration: 0, origin: "viewport", x: p.x + 1, y: p.y },
+            ],
+          },
+        ],
+      });
+      await execute(
+        `const s=document.getElementById('location-map-surface');
+        const id=Number(s.dataset.testPointerId);
+        if(arguments[0]==='blur') window.dispatchEvent(new Event('blur'));
+        else if(arguments[0]==='lostpointercapture') s.releasePointerCapture(id);
+        else s.dispatchEvent(new PointerEvent('pointercancel',{pointerId:id,bubbles:true}));`,
+        [cancellation],
+      );
+      await client.send("WebDriver:PerformActions", {
+        actions: [
+          {
+            type: "pointer",
+            id: "mouse",
+            parameters: { pointerType: "mouse" },
+            actions: [
+              { type: "pointerMove", duration: 0, origin: "viewport", x: p.x + 1, y: p.y },
+              { type: "pointerUp", button: 0 },
+            ],
+          },
+        ],
+      });
+      const after = await readMap();
+      check(
+        after.lat === prior.lat &&
+          after.lng === prior.lng &&
+          after.center === prior.center &&
+          (await execute(
+            'return !document.getElementById("location-map-surface").classList.contains("is-grabbing");',
+          )),
+        `${cancellation} cancels a real pointer gesture without selecting`,
+      );
+    }
     const original = await readMap();
     const background = await point("#location-map-surface", 0.25, 0.55);
     await pointer(background, { x: background.x + 65, y: background.y + 15 });
@@ -491,6 +542,14 @@ async function main() {
       "Real map click selects a location",
     );
     const marker = await point("#location-map-marker");
+    await pointer(marker, { x: marker.x + 2, y: marker.y + 1 });
+    const jittered = await readMap();
+    check(
+      jittered.lat === selected.lat &&
+        jittered.lng === selected.lng &&
+        jittered.center === selected.center,
+      "Marker pointer jitter does not change selection or viewport",
+    );
     await pointer(marker, { x: marker.x + 35, y: marker.y - 15 });
     next = await readMap();
     check(
@@ -554,6 +613,37 @@ async function main() {
       args: [],
     });
     await client.send("Marionette:SetContext", { value: "content" });
+    const beforeResize = await readMap();
+    const oldWidth = await execute(
+      'return document.getElementById("location-map-surface").clientWidth;',
+    );
+    await client.send("WebDriver:SetWindowRect", { width: 900, height: 900 });
+    await waitFor(
+      `return document.getElementById("location-map-surface").clientWidth !== ${oldWidth};`,
+    );
+    const afterResize = await readMap();
+    check(
+      afterResize.lat === beforeResize.lat &&
+        afterResize.lng === beforeResize.lng &&
+        afterResize.center === beforeResize.center &&
+        afterResize.zoom === beforeResize.zoom,
+      "Resize preserves geographic selection, viewport center and zoom",
+    );
+    await click("#new-profile");
+    const reset = await readMap();
+    check(
+      reset.lat === "" && reset.lng === "" && Number(reset.zoom) === 2,
+      "New profile resets old selection and zoom",
+    );
+    const autoPoint = await point("#location-map-surface", 0.25, 0.5);
+    await pointer(autoPoint, { x: autoPoint.x + 40, y: autoPoint.y + 10 });
+    const autoPan = await readMap();
+    await pointer(await point("#location-map-surface", 0.25, 0.5));
+    const autoClick = await readMap();
+    check(
+      autoPan.center !== reset.center && autoClick.lat === "" && autoClick.lng === "",
+      "Automatic preview permits panning but never selects on click",
+    );
     await click("#deactivate");
     check(
       (await call({ type: "state:get" })).state.activeProfileId === null,
