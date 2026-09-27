@@ -1,0 +1,81 @@
+name: Finalize approved AMO release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Pending tag (empty selects oldest pending); public tags are verified only"
+        required: false
+        type: string
+  schedule:
+    - cron: "23 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: amo-distribution
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Select and validate pending immutable tag from trusted main
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node --experimental-strip-types scripts/release-control.mjs select
+      - name: Check out exact validated tag
+        if: steps.select.outputs.tag != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.select.outputs.commit }}
+          fetch-depth: 0
+      - name: Check approval and verify downloaded Mozilla bytes
+        if: steps.select.outputs.tag != ''
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.select.outputs.tag }}
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: node --experimental-strip-types scripts/release-control.mjs prepare
+      - name: Install normal stable Firefox
+        if: steps.prepare.outputs.approved == 'true'
+        run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- \
+            | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
+            | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
+          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
+            | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y firefox
+      - name: Verify permanent signed installation in normal Firefox
+        if: steps.prepare.outputs.approved == 'true'
+        env:
+          SIGNED_XPI: ${{ steps.prepare.outputs.xpi }}
+          RELEASE_VERSION: ${{ steps.prepare.outputs.version }}
+        run: node scripts/verify-firefox-signature.mjs --xpi "$SIGNED_XPI" --version "$RELEASE_VERSION" --output artifacts/release/signature-proof.json
+      - name: Recheck AMO approval and finalize verified signed release
+        if: steps.prepare.outputs.approved == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.select.outputs.tag }}
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: node --experimental-strip-types scripts/release-control.mjs publish

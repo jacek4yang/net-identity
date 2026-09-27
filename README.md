@@ -131,9 +131,11 @@ listing page yet. The reviewer package and the pre-submission checklist are in
 [`docs/PRIVACY.md`](docs/PRIVACY.md); the release process is
 [`docs/RELEASING.md`](docs/RELEASING.md).
 
-A GitHub Release for a tag is the engineering record: the submitted package, the
-human-readable source archive, SHA-256 checksums and a machine-readable metadata file.
-It is not the signed installer.
+New releases remain draft until Mozilla approves the listed version. A finalized release
+provides `net-identity-<version>-firefox-signed.xpi`, downloaded unchanged from Mozilla
+and verified by normal Firefox, plus source, checksums and provenance. Install that XPI
+through Firefox's Add-ons Manager. AMO remains the automatic-update channel.
+The historical v1.0.0 ZIP is not the signed installer and remains unchanged.
 
 ### From a packaged build, for development
 

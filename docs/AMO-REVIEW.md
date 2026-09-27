@@ -31,13 +31,16 @@ and credentials survive event-page suspension in session storage. Unsafe or newe
 profile documents are held unchanged. A failed teardown does not release native
 geolocation until Off successfully commits.
 
-These are reviewer notes for a future submission. v1.0.0 remains immutable and under
-review; use its tagged source archive for that submission. Refresh listing screenshots
-and privacy text when a future release is explicitly authorized.
+These notes describe the next schema-2 submission. Use the immutable v1.0.0 tagged
+source archive when reviewing that historical version.
 
 ## Install channel
 
-Listed AMO submission is the install and update channel for ordinary Firefox users. A GitHub Release records the tested tag, the source archive, and checksums. The unsigned package attached there is the submission artifact, not a signed replacement for the AMO install.
+AMO is the canonical listed install and automatic-update channel. The GitHub Release
+remains draft until approval. Its primary installer is the exact XPI downloaded from
+Mozilla, hash-checked and permanently installed in signature-enforcing normal Firefox.
+No unsigned submission ZIP is presented as a signed installer. Source and provenance
+refer to the same tag, version and commit. See `docs/RELEASING.md`.
 
 ## Listing assets
 
