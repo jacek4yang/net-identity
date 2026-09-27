@@ -1,23 +1,39 @@
 import { createHash } from "node:crypto";
+import { createJwt } from "./amo-api.ts";
 import { mozillaUrl, SHA256 } from "./amo-policy.ts";
 
 export function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-/** No auth on downloads; every redirect rechecks origin, size and deadline. */
+/** Unlisted files require owner auth. Never forward it to redirects or the CDN. */
 export async function downloadSigned(
   url: string,
   expected: string,
   request = fetch,
+  authenticate = false,
 ): Promise<Buffer> {
   if (!SHA256.test(expected)) throw new Error("Invalid expected SHA-256");
   let next = mozillaUrl(url);
+  const initial = new URL(next);
+  if (
+    authenticate &&
+    (initial.origin !== "https://addons.mozilla.org" ||
+      !/^\/(?:api\/v5|firefox)\/downloads\/file\/\d+\//.test(initial.pathname))
+  )
+    throw new Error("Authentication requires an AMO file download endpoint");
   const signal = AbortSignal.timeout(60_000);
   for (let redirects = 0; redirects <= 3; redirects++) {
     let response: Response;
     try {
       response = await request(next, {
+        ...(authenticate && redirects === 0
+          ? {
+              headers: {
+                Authorization: `JWT ${createJwt(process.env.AMO_JWT_ISSUER ?? "", process.env.AMO_JWT_SECRET ?? "")}`,
+              },
+            }
+          : {}),
         redirect: "manual",
         signal,
         credentials: "omit",

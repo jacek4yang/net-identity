@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   amoState,
   ensureSubmission,
@@ -146,6 +146,45 @@ describe("AMO version state", () => {
 });
 
 describe("Mozilla download trust", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it.each(["https://addons.cdn.mozilla.net/file.xpi", "https://addons.mozilla.org/other.xpi"])(
+    "refuses authenticated downloads outside AMO's file endpoint: %s",
+    async (url) => {
+      const request = vi.fn();
+      await expect(downloadSigned(url, hash, request, true)).rejects.toThrow(
+        /Authentication requires/,
+      );
+      expect(request).not.toHaveBeenCalled();
+    },
+  );
+  it.each([
+    "https://addons.cdn.mozilla.net/file.xpi",
+    "https://addons.mozilla.org/firefox/downloads/file/456/next.xpi",
+  ])(
+    "authenticates the initial unlisted file request but never its redirect to %s",
+    async (target) => {
+      vi.stubEnv("AMO_JWT_ISSUER", "test-issuer");
+      vi.stubEnv("AMO_JWT_SECRET", "test-secret");
+      const bytes = Buffer.from("signed download fixture");
+      const request = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: target } }))
+        .mockResolvedValueOnce(new Response(bytes));
+      expect(await downloadSigned(detail.file.url, sha256(bytes), request, true)).toEqual(bytes);
+      expect(new Headers(request.mock.calls[0]?.[1]?.headers).get("Authorization")).toMatch(
+        /^JWT /,
+      );
+      expect(request.mock.calls[0]?.[1]?.redirect).toBe("manual");
+      expect(request.mock.calls[1]?.[1]?.headers).toBeUndefined();
+    },
+  );
+  it("still rejects hash mismatches on authenticated files", async () => {
+    vi.stubEnv("AMO_JWT_ISSUER", "test-issuer");
+    vi.stubEnv("AMO_JWT_SECRET", "test-secret");
+    await expect(
+      downloadSigned(detail.file.url, hash, async () => new Response("wrong"), true),
+    ).rejects.toThrow(/SHA-256 mismatch/);
+  });
   it.each([
     "http://addons.mozilla.org/a",
     "https://evil.example/a",

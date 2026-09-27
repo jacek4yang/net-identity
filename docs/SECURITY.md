@@ -189,3 +189,7 @@ unchanged Mozilla-signed XPI. AMO API v5 credentials are restricted to trusted t
 workflows, never PRs. Preserve immutable v1.0.0, v1.1.0 and all historical assets/submissions. The API's
 is_mozilla_signed_extension field denotes an internal Mozilla certificate, not ordinary
 AMO signing. See docs/RELEASING.md for provenance, rerun and failure rules.
+
+Unlisted AMO file downloads authenticate only the initial request to the AMO file endpoint;
+redirects and CDN requests never receive credentials. Finalization tools come from trusted
+main and operate in a separate checkout of the unchanged release tag.
