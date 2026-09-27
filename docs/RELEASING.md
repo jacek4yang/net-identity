@@ -94,3 +94,11 @@ signing-client output are never logged or archived. No local or third-party sign
 administration, `node --experimental-strip-types src/release/amo-status.ts <version>`
 returns exit codes: approved 0, error 1, pending 20, rejected/disabled 30, absent 40.
 The finalization workflow translates pending review into successful no-publication behavior.
+
+## 1.1.0 candidate
+
+The next release is 1.1.0: schema-2 migration, reserved Direct, independent identity
+policies, saved-revision Apply, session-only credentials and the offline coordinate
+picker. Authenticated AMO inspection found 1.1.0 absent before the version PR; v1.0.0
+was listed/unreviewed. This records candidate selection, not approval. The final release
+metadata and AMO status remain authoritative for publication.

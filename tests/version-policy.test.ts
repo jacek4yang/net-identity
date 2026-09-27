@@ -6,8 +6,8 @@ import {
 } from "../src/release/version";
 
 const current = {
-  packageVersion: "0.2.0",
-  manifestVersion: "0.2.0",
+  packageVersion: "1.1.0",
+  manifestVersion: "1.1.0",
   extensionId: "net-identity@jacek4yang.github.io",
 };
 
@@ -16,25 +16,25 @@ describe("release version policy", () => {
     expect(
       checkReleaseVersion({
         ...current,
-        tag: "v0.2.0",
-        previousVersions: ["0.1.0"],
+        tag: "v1.1.0",
+        previousVersions: ["1.0.0"],
         dirty: false,
         requireClean: true,
       }),
-    ).toEqual({ ok: true, version: "0.2.0" });
+    ).toEqual({ ok: true, version: "1.1.0" });
   });
 
   it("rejects a mismatched tag, a dirty tree, a downgrade, and a repeat", () => {
-    const mismatched = checkReleaseVersion({ ...current, tag: "v0.1.0" });
+    const mismatched = checkReleaseVersion({ ...current, tag: "v1.0.0" });
     expect(mismatched.ok).toBe(false);
 
     const dirty = checkReleaseVersion({ ...current, dirty: true, requireClean: true });
     expect(dirty.ok).toBe(false);
 
-    const downgraded = checkReleaseVersion({ ...current, previousVersions: ["0.3.0"] });
+    const downgraded = checkReleaseVersion({ ...current, previousVersions: ["1.2.0"] });
     expect(downgraded.ok).toBe(false);
 
-    const duplicate = checkReleaseVersion({ ...current, previousVersions: ["0.2.0"] });
+    const duplicate = checkReleaseVersion({ ...current, previousVersions: ["1.1.0"] });
     expect(duplicate.ok).toBe(false);
 
     const malformed = checkReleaseVersion({ ...current, packageVersion: "0.2" });
