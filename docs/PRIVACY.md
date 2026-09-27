@@ -10,7 +10,9 @@ net-identity does not include telemetry, analytics, or remotely loaded program c
 | Proxy password                                                                            | Firefox session storage                     | Until Firefox exits                           |
 | Active routing snapshot, including the password needed after the background page restarts | Firefox session storage                     | Until Firefox exits                           |
 
-A password is not written into the saved profile. If one is found there, migration removes it.
+A password is not written into the saved profile. Migration removes secret keys from
+supported documents that can be migrated safely. Newer or unsafe documents are left
+unchanged and held inactive, rather than silently dropping a profile or its proxy.
 
 ## What leaves this computer
 
@@ -30,7 +32,7 @@ Pages receive the location and timezone of the active profile through compatibil
 - Use a proxy profile when the location lookup should see the proxy's address.
 - Use Custom identity policies for manual coordinates, a timezone override, unavailable geolocation, or disabled GeoIP lookup. Disabled GeoIP makes no provider request.
 - Direct switches routing immediately even without optional consent. It keeps native geolocation blocked until Off; identity is unavailable until a permitted lookup succeeds.
-- Save stores edits; Apply updates the active route. A blank password keeps existing session credentials, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
+- Save stores edits; Apply activates the saved configuration and leaves unsaved form edits alone. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. A blank password keeps existing session credentials, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
 
 These notes describe post-v1 main. The immutable v1.0.0 AMO submission retains the privacy behavior documented in its tagged source archive. A future submission must use the updated notes and new UI screenshots.

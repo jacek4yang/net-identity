@@ -26,6 +26,10 @@ The built-in Direct route exists virtually on fresh install; it does not trigger
 Direct switches without optional consent and withholds GeoIP until permission is granted.
 Custom policies can disable GeoIP and make geolocation unavailable without native fallback.
 Save persists configuration; Apply changes runtime. Version-1 profiles migrate to schema 2.
+Apply uses the saved revision without saving unsaved form values. Applied configuration
+and credentials survive event-page suspension in session storage. Unsafe or newer
+profile documents are held unchanged. A failed teardown does not release native
+geolocation until Off successfully commits.
 
 These are reviewer notes for a future submission. v1.0.0 remains immutable and under
 review; use its tagged source archive for that submission. Refresh listing screenshots

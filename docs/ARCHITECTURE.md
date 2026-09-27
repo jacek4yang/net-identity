@@ -200,6 +200,10 @@ Closed tabs are removed. The log keeps at most 64 frames.
 
 ## Post-v1 profile configuration (schema 2)
 
+Diagnostic and error composition takes identity only from the current routing
+generation. An error during teardown cannot attach the previous coordinates to an
+empty route or release native geolocation before a successful idle commit.
+
 The durable `ni.state.v1` document now has `schemaVersion: 2`. The key stays stable
 so version-1 documents migrate in place. Migration validates every profile, preserves
 routing and explicit WebRTC choices, strips secret keys and leaves unsupported or

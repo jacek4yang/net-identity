@@ -324,6 +324,35 @@ async function main() {
       await execute('return document.getElementById("profile-form").hidden;'),
       "Built-in Direct is read-only",
     );
+    await click("#new-profile");
+    await fill({
+      "field-name": "UI proxy",
+      "field-proxy-host": "127.0.0.1",
+      "field-proxy-port": "9999",
+    });
+    await click("#field-mode-manual");
+    await fill({
+      "field-geoip-policy": "disabled",
+      "field-latitude": "35",
+      "field-longitude": "139",
+      "field-accuracy": "1000",
+      "field-timezone": "Asia/Tokyo",
+    });
+    await click("#save");
+    await waitFor('return document.getElementById("form-title").textContent === "UI proxy";');
+    const list = await call({ type: "profiles:list" });
+    const id = list.profiles.find((p) => p.name === "UI proxy").id;
+    check(
+      (await call({ type: "state:get" })).state.activeProfileId === null,
+      "Save creates a profile without activation",
+    );
+    check(
+      await execute(
+        'return !document.getElementById("section-advanced").open && !document.getElementById("section-runtime").open;',
+      ),
+      "Advanced and runtime sections start collapsed",
+    );
+
     const originalWindow = (await client.send("WebDriver:GetWindowHandle"))?.value;
     // openPopup resolves before the chrome panel finishes opening. Its <browser>
     // is separate from the selected Options tab and is not a new window handle.
@@ -372,6 +401,26 @@ async function main() {
       ),
       "Actual toolbar popup switches Direct without consent",
     );
+    await popupExecute(`document.querySelector('[data-profile-id="${id}"]').click();`);
+    await popupWait(
+      'return document.getElementById("identity-timezone").textContent === "Asia/Tokyo";',
+    );
+    check(
+      await popupExecute(
+        'return document.getElementById("identity-route").textContent === "UI proxy";',
+      ),
+      "Actual toolbar popup switches the proxy and displays its identity",
+    );
+    await popupExecute(`document.querySelector('[data-profile-id="builtin-direct"]').click();`);
+    await popupWait(
+      'return document.getElementById("identity-route").textContent === "Direct" && document.getElementById("status-text").textContent === "Active";',
+    );
+    check(
+      await popupExecute(
+        'return document.getElementById("identity-timezone").textContent !== "Asia/Tokyo";',
+      ),
+      "Actual toolbar popup clears stale proxy identity on Direct",
+    );
     await popupExecute('document.getElementById("route-off").click();');
     await popupWait('return document.getElementById("status-text").textContent === "Off";');
     await execute(`for (const p of document.querySelectorAll("panel"))
@@ -380,35 +429,7 @@ async function main() {
     await client.send("WebDriver:SwitchToWindow", { handle: originalWindow });
     await client.send("WebDriver:SwitchToFrame", { id: null });
     await waitFor(
-      `return document.URL === ${JSON.stringify(optionsUrl)} && !document.getElementById("direct-view").hidden;`,
-    );
-    await click("#new-profile");
-    await fill({
-      "field-name": "UI proxy",
-      "field-proxy-host": "127.0.0.1",
-      "field-proxy-port": "9999",
-    });
-    await click("#field-mode-manual");
-    await fill({
-      "field-geoip-policy": "disabled",
-      "field-latitude": "35",
-      "field-longitude": "139",
-      "field-accuracy": "1000",
-      "field-timezone": "Asia/Tokyo",
-    });
-    await click("#save");
-    await waitFor('return document.getElementById("form-title").textContent === "UI proxy";');
-    const list = await call({ type: "profiles:list" });
-    const id = list.profiles.find((p) => p.name === "UI proxy").id;
-    check(
-      (await call({ type: "state:get" })).state.activeProfileId === null,
-      "Save creates a profile without activation",
-    );
-    check(
-      await execute(
-        'return !document.getElementById("section-advanced").open && !document.getElementById("section-runtime").open;',
-      ),
-      "Advanced and runtime sections start collapsed",
+      `return document.URL === ${JSON.stringify(optionsUrl)} && document.getElementById("field-name").value === "UI proxy";`,
     );
 
     await client.send("WebDriver:Navigate", { url: popupUrl });

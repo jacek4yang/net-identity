@@ -37,39 +37,31 @@ it requires the public GeoIP provider.
 On failure the job uploads `firefox-*.log`. The logs contain loopback ports and the
 bundled test proxy's throwaway `user:pass`; no repository secret is used by this job.
 
-## One-time repository setting (required gate)
+## Required branch protection
 
-`quality` is already a required status check on `main`. To make the browser gate block
-merges as well, add `firefox` to the required status checks:
+Verified through the GitHub API on 2026-09-27: `main` requires both `quality` and
+`firefox / invariants`, with strict status checks. Neither job may be bypassed for
+these changes. A reusable workflow reports its check as `<caller job> / <called job>`.
 
-1. Repository **Settings → Branches → Branch protection rules → `main`**.
-2. Under **Require status checks to pass before merging**, add **`firefox / invariants`**
-   in addition to `quality`.
+The UI harness waits for the toolbar panel to be open with the extension's actual
+popup URL, then addresses that remote browser's Marionette actor from chrome.
+`openPopup()` resolving does not mean the panel has finished opening. The selected
+Options tab is a separate context; the harness restores its saved window handle
+and root frame without reloading it. Popup-as-tab checks supplement this panel test.
 
-The exact API call is:
-
-```bash
-gh api -X PATCH \
-  repos/jacek4yang/net-identity/branches/main/protection/required_status_checks \
-  -f strict=true -f 'contexts[]=quality' -f 'contexts[]=firefox / invariants'
-```
-
-A reusable workflow reports the check as `<caller job> / <called job>`, which is why
-the context is `firefox / invariants` rather than `firefox`.
-
-Until the setting is changed, the job still runs on every pull request and its result
-is visible, but a merge is not blocked by it. It is added to the required context list
-once the job has gone green at least once, so a missing or broken job cannot block
-unrelated work.
+The auth fixture challenges only the GeoIP CONNECT target. Other Firefox background
+requests receive a local 502, so they cannot cause unrelated auth dialogs or upstream
+network traffic. The target still exercises wrong and correct credentials unchanged.
 
 ## Running the same gate locally
 
 ```bash
 npm ci
-npm run build
+npm run check
 npm run e2e:invariants -- --firefox "<path to Firefox>"
 npm run e2e:websocket -- --firefox "<path to Firefox>"
 npm run e2e:proxy-auth -- --firefox "<path to Firefox>"
+npm run e2e:ui -- --firefox "<path to Firefox>"
 ```
 
 A missing Firefox binary exits with code `2` and an `INCONCLUSIVE` message; it is never
