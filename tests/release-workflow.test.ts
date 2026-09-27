@@ -74,6 +74,16 @@ describe("two-phase AMO publication", () => {
     expect(control).toContain("SHA256SUMS.txt");
     expect(control).toContain("release-metadata.json");
   });
+  it("retains only hash-verified download diagnostics when prepare fails, without publishing them", () => {
+    expect(finalize).toContain("failure() && steps.prepare.outcome == 'failure'");
+    expect(finalize).toContain("release-tag/artifacts/release/amo-download-diagnostic.*");
+    expect(control.indexOf('file("amo-download-diagnostic.xpi")')).toBeGreaterThan(
+      control.indexOf("await downloadSigned(state.url, state.sha256"),
+    );
+    expect(control.slice(control.indexOf('if (mode !== "publish")'))).not.toContain(
+      "amo-download-diagnostic",
+    );
+  });
   it("does not expose raw signing-client output or duplicate-message heuristics", () => {
     expect(control).not.toMatch(/console\.(log|error)\([^)]*(stdout|stderr|API_KEY|API_SECRET)/);
     expect(control).not.toContain("/already exists");
