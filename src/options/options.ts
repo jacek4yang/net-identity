@@ -436,7 +436,7 @@ function selectProfile(profileId: string | null): void {
     const hasSelection = profile !== null;
     ui.delete.disabled = !hasSelection;
     ui.duplicate.disabled = !hasSelection;
-    ui.saveActivate.disabled = false;
+    ui.saveActivate.disabled = !hasSelection;
     ui.deactivate.disabled = activeProfileId === null;
 
     syncMapSelection();
@@ -462,9 +462,8 @@ function renderSaveStatus(): void {
     (profile.revision ?? 1) !== runtimeState.appliedRevision;
   ui.saveStatus.textContent = pending
     ? "Saved changes are pending. Apply to update the active route."
-    : "Save stores configuration. Save & Activate applies it to the active route.";
-  ui.saveActivate.textContent =
-    profile?.id === runtimeState?.activeProfileId ? "Save & Apply" : "Save & Activate";
+    : "Save stores edits. Apply activates the saved configuration; unsaved edits stay in the form.";
+  ui.saveActivate.textContent = "Apply";
 }
 
 function renderStatus(state: RuntimeState): void {
@@ -618,7 +617,7 @@ async function saveProfile(): Promise<IdentityProfile | null> {
   return profile;
 }
 
-async function activateProfileById(profileId: string): Promise<void> {
+async function activateProfileById(profileId: string, preserveEditor = false): Promise<void> {
   const response = await request({ type: "profiles:activate", profileId }, parseMutationResponse);
   if (!response.ok) {
     showErrors(response.errors);
@@ -628,7 +627,8 @@ async function activateProfileById(profileId: string): Promise<void> {
     showErrors(response.value.errors);
   }
   renderStatus(response.value.state);
-  await reload(profileId);
+  if (preserveEditor) renderProfileList();
+  else await reload(profileId);
 }
 
 async function duplicateSelected(): Promise<void> {
@@ -713,14 +713,14 @@ ui.newProfile.addEventListener("click", () => {
   selectProfile(null);
 });
 
-async function saveAndActivate(): Promise<void> {
-  const profile = await saveProfile();
+async function applySelected(): Promise<void> {
+  const profile = selectedProfile();
   if (profile === null) return;
-  await activateProfileById(profile.id);
+  await activateProfileById(profile.id, true);
 }
 
 ui.saveActivate.addEventListener("click", () => {
-  void saveAndActivate();
+  void applySelected();
 });
 
 ui.duplicate.addEventListener("click", () => {

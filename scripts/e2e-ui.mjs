@@ -452,6 +452,10 @@ async function main() {
         saved.identity.timezone === "Asia/Tokyo",
       "Save preserves runtime and shows pending changes",
     );
+    const savedRevision = (await call({ type: "profiles:list" })).profiles.find(
+      (p) => p.id === id,
+    ).revision;
+    await fill({ "field-proxy-port": "9997", "field-timezone": "America/New_York" });
     await click("#save-activate");
     await waitFor(
       'return document.getElementById("options-status").textContent.includes("Europe/Paris");',
@@ -460,8 +464,15 @@ async function main() {
     check(
       applied.generation > saved.generation &&
         applied.proxy.port === 9998 &&
-        applied.identity.timezone === "Europe/Paris",
+        applied.identity.timezone === "Europe/Paris" &&
+        applied.appliedRevision === savedRevision,
       "Apply commits saved routing and identity together",
+    );
+    check(
+      (await execute('return document.getElementById("field-proxy-port").value === "9997";')) &&
+        (await call({ type: "profiles:list" })).profiles.find((p) => p.id === id).revision ===
+          savedRevision,
+      "Apply neither saves nor discards unsaved form edits",
     );
 
     await fill({ "field-latitude": "35", "field-longitude": "139" });

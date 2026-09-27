@@ -214,7 +214,7 @@ Expert overrides are preserved. Follow-timezone uses the provider's resolved tim
 manual coordinates alone do not imply a locally inferred timezone.
 
 Save increments the configuration revision and does not alter runtime. Apply activates
-the saved revision. Runtime and the session snapshot retain the applied revision and
+the saved revision without saving or discarding unsaved form edits. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
 configuration; Refresh uses that applied configuration, including its session credentials.
 Blank passwords retain saved credentials. Clear changes the saved session credentials;
 Apply removes them from a currently active target. Duplicate does not copy passwords.

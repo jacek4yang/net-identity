@@ -333,6 +333,15 @@ export class ActivationController {
       }
 
       if (this.generation !== epoch) return this.state;
+      if (snapshot?.profile !== undefined && snapshot.profileId === stored.activeProfileId) {
+        // An interrupted Apply already selected this configuration. Resume it,
+        // never a newer Save made while its provider request was outstanding.
+        this.generation = Math.max(this.generation, snapshot.generation);
+        return await this.activate(stored.activeProfileId, {
+          profile: snapshot.profile,
+          credentials: snapshot.credentials,
+        });
+      }
       return await this.activate(stored.activeProfileId);
     } catch (error) {
       if (this.generation !== epoch) return this.state;

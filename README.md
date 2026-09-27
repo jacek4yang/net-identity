@@ -196,7 +196,7 @@ npm run e2e:websocket
    - **Automatic** – the proxy's observed egress identity is resolved and applied.
    - **Manual** – enter latitude, longitude, accuracy and an IANA timezone.
 6. Pick a WebRTC policy and **Save**.
-7. Click **Save & Activate**, or click its row in the popup. The popup shows the resulting identity, the audit and the state of
+7. Click **Save**, then **Apply**, or click the saved profile row in the popup. The popup shows the resulting identity, the audit and the state of
    open pages.
 
 ## Proxy support

@@ -212,6 +212,49 @@ describe("independent identity policies", () => {
     expect(restarted.providerResolveCount()).toBe(0);
     expect(restarted.controller.getEnvelope()).toMatchObject({ controlled: true, payload: null });
   });
+  it("resumes an interrupted Apply with its snapshot revision and credentials", async () => {
+    const h = createHarness();
+    const handler = createMessageHandler({
+      profiles: h.profileStore,
+      credentials: h.credentialStore,
+      controller: h.controller,
+      runtimeId: "test",
+    });
+    const sender = { id: "test", fromContentScript: false, url: undefined };
+    const profile = makeProfile({ id: "interrupted-apply" });
+    await handler(
+      {
+        type: "profiles:save",
+        profile,
+        credentials: { username: "fixture", password: "fixture-only" },
+      },
+      sender,
+    );
+    await h.controller.activate(profile.id);
+    const snapshot = await h.targetStore.load();
+    if (snapshot === null) throw new Error("missing applied snapshot");
+    await h.targetStore.save({ ...snapshot, status: "resolving" });
+    await handler(
+      {
+        type: "profiles:save",
+        profile: { ...profile, proxy: { ...profile.proxy, port: 3128 } },
+        credentials: null,
+      },
+      sender,
+    );
+    const restarted = createHarness({ localArea: h.localArea, sessionArea: h.sessionArea });
+    const state = await restarted.controller.initialize();
+    expect(state.appliedRevision).toBe(1);
+    expect(state.generation).toBeGreaterThan(snapshot.generation);
+    expect(restarted.controller.getTarget()?.proxy.port).toBe(8080);
+    expect(restarted.controller.getTarget()?.credentials?.username).toBe("fixture");
+    await restarted.controller.refresh();
+    expect(restarted.controller.getTarget()?.credentials?.username).toBe("fixture");
+    await restarted.controller.activate(profile.id);
+    expect(restarted.controller.getTarget()?.proxy.port).toBe(3128);
+    expect(restarted.controller.getTarget()?.credentials).toBeNull();
+    expect(h.localArea.serialized()).not.toContain("fixture-only");
+  });
   it("lets Off win a lookup and an activation still loading storage", async () => {
     const deferred = createDeferred<typeof SAMPLE_GEO>();
     const h = createHarness({ provider: createScriptedProvider(() => deferred.promise) });
