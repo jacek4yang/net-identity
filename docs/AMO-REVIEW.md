@@ -31,7 +31,7 @@ and credentials survive event-page suspension in session storage. Unsafe or newe
 profile documents are held unchanged. A failed teardown does not release native
 geolocation until Off successfully commits.
 
-These notes describe the next schema-2 submission. Use the immutable v1.0.0 tagged
+These notes describe version 1.1.0 and its schema-2 migration. Use the immutable v1.0.0 tagged
 source archive when reviewing that historical version.
 
 ## Install channel
@@ -44,7 +44,7 @@ refer to the same tag, version and commit. See `docs/RELEASING.md`.
 
 ## Listing assets
 
-Capture the listing screenshots from a clean signed build at submission time, with no
+After approval, refresh listing screenshots from a clean signed build, with no
 other extensions and no personal data on screen:
 
 - the popup with an active auto profile (public IP, location, timezone, audit verdict);

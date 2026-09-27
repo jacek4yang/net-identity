@@ -35,4 +35,4 @@ Pages receive the location and timezone of the active profile through compatibil
 - Save stores edits; Apply activates the saved configuration and leaves unsaved form edits alone. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. A blank password keeps existing session credentials, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
 
-These notes describe post-v1 main. The immutable v1.0.0 AMO submission retains the privacy behavior documented in its tagged source archive. A future submission must use the updated notes and new UI screenshots.
+These notes describe version 1.1.0. The immutable v1.0.0 AMO submission retains the privacy behavior documented in its tagged source archive. Version 1.1.0 keeps the coordinate picker entirely local, exposes Direct virtually, and separates saved configuration from applied runtime.
