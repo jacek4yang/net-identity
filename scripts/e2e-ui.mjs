@@ -325,25 +325,63 @@ async function main() {
       "Built-in Direct is read-only",
     );
     const originalWindow = (await client.send("WebDriver:GetWindowHandle"))?.value;
-    await client.send("Marionette:SetContext", { value: "chrome" });
-    await execute(`window.niPopupShown=false; document.addEventListener("popupshown", e=>{if(e.target.id === "customizationui-widget-panel") window.niPopupShown=true;});`);
-    await client.send("Marionette:SetContext", { value: "content" });
-    const openResult = await client.send("WebDriver:ExecuteAsyncScript", {
-      script: `const done=arguments[arguments.length-1]; const page=window.wrappedJSObject || window; page.browser.action.openPopup().then(()=>done(true),e=>done(String(e)));`,args:[]
+    // openPopup resolves before the chrome panel finishes opening. Its <browser>
+    // is separate from the selected Options tab and is not a new window handle.
+    const opened = await client.send("WebDriver:ExecuteAsyncScript", {
+      script: `const done=arguments[arguments.length-1]; const page=window.wrappedJSObject || window;
+        page.browser.action.openPopup().then(()=>done(true),e=>done(String(e)));`,
+      args: [],
     });
-    log(`open action: ${JSON.stringify(openResult)}`);
+    if (opened?.value !== true) throw new Error(`openPopup failed: ${JSON.stringify(opened)}`);
     await client.send("Marionette:SetContext", { value: "chrome" });
-    check(await execute(`return window.niPopupShown === true;`), "Firefox browser action opens the actual popup panel");
-    await execute(`for (const p of document.querySelectorAll("panel")) if (p.state === "open" || p.state === "showing") p.hidePopup();`);
+    await waitFor(`return [...document.querySelectorAll('panel')].some(p =>
+      p.state === 'open' && [...p.querySelectorAll('browser')].some(b => b.currentURI?.spec === ${JSON.stringify(popupUrl)}));`);
+    // Remote extension panels are not tab frames. Address the panel's own
+    // Marionette actor from chrome rather than accidentally querying Options.
+    const popupExecute = async (script) => {
+      const result = await client.send("WebDriver:ExecuteAsyncScript", {
+        script: `const done=arguments[arguments.length-1];
+          const b=[...document.querySelectorAll('panel')].filter(p=>p.state==='open')
+            .flatMap(p=>[...p.querySelectorAll('browser')]).find(b=>b.currentURI?.spec===arguments[0]);
+          if (!b) { done({error:'Popup browser missing'}); return; }
+          b.browsingContext.currentWindowGlobal.getActor('MarionetteCommands')
+            .executeScript(arguments[1], [], {sandboxName:'default',newSandbox:true})
+            .then(value=>done({value}), e=>done({error:String(e)}));`,
+        args: [popupUrl, script],
+      });
+      if (result.value.error) throw new Error(result.value.error);
+      return result.value.value;
+    };
+    const popupWait = async (script) => {
+      for (let i = 0; i < 100; i++) {
+        if (await popupExecute(script)) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error(`Popup condition not reached: ${script}`);
+    };
+    await popupWait(`return !!document.querySelector('[data-profile-id="builtin-direct"]');`);
+    check(
+      await popupExecute(`return document.URL === ${JSON.stringify(popupUrl)};`),
+      "Firefox browser action opens the actual popup panel",
+    );
+    await popupExecute(`document.querySelector('[data-profile-id="builtin-direct"]').click();`);
+    await popupWait('return document.getElementById("status-text").textContent === "Active";');
+    check(
+      await popupExecute(
+        'return document.getElementById("identity-route").textContent === "Direct";',
+      ),
+      "Actual toolbar popup switches Direct without consent",
+    );
+    await popupExecute('document.getElementById("route-off").click();');
+    await popupWait('return document.getElementById("status-text").textContent === "Off";');
+    await execute(`for (const p of document.querySelectorAll("panel"))
+      if (p.state === "open") p.hidePopup();`);
     await client.send("Marionette:SetContext", { value: "content" });
-    await client.send("WebDriver:SwitchToWindow", {handle:originalWindow});
-    await client.send("WebDriver:SwitchToFrame", {id:null});
-    await client.send("WebDriver:Navigate", { url: optionsUrl });
-    await client.send("Marionette:SetContext", {value:"chrome"});
-    log(`browser errors: ${JSON.stringify(await execute('return Services.console.getMessageArray().filter(m=>m.message?.includes("moz-extension")).slice(-8).map(m=>m.message);'))}`);
-    await client.send("Marionette:SetContext", {value:"content"});
-    log(`profiles after popup: ${JSON.stringify(await call({type:"profiles:list"}))}`);
-    await waitFor('return !document.getElementById("direct-view").hidden;');
+    await client.send("WebDriver:SwitchToWindow", { handle: originalWindow });
+    await client.send("WebDriver:SwitchToFrame", { id: null });
+    await waitFor(
+      `return document.URL === ${JSON.stringify(optionsUrl)} && !document.getElementById("direct-view").hidden;`,
+    );
     await click("#new-profile");
     await fill({
       "field-name": "UI proxy",

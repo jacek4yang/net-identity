@@ -187,6 +187,31 @@ describe("independent identity policies", () => {
     expect((await restarted.controller.activate(profile.id)).appliedRevision).toBe(2);
     expect(restarted.controller.getTarget()?.proxy.port).toBe(3128);
   });
+  it("switches Direct routing before consent resolves and restores it without a stored profile", async () => {
+    const consent = createDeferred<{ apiAvailable: boolean; optionalGranted: string[] }>();
+    let reads = 0;
+    const h = createHarness({
+      readDataCollection: () => {
+        reads++;
+        return consent.promise;
+      },
+    });
+    const activation = h.controller.activate("builtin-direct");
+    await waitUntil(() => reads === 1);
+    expect(await h.controller.decideProxyForRequest("https://example.test")).toEqual({
+      type: "direct",
+    });
+    expect(h.controller.getState().identity.timezone).toBeUndefined();
+    expect(h.localArea.serialized()).not.toContain('"id":"builtin-direct"');
+    consent.resolve({ apiAvailable: true, optionalGranted: [] });
+    await activation;
+    const restarted = createHarness({ localArea: h.localArea, sessionArea: h.sessionArea });
+    const state = await restarted.controller.initialize();
+    expect(state.activeProfileId).toBe("builtin-direct");
+    expect(state.identity.timezone).toBeUndefined();
+    expect(restarted.providerResolveCount()).toBe(0);
+    expect(restarted.controller.getEnvelope()).toMatchObject({ controlled: true, payload: null });
+  });
   it("lets Off win a lookup and an activation still loading storage", async () => {
     const deferred = createDeferred<typeof SAMPLE_GEO>();
     const h = createHarness({ provider: createScriptedProvider(() => deferred.promise) });

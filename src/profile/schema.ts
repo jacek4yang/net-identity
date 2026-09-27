@@ -155,5 +155,5 @@ export function describeProxy(proxy: ProxyConfig): string {
 }
 
 export function canStoreMoreProfiles(state: ProfileState): boolean {
-  return state.profiles.length < MAX_PROFILES;
+  return state.profiles.filter((p) => !isBuiltinDirectProfile(p.id)).length < MAX_PROFILES;
 }

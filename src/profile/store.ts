@@ -17,6 +17,8 @@ import {
   ensureBuiltinDirect,
   durableProfileState,
   isBuiltinDirectProfile,
+  createBuiltinDirectProfile,
+  canStoreMoreProfiles,
   type IdentityProfile,
   type ProfileState,
 } from "./schema";
@@ -120,6 +122,7 @@ export function mutateProfiles(
 
 export function findProfile(state: ProfileState, profileId: string | null): IdentityProfile | null {
   if (profileId === null) return null;
+  if (isBuiltinDirectProfile(profileId)) return createBuiltinDirectProfile();
   return state.profiles.find((profile) => profile.id === profileId) ?? null;
 }
 
@@ -129,7 +132,7 @@ export function upsertProfile(state: ProfileState, profile: IdentityProfile): Re
   }
 
   const existingIndex = state.profiles.findIndex((candidate) => candidate.id === profile.id);
-  if (existingIndex === -1 && state.profiles.length >= MAX_PROFILES) {
+  if (existingIndex === -1 && !canStoreMoreProfiles(state)) {
     return { ok: false, errors: [`profile limit reached (max ${MAX_PROFILES})`] };
   }
   const profiles = [...state.profiles];

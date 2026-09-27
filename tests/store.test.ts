@@ -102,6 +102,24 @@ describe("profile store", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("does not charge the virtual route against user profile capacity", async () => {
+    const store = createProfileStore(createMemoryStorage());
+    const profiles = Array.from({ length: MAX_PROFILES - 1 }, (_, index) =>
+      makeProfile({ id: `capacity-${index}` }),
+    );
+    await store.save({ schemaVersion: SCHEMA_VERSION, activeProfileId: null, profiles });
+    const result = await mutateProfiles(store, (state) =>
+      upsertProfile(state, makeProfile({ id: "last-user-profile" })),
+    );
+    expect(result.ok).toBe(true);
+    expect(
+      findProfile(
+        { schemaVersion: SCHEMA_VERSION, activeProfileId: null, profiles: [] },
+        BUILTIN_DIRECT_PROFILE_ID,
+      )?.proxy.type,
+    ).toBe("direct");
+  });
+
   it("replaces an existing profile in place", async () => {
     const store = createProfileStore(createMemoryStorage());
     const profile = makeProfile({ id: "profile-0003", name: "first" });

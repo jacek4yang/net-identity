@@ -197,7 +197,11 @@ export class ActivationController {
     // (a transition, or a setting refresh racing a deactivation) cannot leak them
     // to pages.
     if (this.state.activeProfileId === null) {
-      return createIdentityEnvelope(null, pending, this.isBusy());
+      return createIdentityEnvelope(
+        null,
+        pending,
+        this.isBusy() || (this.deactivating && this.state.status !== "idle"),
+      );
     }
     const payload = createPublicIdentity({
       generation: this.state.generation,
@@ -650,12 +654,14 @@ export class ActivationController {
   }
 
   private async recordDiagnostic(code: string, message: string): Promise<void> {
+    const generation = this.generation;
     const state = await this.composeState({
-      status: this.state.status === "idle" ? "idle" : "ready",
-      generation: this.state.generation,
+      status: this.state.status,
+      generation,
       profile: this.currentProfileForCompose(),
       hasCredentials: this.state.proxy.hasCredentials,
-      identity: this.state.identity,
+      identity:
+        this.target === null ? { source: "auto", publicIpVerified: false } : this.state.identity,
       webrtc: this.state.webrtc,
       providerFailed: this.state.lastError?.code === "provider_error",
       content: this.content,
