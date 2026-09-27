@@ -44,7 +44,9 @@ withdraw, delete or modify the earlier submission to bypass review.
 Successful submission dispatches finalization immediately; hourly checks handle later signing.
 An empty tag selects the oldest pending draft independently in each channel, so a pending
 listed review cannot delay an approved unlisted release. It verifies that the selected semantic tag
-is above v1.0.0 and belongs to main, then checks out that immutable commit. Submission
+is above v1.0.0 and belongs to main, then checks out that immutable commit in `release-tag/`. Trusted main supplies the
+finalization tools while all tag/package/provenance checks use the exact tagged working
+directory. Tool fixes therefore require no tag mutation or extension rebuild. Submission
 and finalization share a concurrency group. Jobs never wait indefinitely for review.
 
 The tool authenticates to
@@ -63,7 +65,8 @@ in [Mozilla's API](https://mozilla.github.io/addons-server/topics/api/addons.htm
 
 Download only from `addons.mozilla.org` or `addons.cdn.mozilla.net` over HTTPS, checking
 every redirect (at most three), a 60-second deadline and 25 MB limit. Download requests
-contain no authentication headers. Verify AMO SHA-256, ZIP structure/CRCs, manifest version,
+authenticate the initial unlisted file request on the exact AMO file endpoint with a
+short-lived JWT, as web-ext does. No authentication is sent to redirects or CDN hosts. Verify AMO SHA-256, ZIP structure/CRCs, manifest version,
 stable ID, AMO update channel and exact original production payload hashes. Only signature
 files may be added. Never rebuild or mutate the downloaded XPI.
 

@@ -58,6 +58,10 @@ describe("two-phase AMO publication", () => {
     expect(workflow).toContain("group: amo-distribution");
     expect(finalize).toContain("group: amo-distribution");
     expect(finalize).toContain("ref: ${{ steps.select.outputs.commit }}");
+    expect(finalize).toContain("path: release-tag");
+    expect(finalize).toContain("working-directory: release-tag");
+    expect(finalize).toContain("../scripts/release-control.mjs prepare");
+    expect(finalize).toContain("../scripts/release-control.mjs publish");
     expect(control).toContain('"--is-ancestor"');
     expect(control).toContain("HISTORICAL_COMMIT");
   });

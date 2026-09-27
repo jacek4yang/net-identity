@@ -303,7 +303,7 @@ async function main() {
     download(tag, "net-identity-source.zip");
     if (sha256(readFileSync(file("net-identity-source.zip"))) !== submission.sourceSha256)
       throw new Error("Source archive SHA-256 mismatch");
-    const bytes = await downloadSigned(state.url, state.sha256);
+    const bytes = await downloadSigned(state.url, state.sha256, fetch, channel === "unlisted");
     verifySignedPayload(bytes, version, submission.payload);
     writeFileSync(file(xpiName), bytes);
     output("approved", "true");

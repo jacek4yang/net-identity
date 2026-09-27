@@ -48,7 +48,9 @@ jobs:
         with:
           ref: ${{ steps.select.outputs.commit }}
           fetch-depth: 0
+          path: release-tag
       - name: Check approval and verify downloaded Mozilla bytes
+        working-directory: release-tag
         if: steps.select.outputs.tag != ''
         id: prepare
         env:
@@ -56,7 +58,7 @@ jobs:
           RELEASE_TAG: ${{ steps.select.outputs.tag }}
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-        run: node --experimental-strip-types scripts/release-control.mjs prepare
+        run: node --experimental-strip-types ../scripts/release-control.mjs prepare
       - name: Install normal stable Firefox
         if: steps.prepare.outputs.approved == 'true'
         run: |
@@ -71,16 +73,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y firefox
       - name: Verify permanent signed installation in normal Firefox
+        working-directory: release-tag
         if: steps.prepare.outputs.approved == 'true'
         env:
           SIGNED_XPI: ${{ steps.prepare.outputs.xpi }}
           RELEASE_VERSION: ${{ steps.prepare.outputs.version }}
-        run: node scripts/verify-firefox-signature.mjs --xpi "$SIGNED_XPI" --version "$RELEASE_VERSION" --output artifacts/release/signature-proof.json
+        run: node ../scripts/verify-firefox-signature.mjs --xpi "$SIGNED_XPI" --version "$RELEASE_VERSION" --output artifacts/release/signature-proof.json
       - name: Recheck AMO approval and finalize verified signed release
+        working-directory: release-tag
         if: steps.prepare.outputs.approved == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.select.outputs.tag }}
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-        run: node --experimental-strip-types scripts/release-control.mjs publish
+        run: node --experimental-strip-types ../scripts/release-control.mjs publish
