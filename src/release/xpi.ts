@@ -116,7 +116,7 @@ export function verifySignedPayload(
   bytes: Buffer,
   version: string,
   expected: Record<string, string>,
-): void {
+) {
   const files = readZip(bytes);
   const signatureNames = new Set([
     "META-INF/",
@@ -137,10 +137,29 @@ export function verifySignedPayload(
   )
     throw new Error("Unsigned XPI: signature entries missing");
   const actual = payloadHashes(bytes, version);
+  const manifest = files.get("manifest.json");
+  // AMO's observed signed manifest differs only by removal of its final LF.
+  // Reconstruct that single byte in memory and prove the original exact hash;
+  // never normalize JSON, permit value changes, or modify the downloaded XPI.
+  const manifestFinalNewlineRemoved =
+    actual["manifest.json"] !== expected["manifest.json"] &&
+    manifest !== undefined &&
+    manifest.at(-1) === 0x7d &&
+    sha256(Buffer.concat([manifest, Buffer.from("\n")])) === expected["manifest.json"];
   const names = Object.keys(actual);
   if (
     names.length !== Object.keys(expected).length ||
-    names.some((name) => actual[name] !== expected[name])
+    names.some(
+      (name) =>
+        actual[name] !== expected[name] &&
+        !(name === "manifest.json" && manifestFinalNewlineRemoved),
+    )
   )
     throw new Error("Signed XPI differs from tested submission payload");
+  return {
+    manifestFinalNewlineRemoved,
+    submittedManifestSha256: expected["manifest.json"],
+    signedManifestSha256: actual["manifest.json"],
+    otherPayloadFilesByteIdentical: true,
+  };
 }

@@ -54,6 +54,46 @@ const signatures: [string, string][] = [
 ];
 
 describe("signed XPI archive validation", () => {
+  it("proves only removal of the final manifest LF against the original exact hash", () => {
+    const original: [string, string][] = [
+      ["manifest.json", manifest + "\n"],
+      ["background.js", "// fixture"],
+    ];
+    const expected = payloadHashes(zip(original), "1.1.0");
+    expect(verifySignedPayload(zip([...payload, ...signatures]), "1.1.0", expected)).toMatchObject({
+      manifestFinalNewlineRemoved: true,
+      submittedManifestSha256: expected["manifest.json"],
+      signedManifestSha256: payloadHashes(zip(payload), "1.1.0")["manifest.json"],
+      otherPayloadFilesByteIdentical: true,
+    });
+    expect(
+      verifySignedPayload(zip([...original, ...signatures]), "1.1.0", expected)
+        .manifestFinalNewlineRemoved,
+    ).toBe(false);
+    for (const changed of [
+      manifest.replace('"version"', '"extra":true,"version"'),
+      manifest + " ",
+      JSON.stringify(JSON.parse(manifest), null, 2),
+    ]) {
+      expect(() =>
+        verifySignedPayload(
+          zip([["manifest.json", changed], ["background.js", "// fixture"], ...signatures]),
+          "1.1.0",
+          expected,
+        ),
+      ).toThrow(/differs/);
+    }
+    const jsNewline = payloadHashes(
+      zip([
+        ["manifest.json", manifest],
+        ["background.js", "// fixture\n"],
+      ]),
+      "1.1.0",
+    );
+    expect(() => verifySignedPayload(zip([...payload, ...signatures]), "1.1.0", jsNewline)).toThrow(
+      /differs/,
+    );
+  });
   it.each([false, true])("reads bounded ZIP entries (deflate=%s)", (compressed) => {
     expect(readZip(zip(payload, compressed)).get("manifest.json")?.toString()).toBe(manifest);
   });

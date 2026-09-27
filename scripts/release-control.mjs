@@ -102,11 +102,17 @@ async function verifyPublished(tag, version, commit, release) {
   const submission = parseSubmission(metadata.submission);
   if (submission.tag !== tag || submission.commit !== commit)
     throw new Error("Published provenance mismatch");
-  const expected = distributionMetadata(
-    submission,
-    await query(version),
-    metadata.signatureVerification,
+  const publishedXpi = `net-identity-${version}-firefox-signed.xpi`;
+  download(tag, publishedXpi);
+  const payloadVerification = verifySignedPayload(
+    readFileSync(file(publishedXpi)),
+    version,
+    submission.payload,
   );
+  const expected = {
+    ...distributionMetadata(submission, await query(version), metadata.signatureVerification),
+    payloadVerification,
+  };
   if (JSON.stringify(metadata) !== JSON.stringify(expected))
     throw new Error("Published metadata differs from verified AMO provenance");
   const names = [
@@ -333,8 +339,11 @@ async function main() {
     sha256(readFileSync(file("net-identity-source.zip"))) !== submission.sourceSha256
   )
     throw new Error("Artifact changed after verification");
-  verifySignedPayload(bytes, version, submission.payload);
-  const metadata = distributionMetadata(submission, state, json("signature-proof.json"));
+  const payloadVerification = verifySignedPayload(bytes, version, submission.payload);
+  const metadata = {
+    ...distributionMetadata(submission, state, json("signature-proof.json")),
+    payloadVerification,
+  };
   write("release-metadata.json", metadata);
   writeFileSync(
     file("SHA256SUMS.txt"),
