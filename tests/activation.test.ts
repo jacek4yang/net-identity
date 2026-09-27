@@ -203,8 +203,9 @@ describe("activation", () => {
 
     // Manual values are not overwritten in storage.
     const stored = await harness.profileStore.load();
-    expect(stored.profiles[0]?.identity.latitude).toBe(48.8566);
-    expect(stored.profiles[0]?.identity.city).toBeUndefined();
+    const saved = stored.profiles.find((p) => p.id === profile.id);
+    expect(saved?.identity.latitude).toBe(48.8566);
+    expect(saved?.identity.city).toBeUndefined();
   });
 
   it("persists auto-resolved values back into the profile", async () => {
@@ -214,10 +215,11 @@ describe("activation", () => {
 
     await harness.controller.activate(profile.id);
     const stored = await harness.profileStore.load();
+    const updated = stored.profiles.find((p) => p.id === profile.id);
 
-    expect(stored.profiles[0]?.identity.publicIp).toBe(SAMPLE_GEO.ip);
-    expect(stored.profiles[0]?.identity.timezone).toBe("Europe/Amsterdam");
-    expect(stored.profiles[0]?.identity.lastResolvedAt).toBe(harness.clock.now());
+    expect(updated?.identity.publicIp).toBe(SAMPLE_GEO.ip);
+    expect(updated?.identity.timezone).toBe("Europe/Amsterdam");
+    expect(updated?.identity.lastResolvedAt).toBe(harness.clock.now());
     expect(JSON.stringify(stored).toLowerCase()).not.toContain("password");
   });
 

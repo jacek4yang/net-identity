@@ -63,16 +63,60 @@ export interface ProfileState {
 
 export const SCHEMA_VERSION = 1;
 
-export const EMPTY_PROFILE_STATE: ProfileState = {
-  schemaVersion: SCHEMA_VERSION,
-  activeProfileId: null,
-  profiles: [],
-};
-
 /** New proxy profiles default to the strictest practical policy. */
 export const DEFAULT_PROXY_WEBRTC_POLICY: WebRTCPolicy = "disable_non_proxied_udp";
 /** A direct connection has nothing to protect, so the browser default is kept. */
 export const DEFAULT_DIRECT_WEBRTC_POLICY: WebRTCPolicy = "default";
+
+export const BUILTIN_DIRECT_PROFILE_ID = "builtin-direct";
+export const BUILTIN_DIRECT_NAME = "Direct";
+
+export function isBuiltinDirectProfile(id: string): boolean {
+  return id === BUILTIN_DIRECT_PROFILE_ID;
+}
+
+export function createBuiltinDirectProfile(): IdentityProfile {
+  return {
+    id: BUILTIN_DIRECT_PROFILE_ID,
+    name: BUILTIN_DIRECT_NAME,
+    proxy: {
+      type: "direct",
+      proxyDNS: false,
+      bypassHosts: [...DEFAULT_BYPASS_HOSTS],
+    },
+    identity: { mode: "auto" },
+    webrtcPolicy: DEFAULT_DIRECT_WEBRTC_POLICY,
+  };
+}
+
+export const EMPTY_PROFILE_STATE: ProfileState = {
+  schemaVersion: SCHEMA_VERSION,
+  activeProfileId: null,
+  profiles: [createBuiltinDirectProfile()],
+};
+
+export function ensureBuiltinDirect(state: ProfileState): ProfileState {
+  const existingIndex = state.profiles.findIndex(
+    (profile) => profile.id === BUILTIN_DIRECT_PROFILE_ID,
+  );
+  if (existingIndex === 0) {
+    return state;
+  }
+  const profiles = [...state.profiles];
+  let directProfile: IdentityProfile;
+  if (existingIndex > 0) {
+    const spliced = profiles.splice(existingIndex, 1)[0];
+    directProfile = spliced ?? createBuiltinDirectProfile();
+  } else {
+    directProfile = createBuiltinDirectProfile();
+  }
+  profiles.unshift(directProfile);
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activeProfileId: state.activeProfileId,
+    profiles,
+  };
+}
 
 export function defaultWebRtcPolicyFor(proxyType: ProxyType): WebRTCPolicy {
   return proxyType === "direct" ? DEFAULT_DIRECT_WEBRTC_POLICY : DEFAULT_PROXY_WEBRTC_POLICY;

@@ -8,76 +8,148 @@
   </head>
   <body>
     <header class="header">
-      <h1>Net Identity</h1>
-      <span class="chips">
-        <span id="status-chip" class="chip">Loading</span>
-        <span id="verdict-chip" class="chip chip-muted">Unknown</span>
-      </span>
+      <div class="header-brand">
+        <h1 class="app-title">Net Identity</h1>
+      </div>
+      <div class="header-status">
+        <span id="status-pill" class="status-pill" data-tone="pending">
+          <span class="status-dot"></span>
+          <span id="status-text">Inactive</span>
+        </span>
+      </div>
     </header>
 
-    <section id="first-run" class="block" hidden>
-      <div class="label">Get started</div>
-      <p id="first-run-copy" class="note"></p>
-      <button id="create-profile" type="button" class="primary">Create a profile</button>
-    </section>
+    <main class="main-surface">
+      <!-- Route switcher section -->
+      <section class="routes-section" aria-label="Available routes">
+        <div class="routes-container" role="radiogroup" aria-label="Network routes">
+          <button
+            id="route-off"
+            type="button"
+            class="route-item route-off"
+            role="radio"
+            aria-checked="true"
+            tabindex="0"
+          >
+            <div class="route-lead" aria-hidden="true">
+              <span class="power-icon">⏻</span>
+            </div>
+            <div class="route-body">
+              <span class="route-name">Power / Off</span>
+              <span class="route-desc">Relinquish WebRTC & synthetic identity</span>
+            </div>
+            <div class="route-tail" aria-hidden="true">
+              <span class="route-indicator"></span>
+            </div>
+          </button>
 
-    <section class="block">
-      <div class="label">Active profile</div>
-      <div id="active-profile" class="value value-strong">Loading…</div>
-      <div id="proxy-summary" class="value value-dim"></div>
-    </section>
+          <div class="divider"></div>
 
-    <section class="block">
-      <div class="row">
-        <span class="label">Public IP</span>
-        <span id="public-ip" class="value">—</span>
-      </div>
-      <div class="row">
-        <span class="label">Country / Region / City</span>
-        <span id="location" class="value">—</span>
-      </div>
-      <div class="row">
-        <span class="label">Timezone</span>
-        <span id="timezone" class="value">—</span>
-      </div>
-      <div class="row">
-        <span class="label">Approx. coordinates</span>
-        <span id="coordinates" class="value">—</span>
-      </div>
-      <div class="row">
-        <span class="label">WebRTC policy</span>
-        <span id="webrtc" class="value">—</span>
-      </div>
-    </section>
+          <div id="route-list" class="route-list">
+            <!-- Dynamically populated routes -->
+          </div>
+        </div>
 
-    <section class="block">
-      <div class="label">Identity consistency</div>
-      <ul id="audit-checks" class="checks"></ul>
-    </section>
+        <div class="manage-row">
+          <button id="manage-profiles" type="button" class="manage-button">
+            <span class="plus-symbol" aria-hidden="true">+</span> Manage profiles
+          </button>
+        </div>
+      </section>
 
-    <p id="error-box" class="error" hidden></p>
+      <!-- Primary Current Identity card -->
+      <section class="identity-card" aria-label="Current identity">
+        <div class="identity-header">
+          <h2 class="identity-title">Current identity</h2>
+          <span id="consistency-badge" class="consistency-badge" data-tone="pending">—</span>
+        </div>
 
-    <footer class="footer">
-      <label class="field">
-        <span class="label">Change profile</span>
-        <select id="profile-select"></select>
-      </label>
-      <div class="buttons">
-        <button id="activate" type="button">Activate</button>
-        <button id="refresh" type="button">Refresh Identity</button>
-        <button id="manage" type="button" class="primary">Manage Profiles</button>
-      </div>
-    </footer>
+        <div class="identity-grid">
+          <div class="identity-row">
+            <span class="identity-label">Route</span>
+            <span id="identity-route" class="identity-value">—</span>
+          </div>
+          <div class="identity-row">
+            <span class="identity-label">IP</span>
+            <span id="identity-ip" class="identity-value mono">—</span>
+          </div>
+          <div class="identity-row">
+            <span class="identity-label">Location</span>
+            <span id="identity-location" class="identity-value">—</span>
+          </div>
+          <div class="identity-row">
+            <span class="identity-label">Timezone</span>
+            <span id="identity-timezone" class="identity-value mono">—</span>
+          </div>
+          <div class="identity-row">
+            <span class="identity-label">WebRTC</span>
+            <span id="identity-webrtc" class="identity-value">—</span>
+          </div>
+        </div>
 
-    <details class="block about">
-      <summary>About and help</summary>
-      <div id="about-body"></div>
-    </details>
+        <div class="card-actions">
+          <button id="refresh-button" type="button" class="btn" disabled>Refresh</button>
+          <button
+            id="toggle-details"
+            type="button"
+            class="btn btn-secondary"
+            aria-expanded="false"
+            aria-controls="details-panel"
+          >
+            Details
+          </button>
+        </div>
+      </section>
 
-    <p class="note">
-      Proxy passwords are stored only for the current Firefox session. A profile is not activated,
-      and no location service is contacted, until you activate one.
-    </p>
+      <div id="error-box" class="error-box" hidden role="alert"></div>
+
+      <!-- Secondary Expandable Details & Diagnostics -->
+      <section id="details-panel" class="details-panel" hidden aria-label="Details and diagnostics">
+        <div class="details-heading">Diagnostics & Details</div>
+
+        <div class="details-group">
+          <div class="details-group-title">Routing</div>
+          <div class="details-row">
+            <span class="details-label">Endpoint</span>
+            <span id="details-endpoint" class="details-value">—</span>
+          </div>
+          <div class="details-row">
+            <span class="details-label">IP Verification</span>
+            <span id="details-ip-verified" class="details-value">—</span>
+          </div>
+          <div class="details-row">
+            <span class="details-label">Firefox Proxy</span>
+            <span id="details-firefox-proxy" class="details-value">—</span>
+          </div>
+        </div>
+
+        <div class="details-group">
+          <div class="details-group-title">Spoofing & Protection</div>
+          <div class="details-row">
+            <span class="details-label">Coordinates</span>
+            <span id="details-coordinates" class="details-value mono">—</span>
+          </div>
+          <div class="details-row">
+            <span class="details-label">WebRTC Policy</span>
+            <span id="details-webrtc-detail" class="details-value">—</span>
+          </div>
+          <div class="details-row">
+            <span class="details-label">Frame Shim</span>
+            <span id="details-frames" class="details-value">—</span>
+          </div>
+        </div>
+
+        <div class="details-group">
+          <div class="details-group-title">Consistency Checks</div>
+          <ul id="audit-checks" class="audit-list"></ul>
+        </div>
+
+        <p class="details-note">
+          Direct route uses Firefox and system routing without configuring an extension proxy.
+          Session proxy credentials are kept only in memory until Firefox exits.
+        </p>
+      </section>
+    </main>
 
     <script type="module" src="popup.js"></script>
   </body>

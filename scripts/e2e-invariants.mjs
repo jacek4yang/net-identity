@@ -334,6 +334,7 @@ function startProbe(port) {
 
 function startBlackhole(port) {
   const server = net.createServer((socket) => {
+    socket.on("error", () => {});
     socket.once("data", () => {
       socket.end("HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
     });

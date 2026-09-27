@@ -20,7 +20,13 @@ import {
   type StateResponse,
   type UiRequest,
 } from "../shared/messages";
-import { createProfile, canStoreMoreProfiles, type IdentityProfile } from "../profile/schema";
+import {
+  BUILTIN_DIRECT_NAME,
+  createProfile,
+  canStoreMoreProfiles,
+  isBuiltinDirectProfile,
+  type IdentityProfile,
+} from "../profile/schema";
 import {
   createProfileId,
   mutateProfiles,
@@ -76,6 +82,21 @@ async function saveProfile(
   if (!parsed.ok) return mutation(false, parsed.errors, deps.controller);
   const profile = parsed.value;
 
+  if (isBuiltinDirectProfile(profile.id)) {
+    if (
+      profile.proxy.type !== "direct" ||
+      profile.name !== BUILTIN_DIRECT_NAME ||
+      profile.webrtcPolicy !== "default" ||
+      profile.identity.mode !== "auto"
+    ) {
+      return mutation(
+        false,
+        ["The built-in Direct profile is read-only and cannot be modified."],
+        deps.controller,
+      );
+    }
+  }
+
   if (request.credentials === null) {
     await deps.credentials.remove(profile.id);
   } else if (request.credentials !== undefined) {
@@ -110,6 +131,9 @@ async function deleteProfile(
   deps: MessageRouterDeps,
   profileId: string,
 ): Promise<MutationResponse> {
+  if (isBuiltinDirectProfile(profileId)) {
+    return mutation(false, ["The built-in Direct profile cannot be deleted."], deps.controller);
+  }
   const stored = await deps.profiles.load();
   if (findProfile(stored, profileId) === null) {
     return mutation(false, ["Profile not found."], deps.controller);
@@ -128,6 +152,9 @@ async function duplicateProfile(
   deps: MessageRouterDeps,
   profileId: string,
 ): Promise<MutationResponse> {
+  if (isBuiltinDirectProfile(profileId)) {
+    return mutation(false, ["The built-in Direct profile cannot be duplicated."], deps.controller);
+  }
   const stored = await deps.profiles.load();
   const source = findProfile(stored, profileId);
   if (source === null) return mutation(false, ["Profile not found."], deps.controller);

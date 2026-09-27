@@ -129,6 +129,7 @@ function createRecordingProxy() {
   });
 
   server.on("upgrade", (request, socket) => {
+    socket.on("error", () => {});
     seen.push({
       method: "UPGRADE",
       url: request.url ?? "",
@@ -144,6 +145,7 @@ function createRecordingProxy() {
   });
 
   server.on("connect", (request, socket) => {
+    socket.on("error", () => {});
     const target = request.url ?? "";
     seen.push({ method: "CONNECT", url: target, host: target, upgrade: "" });
     const host = target.split(":")[0]?.toLowerCase() ?? "";
@@ -179,6 +181,7 @@ function createDirectWebSocketServer() {
     response.writeHead(404).end();
   });
   server.on("upgrade", (request, socket) => {
+    socket.on("error", () => {});
     hits.push(request.url ?? "");
     const key = request.headers["sec-websocket-key"];
     if (typeof key === "string" && key !== "") completeUpgrade(socket, key, "direct");
