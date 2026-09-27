@@ -1,87 +1,96 @@
-# Releasing
+# Firefox distribution releases
 
-`package.json` `version` is the version that ships. `public/manifest.json` must use the
-same value, and the tag is `v` plus that version (for example `v0.2.0`).
-`npm run check:version` rejects a manifest mismatch, a tag that disagrees, and a version
-that is not newer than one already published (`PUBLISHED_VERSIONS`). The extension id
-`net-identity@jacek4yang.github.io` never changes.
+AMO is the canonical public distribution and automatic-update channel. A final GitHub
+Release offers the exact Mozilla-signed XPI, installable in normal Firefox. Listed upload
+acceptance is **not approval**. Never rename an unsigned submission ZIP to imply signing.
 
-addons.mozilla.org (AMO) is the ordinary-user install and update channel. A listed
-submission is signed by Mozilla and updates installed users automatically once Mozilla
-approves it. A GitHub Release is the engineering record, not the installer.
+## Immutable versions and gates
 
-## One-time AMO setup
+The extension ID remains `net-identity@jacek4yang.github.io`. Update `package.json`,
+`package-lock.json` and `public/manifest.json` together in a release PR after the pipeline
+implementation PR. Use a new higher semantic version. v1.0.0 and its historical assets
+and AMO submission are immutable; its tag targets
+`e3f8b22ed08e2acc13e93aad180b2e4e28f69325`.
 
-1. Create an API key at <https://addons.mozilla.org/developers/addon/api/key/>.
-2. In this GitHub repository add the Actions secrets **`AMO_JWT_ISSUER`** (the JWT
-   issuer) and **`AMO_JWT_SECRET`** (the JWT secret). Keep them out of the repository,
-   pull requests and logs.
-3. The tag workflow is the only workflow that reads them. No pull-request workflow has
-   access to a secret, so a fork cannot reach them.
+Before tagging clean, merged main, run `npm ci`, `npm run check`, `npm run package`,
+`npm run e2e:invariants`, `npm run e2e:websocket`, `npm run e2e:proxy-auth` and
+`npm run e2e:ui` on the exact commit. Wait for both required CI checks. Follow
+[the release checklist](RELEASE-CHECKLIST.md). Create and push the new immutable tag
+only after every pre-submission gate passes. Never move or reuse a rejected tag.
 
-There is no public listing URL until Mozilla accepts the first listed submission. Do not
-invent one. Update the README link in the release that first becomes public.
+## Phase 1: validate, record, submit
 
-## Release checklist
+`.github/workflows/release.yml` checks out the exact tag, runs quality/package and the
+shared four real-Firefox gates. Its submission job archives readable source with
+`git archive`, hashes every production payload file, and records provenance in a **draft**
+release. It submits with `web-ext sign --channel=listed`, API v5, `amo-metadata.json`,
+the source archive and the existing AMO secrets. A manual run repeats gates only.
 
-Run `docs/RELEASE-CHECKLIST.md` on the exact release commit before tagging. A failed
-security or correctness item blocks the release; fix it on a branch and ship a **new**
-version instead of moving the tag.
+The tool queries the exact version before submission and afterwards. An existing version
+is reused only with the matching original draft provenance. Text such as "duplicate"
+is not proof of acceptance. If a client times out after POST, the next GET establishes
+whether AMO accepted the version. Reruns do not POST an existing listed version.
 
-## Tag
+The draft contains `submission-state.json` and `net-identity-source.zip`, no user installer.
+It remains draft throughout review. If AMO refuses a new version while an earlier one
+is pending, stop there; inspect the safe status and developer review activity. Do not
+withdraw, delete or modify the earlier submission to bypass review.
 
-On a clean `main`, after `npm run check` and the local Firefox harnesses
-(`npm run e2e:invariants`, `npm run e2e:websocket`, `npm run e2e:proxy-auth`):
+## Phase 2: approval, signature verification, publication
 
-```bash
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
+`.github/workflows/amo-finalize.yml` runs hourly and supports manual dispatch on main.
+An empty tag selects the oldest pending draft. It verifies that the selected semantic tag
+is above v1.0.0 and belongs to main, then checks out that immutable commit. Submission
+and finalization share a concurrency group. Jobs never wait indefinitely for review.
 
-The tag push starts `.github/workflows/release.yml`, which:
+The tool authenticates to
+`GET /api/v5/addons/addon/net-identity@jacek4yang.github.io/versions/v<version>/`:
 
-1. checks out the tag;
-2. runs `quality` (`npm run check`, including the tag/version check) and `npm run package`;
-3. runs the `firefox` job (the same reusable real-Firefox invariants as pull-request CI);
-4. only then, in `submit`, builds the production package, archives human-readable source,
-   and submits the version to AMO with `web-ext sign --channel=listed` using
-   `amo-metadata.json` and `--upload-source-code`;
-5. in `publish`, creates or updates the GitHub Release from the tested tag.
+- Unreviewed: successful pending result, no release publication or asset changes.
+- Disabled/rejected: fail closed, no destructive operations or rewritten tag.
+- Public: require exact listed version/ID, public add-on, enabled version, valid Mozilla
+  HTTPS download URL and SHA-256. Unknown/malformed responses fail closed.
 
-A `workflow_dispatch` run repeats steps 1–3 only. It never submits and never publishes.
+`file.is_mozilla_signed_extension` identifies a **Mozilla internal certificate**, not
+ordinary AMO signing. Record it without requiring true. This distinction is documented
+in [Mozilla's API](https://mozilla.github.io/addons-server/topics/api/addons.html) and
+[Mozilla's clarification](https://github.com/mozilla/addons/issues/8822).
 
-## What the GitHub Release is
+Download only from `addons.mozilla.org` or `addons.cdn.mozilla.net` over HTTPS, checking
+every redirect (at most three), a 60-second deadline and 25 MB limit. Download requests
+contain no authentication headers. Verify AMO SHA-256, ZIP structure/CRCs, manifest version,
+stable ID, AMO update channel and exact original production payload hashes. Only signature
+files may be added. Never rebuild or mutate the downloaded XPI.
 
-It is the engineering record for the tag. `publish` runs only after `quality`, the
-`firefox` gate and the AMO `submit` job succeeded, so a failed gate or a missing AMO
-credential means no release is created. It attaches:
+Install that file permanently in a fresh **normal stable Firefox** profile with signature
+enforcement enabled. Require Firefox's signed state, matching version/ID, no custom update
+URL and a non-temporary installation. Archive this verification result in release metadata.
+Requery approval and rehash bytes before publication. Signature entry presence alone is
+never sufficient evidence of signing.
 
-- the production package that was submitted to AMO (`artifacts/*.zip`);
-- the human-readable source archive (`net-identity-source.zip`);
-- `SHA256SUMS.txt`, a `sha256sum`-compatible checksum file;
-- `release-metadata.json`, the machine-readable manifest tying the version, tag, commit,
-  extension id and artifact hashes together.
+Final public assets:
 
-Release notes list only the merged pull-request titles for that tag, with a preamble
-that points ordinary users at AMO. A rerun for an existing tag edits the release and
-replaces its assets instead of failing. The attached unsigned zip is labeled as the
-submission artifact, never as the user installer.
+- `net-identity-<version>-firefox-signed.xpi` — primary normal-user installer;
+- `net-identity-source.zip` — exact tagged source submitted for review;
+- `release-metadata.json` — tag/commit, listed AMO version/file/status, signed-XPI and
+  source hashes, Firefox signature evidence and original submission provenance;
+- `SHA256SUMS.txt` — hashes the three artifacts above (not itself).
 
-## Submission is not approval
+Draft retries verify provenance before replacing byte-identical artifacts. Public reruns
+verify artifacts without rewriting them. The final public release contains no unsigned ZIP.
+Release notes use actual merged PR titles reachable from the tag, explain the signed install
+and AMO update channel, and identify the tag/version/commit. When AMO becomes public, verify
+its canonical URL and update README via a separate docs PR; do not modify tagged source.
 
-`web-ext` returns as soon as AMO accepts the upload. Mozilla reviews listed versions
-asynchronously, so the version is submitted but not yet public. The workflow prints this
-when it succeeds. Do not describe an accepted submission as approved or as an available
-install.
+## Credentials and diagnostics
 
-Rerunning the workflow for a version AMO already has is safe: `scripts/submit-listed.mjs`
-treats a duplicate version as success and does not submit it again.
+Existing repository secrets `AMO_JWT_ISSUER` / `AMO_JWT_SECRET` are used only by trusted
+submission/finalization and the main-only read-only status workflow. PR workflows never
+receive them. Node's built-in HMAC-SHA256 creates a JWT valid for 60 seconds. API GETs use
+a fixed AMO v5 origin, reject redirects and bound response sizes. Tokens, headers and raw
+signing-client output are never logged or archived. No local or third-party signing occurs.
 
-If the AMO secrets are missing, the `submit` job fails and reports that `AMO_JWT_ISSUER`
-and `AMO_JWT_SECRET` must be configured. No version is submitted.
-
-## After a review comment
-
-Fix the code on a branch, merge it through CI, bump `package.json` and
-`public/manifest.json` together, and push a new `vX.Y.Z` tag. Do not move or reuse the
-rejected tag, and do not rebuild that version in place.
+`amo-status.yml` inspects historical v1.0.0 without mutation. For authenticated local
+administration, `node --experimental-strip-types src/release/amo-status.ts <version>`
+returns exit codes: approved 0, error 1, pending 20, rejected/disabled 30, absent 40.
+The finalization workflow translates pending review into successful no-publication behavior.

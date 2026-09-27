@@ -35,7 +35,8 @@ export function parseSemver(value: string): Semver | null {
   const major = Number(match[1]);
   const minor = Number(match[2]);
   const patch = Number(match[3]);
-  if (!Number.isInteger(major) || !Number.isInteger(minor) || !Number.isInteger(patch)) return null;
+  if (!Number.isSafeInteger(major) || !Number.isSafeInteger(minor) || !Number.isSafeInteger(patch))
+    return null;
   return { major, minor, patch };
 }
 
@@ -93,8 +94,9 @@ export interface ReleasePullRequest {
 }
 
 const RELEASE_PREAMBLE = [
-  "Ordinary Firefox users install and update this extension from addons.mozilla.org after Mozilla approves the listed submission.",
-  "The files attached here are the tested submission package, the human-readable source archive, and checksums. They are not a signed substitute for the AMO install.",
+  "Firefox users can install the Mozilla-signed XPI attached here directly. AMO is the canonical public distribution and automatic-update channel.",
+  "The XPI was downloaded from Mozilla after approval and signing, not rebuilt after tagging. The GitHub Release and AMO version refer to the same tag, version and commit recorded in release-metadata.json.",
+  "SHA256SUMS.txt covers the XPI, source archive and release metadata; the checksum file does not hash itself.",
   "",
 ].join("\n");
 

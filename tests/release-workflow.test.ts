@@ -2,68 +2,79 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const workflow = readFileSync(".github/workflows/release.yml", "utf8");
-const submit = readFileSync("scripts/submit-listed.mjs", "utf8");
+const finalize = readFileSync(".github/workflows/amo-finalize.yml", "utf8");
+const control = readFileSync("scripts/release-control.mjs", "utf8");
 const ci = readFileSync(".github/workflows/ci.yml", "utf8");
+const firefox = readFileSync(".github/workflows/firefox-invariants.yml", "utf8");
 
-describe("AMO listed publication", () => {
-  it("only runs for a version tag, never for a pull request", () => {
+describe("two-phase AMO listed publication", () => {
+  it("submits only from version tags after both complete gates", () => {
     expect(workflow).toContain('"v[0-9]+.[0-9]+.[0-9]+"');
-    expect(workflow).not.toContain("pull_request");
     expect(workflow).toContain(
       "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')",
     );
-  });
-
-  it("submits only after the quality job and the real-Firefox gate", () => {
     expect(workflow).toContain("needs: [quality, firefox]");
     expect(workflow).toContain("uses: ./.github/workflows/firefox-invariants.yml");
+    for (const command of ["npm ci", "npm run check", "npm run package"])
+      expect(workflow).toContain(command);
+    for (const command of ["e2e:invariants", "e2e:websocket", "e2e:proxy-auth", "e2e:ui"])
+      expect(firefox).toContain(command);
   });
-
-  it("reads the AMO credentials only from the tag workflow", () => {
-    expect(workflow).toContain("secrets.AMO_JWT_ISSUER");
-    expect(workflow).toContain("secrets.AMO_JWT_SECRET");
-    expect(workflow).toContain("WEB_EXT_API_KEY");
-    expect(workflow).toContain("WEB_EXT_API_SECRET");
-    // No pull-request workflow may reach an AMO secret.
-    expect(ci).not.toContain("AMO_JWT");
-    expect(ci).not.toContain("WEB_EXT_API");
+  it("phase one cannot finalize a release", () => {
+    expect(workflow).toContain("release-control.mjs submit");
+    expect(workflow).not.toContain("release-control.mjs publish");
+    expect(workflow).not.toContain("gh release create");
+    expect(control).toContain('"--draft"');
   });
-
-  it("uses least permissions and submits on the listed channel with source", () => {
-    expect(workflow).toContain("contents: read");
-    expect(submit).toContain("--channel=listed");
-    expect(submit).toContain("--amo-metadata");
-    expect(submit).toContain("--upload-source-code");
-    expect(submit).toContain("--approval-timeout");
+  it("uses API v5 listed submission with metadata and exact source", () => {
+    for (const text of [
+      "https://addons.mozilla.org/api/v5/",
+      "--channel=listed",
+      "--amo-metadata",
+      "--upload-source-code",
+      "--approval-timeout",
+    ])
+      expect(control).toContain(text);
+    expect(control).not.toMatch(/api\/v[34]\//);
   });
-
-  it("publishes a GitHub Release only after checks, the browser gate and AMO submission", () => {
-    expect(workflow).toContain("needs: [quality, firefox, submit]");
-    // Writing releases is scoped to the publish job; the workflow default stays read.
-    expect(workflow).toContain("contents: read");
-    expect(workflow).toMatch(/publish:[\s\S]*contents: write/);
+  it("never grants AMO secrets to pull requests", () => {
+    expect(ci).not.toMatch(/AMO_JWT|WEB_EXT_API/);
+    expect(firefox).not.toMatch(/AMO_JWT|WEB_EXT_API/);
+    expect(finalize).toContain("if: github.ref == 'refs/heads/main'");
+    expect(workflow).not.toContain("pull_request");
+    expect(finalize).not.toContain("pull_request");
   });
-
-  it("attaches the package, source, checksums and machine-readable metadata", () => {
-    expect(workflow).toContain("write-metadata.ts");
-    expect(workflow).toContain("write-notes.ts");
-    expect(workflow).toContain("SHA256SUMS.txt");
-    expect(workflow).toContain("release-metadata.json");
-    expect(workflow).toContain("--notes-file release.md");
+  it("polls hourly and on dispatch without holding a review-waiting job", () => {
+    expect(finalize).toContain('cron: "23 * * * *"');
+    expect(finalize).toContain("workflow_dispatch:");
+    expect(finalize).toContain("timeout-minutes: 15");
+    expect(finalize).toContain("steps.prepare.outputs.approved == 'true'");
   });
-
-  it("makes a rerun for an existing tag safe", () => {
-    expect(workflow).toMatch(/gh release create/);
-    expect(workflow).toMatch(/gh release upload[\s\S]*--clobber/);
-    expect(workflow).toMatch(/gh release edit/);
+  it("serializes submission and finalization and checks an immutable tag", () => {
+    expect(workflow).toContain("group: amo-distribution");
+    expect(finalize).toContain("group: amo-distribution");
+    expect(finalize).toContain("ref: ${{ steps.select.outputs.commit }}");
+    expect(control).toContain('"--is-ancestor"');
+    expect(control).toContain("HISTORICAL_COMMIT");
   });
-
-  it("never prints credential material", () => {
-    expect(submit).not.toMatch(/console\.(log|error)\([^)]*(API_KEY|API_SECRET)/);
+  it("finalizes only after normal Firefox signature verification", () => {
+    expect(finalize.indexOf("verify-firefox-signature.mjs")).toBeLessThan(
+      finalize.indexOf("release-control.mjs publish"),
+    );
+    expect(control).toContain("distributionMetadata(submission, state");
+    expect(control).toContain("verifySignedPayload(bytes, version, submission.payload)");
+    expect(control).toContain("SHA256SUMS.txt");
+    expect(control).toContain("release-metadata.json");
   });
-
-  it("treats a duplicate version as success so a rerun is idempotent", () => {
-    expect(submit).toMatch(/already exists/i);
-    expect(submit).toContain("process.exit(0)");
+  it("does not expose raw signing-client output or duplicate-message heuristics", () => {
+    expect(control).not.toMatch(/console\.(log|error)\([^)]*(stdout|stderr|API_KEY|API_SECRET)/);
+    expect(control).not.toContain("/already exists");
+    expect(control).toContain("ensureSubmission");
+  });
+  it("reruns verify public artifacts without modifying historical releases", () => {
+    expect(control).toContain("Existing signed release verified without changes");
+    expect(control).toContain("sameSubmission(submission, fresh)");
+    expect(control).not.toContain('"--force"');
+    expect(control).not.toContain('"tag", "-f"');
   });
 });

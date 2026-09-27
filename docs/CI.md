@@ -66,3 +66,8 @@ npm run e2e:ui -- --firefox "<path to Firefox>"
 
 A missing Firefox binary exits with code `2` and an `INCONCLUSIVE` message; it is never
 reported as a pass.
+
+The Firefox gate also permanently attempts an unsigned fixture installation with normal
+Firefox signature enforcement and requires rejection. This tests the release verifier's
+negative path; finalization tests the actual AMO-signed file. Release submission and
+approval/signature finalization are separate workflows; see [RELEASING.md](RELEASING.md).

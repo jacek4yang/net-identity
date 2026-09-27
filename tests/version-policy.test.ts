@@ -55,10 +55,10 @@ describe("release version policy", () => {
     expect(() => formatReleaseNotes([{ number: 1, title: "" }])).toThrow(/title/);
   });
 
-  it("points the GitHub Release at AMO rather than the unsigned package", () => {
+  it("describes the signed installer and canonical AMO update channel", () => {
     const body = formatGithubReleaseBody([{ number: 44, title: "feat: check versions" }]);
-    expect(body).toContain("addons.mozilla.org");
-    expect(body).toContain("not a signed substitute");
+    expect(body).toContain("canonical public distribution and automatic-update channel");
+    expect(body).toContain("Mozilla-signed XPI");
     expect(body).toContain("#44 feat: check versions");
   });
 });

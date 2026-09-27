@@ -1,7 +1,7 @@
 # Release-candidate checklist
 
-This is the mandatory v1 smoke test. Run it on the exact release candidate, in a clean
-**normal Firefox** profile (not only Developer Edition), before a stable tag. Record the
+This checklist separates pre-submission validation from post-approval installation. Run it on the exact release candidate, in a clean
+**normal Firefox** profile (not only Developer Edition), before a stable tag where possible; signed installation is verified after AMO approval. Record the
 result in the GitHub Release notes for that version. A failed security or correctness
 item blocks the stable release.
 
@@ -28,7 +28,7 @@ a signed build, a real proxy or a second Firefox version.
 
 ## 2. Profiles
 
-- [ ] Create a **Browser Default** profile.
+- [ ] Activate the reserved virtual **Direct** route without optional GeoIP consent; no lookup occurs.
 - [ ] Create an **authenticated HTTP proxy** profile (use `scripts/dev-proxy.mjs
 --require-auth user:pass` or a real proxy) and activate it.
 - [ ] Create a **manual-location** profile with a chosen point, timezone and accuracy.
@@ -39,7 +39,7 @@ a signed build, a real proxy or a second Firefox version.
 - [ ] `ws` and `wss` follow the active proxy; a loopback WebSocket stays direct.
 - [ ] The proxy password is absent from `storage.local`, from every page context and from
       the browser console. (`about:debugging` → inspect → storage.)
-- [ ] Deactivate: routing returns to direct and a real egress lookup matches.
+- [ ] Off releases routing, WebRTC and synthetic identity without making a lookup.
 
 ## 4. Identity correctness
 
@@ -57,9 +57,9 @@ a signed build, a real proxy or a second Firefox version.
 
 - [ ] Open the Options map and **click/select** a location. The centre pin and the
       latitude/longitude fields stay on the same point.
-- [ ] Drag and zoom; the fields follow. Type a latitude/longitude and confirm the map
-      recentres.
-- [ ] Save and activate. A page's geolocation matches the selected point and the page
+- [ ] Pan and zoom without changing the selected coordinates; drag the marker to change
+      selection. Type coordinates and confirm the marker and viewport update.
+- [ ] Save without changing runtime, then Apply the saved revision. A page's geolocation matches the selected point and the page
       timezone matches the chosen zone.
 - [ ] Use offline mode (there is no external tile provider) and repeat the click and the typed
       coordinates. Both still update the fields and can be saved.
@@ -91,3 +91,15 @@ a signed build, a real proxy or a second Firefox version.
 
 A failed item is fixed on a branch, merged through CI, and shipped as a **new** version
 and tag. Never move or reuse a rejected tag.
+
+## Distribution gates
+
+Before tag: `npm ci`, `npm run check`, `npm run package` and all four Firefox E2Es
+(invariants, websocket, proxy-auth, ui), plus green required CI on exact merged main.
+Do not require a signed artifact before submitting its new version for signing.
+
+After approval: verify exact AMO public version/channel, unchanged downloaded XPI hash,
+manifest ID/version, production payload and normal Firefox permanent signature-enforcing
+installation. Only then finalize the public GitHub Release. Pending review is an external
+blocker, never a successful user release. Verify canonical AMO URL and default update
+channel, then update README in a separate documentation PR if needed.

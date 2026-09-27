@@ -177,3 +177,13 @@ Deleting an active profile deactivates it. Off releases WebRTC and synthetic ide
 Direct switches without optional GeoIP permission; without consent it commits an empty,
 controlled identity. Firefox/system routing still applies. No lookup occurs merely
 because Direct exists. No version or release tag is changed by this overhaul.
+
+## Firefox distribution pipeline
+
+New tags use a two-phase release: validated listed AMO submission creates only a draft;
+hourly/manual finalization publishes only after public approval, AMO hash/payload checks
+and permanent signature-enforcing normal Firefox installation. The primary asset is the
+unchanged Mozilla-signed XPI. AMO API v5 credentials are restricted to trusted tag/main
+workflows, never PRs. Preserve immutable v1.0.0 and all historical assets. The API's
+is_mozilla_signed_extension field denotes an internal Mozilla certificate, not ordinary
+AMO signing. See docs/RELEASING.md for provenance, rerun and failure rules.
