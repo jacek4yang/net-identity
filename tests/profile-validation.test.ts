@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_BYPASS_HOSTS } from "../src/shared/constants";
 import { parseCredentials, parseProfile, parseProfileState } from "../src/profile/validation";
-import { createProfile } from "../src/profile/schema";
+import { createProfile, SCHEMA_VERSION } from "../src/profile/schema";
 import { makeProfile } from "./helpers";
 
 describe("parseProfile", () => {
@@ -242,8 +242,9 @@ describe("parseProfileState", () => {
   it("keeps valid profiles, drops invalid ones and de-duplicates ids", () => {
     const profile = makeProfile({ id: "profile-0030" });
     const parsed = parseProfileState({
-      schemaVersion: 2,
+      schemaVersion: SCHEMA_VERSION,
       activeProfileId: "profile-0030",
+      appliedSelection: { kind: "profile", profile },
       profiles: [profile, { ...profile, name: "duplicate id" }, { id: "broken" }],
     });
 
@@ -255,8 +256,9 @@ describe("parseProfileState", () => {
 
   it("clears an active pointer that does not resolve", () => {
     const parsed = parseProfileState({
-      schemaVersion: 2,
+      schemaVersion: SCHEMA_VERSION,
       activeProfileId: "profile-9999",
+      appliedSelection: null,
       profiles: [makeProfile({ id: "profile-0031" })],
     });
     expect(parsed.ok && parsed.value.activeProfileId).toBeNull();

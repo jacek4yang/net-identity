@@ -16,6 +16,10 @@ import { parseAuditReport, type AuditReport } from "./audit";
 import type { ProxyType, WebRTCPolicy } from "../profile/schema";
 
 export type RuntimeStatus = "idle" | "activating" | "resolving" | "ready" | "error";
+export type DesiredRoute = "off" | "direct" | "proxy" | "unknown";
+export type AppliedRoute = "restoring" | "off" | "direct" | "proxy" | "blocked";
+export type RuntimeHealth =
+  "healthy" | "degraded" | "unavailable" | "credentials_required" | "error";
 
 export const RUNTIME_STATUSES: readonly RuntimeStatus[] = [
   "idle",
@@ -111,6 +115,9 @@ export interface RuntimeErrorInfo {
 
 export interface RuntimeState {
   status: RuntimeStatus;
+  desiredRoute: DesiredRoute;
+  appliedRoute: AppliedRoute;
+  runtimeHealth: RuntimeHealth;
   generation: number;
   activeProfileId: string | null;
   activeProfileName: string | null;
@@ -128,6 +135,9 @@ export interface RuntimeState {
 export function createInitialRuntimeState(now: number): RuntimeState {
   return {
     status: "idle",
+    desiredRoute: "unknown",
+    appliedRoute: "restoring",
+    runtimeHealth: "degraded",
     generation: 0,
     activeProfileId: null,
     activeProfileName: null,
@@ -149,6 +159,9 @@ export function createInitialRuntimeState(now: number): RuntimeState {
 
 export interface RuntimeStateInput {
   status: RuntimeStatus;
+  desiredRoute: DesiredRoute;
+  appliedRoute: AppliedRoute;
+  runtimeHealth: RuntimeHealth;
   generation: number;
   activeProfileId: string | null;
   activeProfileName: string | null;
@@ -166,6 +179,9 @@ export interface RuntimeStateInput {
 export function createRuntimeState(input: RuntimeStateInput): RuntimeState {
   return {
     status: input.status,
+    desiredRoute: input.desiredRoute,
+    appliedRoute: input.appliedRoute,
+    runtimeHealth: input.runtimeHealth,
     generation: input.generation,
     activeProfileId: input.activeProfileId,
     activeProfileName: input.activeProfileName,
@@ -345,6 +361,16 @@ function parseContentState(value: unknown): Result<ContentRuntimeState> {
 
 export function parseRuntimeState(value: unknown): Result<RuntimeState> {
   if (!isPlainObject(value)) return fail("runtime state must be an object");
+  if (!["off", "direct", "proxy", "unknown"].includes(String(value.desiredRoute)))
+    return fail("desired route is invalid");
+  if (!["restoring", "off", "direct", "proxy", "blocked"].includes(String(value.appliedRoute)))
+    return fail("applied route is invalid");
+  if (
+    !["healthy", "degraded", "unavailable", "credentials_required", "error"].includes(
+      String(value.runtimeHealth),
+    )
+  )
+    return fail("runtime health is invalid");
   if (
     typeof value.status !== "string" ||
     !(RUNTIME_STATUSES as readonly string[]).includes(value.status)
@@ -386,6 +412,9 @@ export function parseRuntimeState(value: unknown): Result<RuntimeState> {
   return ok(
     createRuntimeState({
       status: value.status as RuntimeStatus,
+      desiredRoute: value.desiredRoute as DesiredRoute,
+      appliedRoute: value.appliedRoute as AppliedRoute,
+      runtimeHealth: value.runtimeHealth as RuntimeHealth,
       generation: value.generation,
       activeProfileId,
       activeProfileName,

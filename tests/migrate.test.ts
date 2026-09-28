@@ -22,6 +22,72 @@ function version1Document(
 }
 
 describe("profile schema migration", () => {
+  it("migrates a v2 active proxy into a credential-free applied route", () => {
+    const profile = makeProfile({ id: "v2-proxy-route" });
+    const result = migrateStoredProfileState({
+      schemaVersion: 2,
+      activeProfileId: profile.id,
+      profiles: [profile],
+    });
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.state.appliedSelection).toMatchObject({
+      kind: "profile",
+      profile: { id: profile.id, proxy: profile.proxy },
+    });
+    expect(JSON.stringify(durableProfileState(result.state))).not.toContain("password");
+  });
+  it("blocks an ambiguous v2 active user Direct profile after migration", async () => {
+    const profile = makeProfile({
+      id: "ambiguous-direct",
+      proxy: {
+        type: "direct",
+        proxyDNS: false,
+        bypassHosts: [],
+      },
+    });
+    const localArea = createMemoryStorage({
+      [STORAGE_KEY]: {
+        schemaVersion: 2,
+        activeProfileId: profile.id,
+        profiles: [profile],
+      },
+    });
+    const fresh = createHarness({ localArea });
+    expect(await fresh.controller.shouldBlockRequest("https://example.invalid/")).toBe(true);
+    const state = await fresh.controller.initialize();
+    expect(state.activeProfileId).toBe(profile.id);
+    expect(state.appliedRoute).toBe("blocked");
+    expect(state.lastError?.code).toBe("routing_unresolved");
+  });
+  it("holds a v3 active document without a valid applied route byte-for-byte", async () => {
+    const profile = makeProfile({ id: "broken-applied" });
+    const area = createMemoryStorage({
+      [STORAGE_KEY]: {
+        schemaVersion: SCHEMA_VERSION,
+        activeProfileId: profile.id,
+        appliedSelection: {
+          kind: "profile",
+          profile: {
+            ...profile,
+            proxy: {
+              type: "http",
+              host: "",
+              port: 0,
+              proxyDNS: false,
+              bypassHosts: [],
+            },
+          },
+        },
+        profiles: [profile],
+      },
+    });
+    const before = area.serialized();
+    const h = createHarness({ localArea: area });
+    expect(await h.controller.shouldBlockRequest("https://example.invalid/")).toBe(true);
+    expect((await h.controller.initialize()).lastError?.code).toBe("schema_unsupported");
+    expect(area.serialized()).toBe(before);
+  });
   it("preserves version-1 manual choices and makes policy defaults explicit", () => {
     const profile = makeProfile({
       id: "migrate-manual",
@@ -164,7 +230,7 @@ describe("profile schema migration", () => {
     const held = createHarness({ localArea: futureArea });
     const idle = await held.controller.initialize();
 
-    expect(idle.status).toBe("idle");
+    expect(idle.status).toBe("error");
     expect(idle.activeProfileId).toBeNull();
     expect(idle.lastError?.code).toBe("schema_unsupported");
     expect(held.controller.getTarget()).toBeNull();
@@ -191,7 +257,7 @@ describe("profile schema migration", () => {
     const harness = createHarness({ localArea: area });
     const state = await harness.controller.initialize();
 
-    expect(state.status).toBe("idle");
+    expect(state.status).toBe("error");
     expect(state.activeProfileId).toBeNull();
     expect(state.proxy.configured).toBe(false);
     expect(harness.controller.getTarget()).toBeNull();

@@ -143,6 +143,7 @@ export function upsertProfile(state: ProfileState, profile: IdentityProfile): Re
     value: ensureBuiltinDirect({
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: state.activeProfileId,
+      appliedSelection: state.appliedSelection,
       profiles,
     }),
   };
@@ -155,6 +156,7 @@ export function removeProfile(state: ProfileState, profileId: string): ProfileSt
   return ensureBuiltinDirect({
     schemaVersion: SCHEMA_VERSION,
     activeProfileId: state.activeProfileId === profileId ? null : state.activeProfileId,
+    appliedSelection: state.activeProfileId === profileId ? null : state.appliedSelection,
     profiles: state.profiles.filter((profile) => profile.id !== profileId),
   });
 }
@@ -162,13 +164,29 @@ export function removeProfile(state: ProfileState, profileId: string): ProfileSt
 export function setActiveProfile(
   state: ProfileState,
   profileId: string | null,
+  appliedProfile?: IdentityProfile,
 ): Result<ProfileState> {
-  if (profileId !== null && findProfile(state, profileId) === null) {
+  const found = findProfile(state, profileId);
+  if (profileId !== null && found === null) {
     return { ok: false, errors: ["profile not found"] };
   }
+  if (appliedProfile !== undefined && appliedProfile.id !== profileId)
+    return { ok: false, errors: ["applied profile mismatch"] };
   return {
     ok: true,
-    value: { schemaVersion: SCHEMA_VERSION, activeProfileId: profileId, profiles: state.profiles },
+    value: {
+      schemaVersion: SCHEMA_VERSION,
+      activeProfileId: profileId,
+      appliedSelection:
+        profileId === null
+          ? null
+          : isBuiltinDirectProfile(profileId)
+            ? { kind: "builtin-direct" }
+            : found === null
+              ? { kind: "unresolved", profileId }
+              : { kind: "profile", profile: structuredClone(appliedProfile ?? found) },
+      profiles: state.profiles,
+    },
   };
 }
 

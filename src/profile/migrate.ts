@@ -17,10 +17,11 @@ import {
   ensureBuiltinDirect,
   durableProfileState,
   isBuiltinDirectProfile,
+  type AppliedSelection,
   type IdentityProfile,
   type ProfileState,
 } from "./schema";
-import { parseProfile } from "./validation";
+import { parseAppliedSelection, parseProfile } from "./validation";
 
 export type MigrationHoldReason = "future-schema" | "unsafe-profile";
 
@@ -41,11 +42,17 @@ export function migrateStoredProfileState(raw: unknown): MigrationResult {
   if (raw === undefined)
     return { status: "ready", state: structuredClone(EMPTY_PROFILE_STATE), persist: false };
   if (!isPlainObject(raw)) {
-    return { status: "ready", state: structuredClone(EMPTY_PROFILE_STATE), persist: false };
+    return { status: "hold", reason: "unsafe-profile", schemaVersion: null };
   }
 
   const version = raw.schemaVersion;
-  if (version === undefined || version === 0 || version === 1 || version === SCHEMA_VERSION)
+  if (
+    version === undefined ||
+    version === 0 ||
+    version === 1 ||
+    version === 2 ||
+    version === SCHEMA_VERSION
+  )
     return migrateSupportedDocument(raw);
   if (typeof version === "number" && Number.isInteger(version) && version > SCHEMA_VERSION) {
     return { status: "hold", reason: "future-schema", schemaVersion: version };
@@ -88,15 +95,35 @@ function migrateSupportedDocument(raw: Record<string, unknown>): MigrationResult
   } else if (typeof raw.activeProfileId !== "string") {
     return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
   } else {
-    activeProfileId =
-      seen.has(raw.activeProfileId) || isBuiltinDirectProfile(raw.activeProfileId)
-        ? raw.activeProfileId
-        : null;
+    if (!seen.has(raw.activeProfileId) && !isBuiltinDirectProfile(raw.activeProfileId)) {
+      return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
+    }
+    activeProfileId = raw.activeProfileId;
+  }
+
+  let appliedSelection: AppliedSelection | null;
+  if (version === SCHEMA_VERSION) {
+    const parsed = parseAppliedSelection(stripSecretsDeep(raw.appliedSelection), activeProfileId);
+    if (!parsed.ok) return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
+    appliedSelection = parsed.value;
+  } else if (activeProfileId === null) appliedSelection = null;
+  else if (isBuiltinDirectProfile(activeProfileId)) appliedSelection = { kind: "builtin-direct" };
+  else {
+    const profile = profiles.find((candidate) => candidate.id === activeProfileId);
+    if (profile === undefined)
+      return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
+    // In v1/v2, an active user profile saved as Direct might still have a
+    // previously applied proxy. That distinction was not stored. Block it.
+    appliedSelection =
+      profile.proxy.type === "direct"
+        ? { kind: "unresolved", profileId: activeProfileId }
+        : { kind: "profile", profile };
   }
 
   const state: ProfileState = ensureBuiltinDirect({
     schemaVersion: SCHEMA_VERSION,
     activeProfileId,
+    appliedSelection,
     profiles,
   });
   return {

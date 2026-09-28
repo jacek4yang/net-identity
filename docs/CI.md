@@ -15,8 +15,11 @@ run the same checks.
 
 ## What the Firefox job runs
 
-The job installs a supported stable desktop Firefox from Mozilla's APT repository and
-runs four deterministic harnesses:
+The job installs stable Firefox and Developer Edition from Mozilla's APT repository.
+The existing browser checks run on stable Firefox. Persistent-profile restart checks
+run on Developer Edition so the exact unsigned candidate can be preinstalled before
+startup; the release finalizer separately verifies the Mozilla-signed XPI in normal
+stable Firefox.
 
 - `npm run e2e:invariants` – fail-closed controlled geolocation, `Date`/`Intl`
   timezone consistency, supported frames, and WebRTC apply/restore.
@@ -33,6 +36,15 @@ without contacting a public provider. It runs in the required Firefox gate along
 `npm run e2e:ui`, which drives popup routes, Save/Apply and real pointer/wheel map
 interactions, including Firefox offline mode. `npm run e2e` remains outside CI because
 it requires the public GeoIP provider.
+
+`e2e:fail-closed`, `e2e:restart` and `e2e:socks-auth` use a local SOCKS5 server,
+a recording origin and an alternate Firefox system proxy. They assert zero
+connections to that origin while the selected SOCKS server is down, including
+HTTP/HTTPS/WS/WSS, a synthetic DNS name, event-page teardown and a full browser
+restart. The restart harness preinstalls the extension in a retained profile so a
+startup navigation races restoration. The auth variant verifies that a lost
+session password leaves Proxy A selected and blocked until credentials are entered
+again. Recovery uses the same proxy endpoint.
 
 On failure the job uploads `firefox-*.log`. The logs contain loopback ports and the
 bundled test proxy's throwaway `user:pass`; no repository secret is used by this job.
@@ -62,6 +74,9 @@ npm run e2e:invariants -- --firefox "<path to Firefox>"
 npm run e2e:websocket -- --firefox "<path to Firefox>"
 npm run e2e:proxy-auth -- --firefox "<path to Firefox>"
 npm run e2e:ui -- --firefox "<path to Firefox>"
+npm run e2e:fail-closed -- --firefox "<path to Firefox Developer Edition>"
+npm run e2e:restart -- --firefox "<path to Firefox Developer Edition>"
+npm run e2e:socks-auth -- --firefox "<path to Firefox Developer Edition>"
 ```
 
 A missing Firefox binary exits with code `2` and an `INCONCLUSIVE` message; it is never

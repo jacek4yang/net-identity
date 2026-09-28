@@ -41,12 +41,20 @@ Two mechanisms prevent that:
 1. **Session snapshot** (`src/background/active-target.ts`) — after routing changes, the
    active target (including the session password) is written to `storage.session`. It is
    written _before_ the network lookup so a crash or suspension mid-activation is safe.
-2. **Async fallback** — `ActivationController.decideProxyForRequest()` returns the
-   in-memory decision synchronously when it can, and otherwise returns a Promise that
-   first restores the snapshot. Firefox explicitly allows `proxy.onRequest` to return a
-   Promise, which is what makes this possible. A restore that finds no usable snapshot
-   is remembered, so later requests while nothing is active do not read
-   `storage.session` again. Activation and deactivation clear that memory.
+2. **Durable routing barrier** — `ActivationController.decideProxyForRequest()` returns
+   the in-memory decision synchronously when available. Otherwise a single-flight
+   local-storage read resolves the committed profile before the request proceeds. A
+   valid session snapshot supplies the applied revision and credentials, but an empty
+   session area still yields the durable proxy configuration. No GeoIP or WebRTC work
+   is on this path. Unsafe or unreadable durable state is canceled by a blocking
+   `webRequest.onBeforeRequest` listener.
+
+For a proxied decision, `proxy.onRequest` returns `[selectedProxy, null]`.
+Firefox appends its own proxy settings as failover to a single proxy result;
+the terminal null prevents an unavailable profile from falling through to
+Firefox/system routing. A one-second failover timeout makes failure visible
+quickly. The local Firefox harness sets the system proxy to a recording endpoint
+and verifies zero fallback requests during SOCKS outage and restart.
 
 `storage.session` is cleared when Firefox exits, so a fresh browser session always
 performs a full activation and re-resolves the identity from the observed egress IP.
@@ -142,12 +150,12 @@ expect. This is verified in real Firefox by `npm run e2e`.
 ## Profile schema migration
 
 `ni.state.v1` in `storage.local` is the only durable profile document. `src/profile/migrate.ts`
-reads it. Version 1 migrates to schema 2 in place: unknown keys are dropped, and `password`,
+reads it. Versions 1 and 2 migrate to schema 3 in place: unknown keys are dropped, and `password`,
 `credentials` and `proxyPassword` are never copied into the result. The same function is
 idempotent. A newer integer `schemaVersion` is not opened and not replaced. A version-1
 document that fails validation, repeats an id, or exceeds the profile limit is not
 replaced either, so a missing proxy host cannot be saved back as `direct`. In those held
-cases the background stays idle and publishes `schema_unsupported`. The session snapshot
+cases the background blocks traffic and publishes `schema_unsupported`. The session snapshot
 stays in `storage.session` and is not migrated into the local document.
 
 ## Options location map
@@ -198,14 +206,17 @@ Closed tabs are removed. The log keeps at most 64 frames.
 - The provider interface is intentionally narrow (IP + location + timezone) so replacing
   it cannot ripple through the activation logic.
 
-## Post-v1 profile configuration (schema 2)
+## Post-v1 profile configuration (schema 3)
 
 Diagnostic and error composition takes identity only from the current routing
 generation. An error during teardown cannot attach the previous coordinates to an
 empty route or release native geolocation before a successful idle commit.
 
-The durable `ni.state.v1` document now has `schemaVersion: 2`. The key stays stable
-so version-1 documents migrate in place. Migration validates every profile, preserves
+The durable `ni.state.v1` document now has `schemaVersion: 3`. The key stays stable
+so version-1 and version-2 documents migrate in place. The applied route is recorded
+separately from mutable saved profiles, without credentials; cold routing uses it before
+GeoIP or UI startup. An ambiguous older active user Direct profile is blocked until an
+explicit route selection. Migration validates every profile, preserves
 routing and explicit WebRTC choices, strips secret keys and leaves unsupported or
 unsafe documents unchanged. The reserved `builtin-direct` route is projected in the
 domain/UI and is never a persisted user profile. Existing legitimate built-in Direct

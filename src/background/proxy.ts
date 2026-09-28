@@ -17,7 +17,6 @@
  *
  * Nothing here is async and no credentials are ever logged.
  */
-import { DEFAULT_BYPASS_HOSTS } from "../shared/constants";
 import { normalizeHost, shouldBypassHost } from "../shared/primitives";
 import {
   isProxied,
@@ -133,8 +132,9 @@ export function parseRequestUrl(url: string): ParsedRequestUrl | null {
 
 /**
  * Decides the proxy for one request. Pure, synchronous and side effect free.
- * Without an active target everything is direct, which is also what happens while
- * a profile is being activated.
+ * A null target yields a direct ProxyInfo here. The controller's blocking
+ * webRequest gate must cancel external requests whenever durable intent is
+ * unknown or requires a proxy that cannot be reconstructed.
  */
 export function decideProxy(
   target: ActiveProxyTarget | null,
@@ -144,12 +144,27 @@ export function decideProxy(
   const parsed = parseRequestUrl(url);
   if (parsed === null) return { type: "direct" };
 
-  const bypassEntries = [...DEFAULT_BYPASS_HOSTS, ...target.proxy.bypassHosts];
+  const bypassEntries = target.proxy.bypassHosts;
   // The GeoIP endpoint is deliberately never bypassed: it must observe the proxy
   // egress address for the identity to be real.
-  if (shouldBypassHost(parsed.hostname, bypassEntries)) return { type: "direct" };
+  if (parsed.hostname !== "ipwho.is" && shouldBypassHost(parsed.hostname, bypassEntries))
+    return { type: "direct" };
 
   return buildProxyInfo(target.proxy, target.credentials);
+}
+
+/**
+ * Firefox appends its current system proxy as the default failover when a
+ * listener returns a single ProxyInfo. A terminal null in the returned list
+ * removes that fallback: failure of this proxy must fail the request.
+ */
+export function decideFailClosedProxy(
+  target: ActiveProxyTarget | null,
+  url: string,
+): browser.proxy.ProxyInfo | Array<browser.proxy.ProxyInfo | null> {
+  const info = decideProxy(target, url);
+  if (info.type === "direct") return info;
+  return [{ ...info, failoverTimeout: 1 }, null];
 }
 
 export interface ProxyAuthChallenge {

@@ -8,8 +8,7 @@
  * unchecked casts.
  *
  * These are only the fields net-identity actually produces. Firefox additionally
- * accepts `failoverTimeout`, `connectionIsolationKey` and, on newer builds, the
- * `masque` proxy type; add them here if support is implemented.
+ * accepts `connectionIsolationKey` and, on newer builds, the `masque` proxy type.
  *
  * Remove this file once the upstream types include `ProxyInfo`.
  */
@@ -24,10 +23,11 @@ declare namespace browser.proxy {
     password?: string;
     /** SOCKS and SOCKS4 only. */
     proxyDNS?: boolean;
+    failoverTimeout?: number;
     /** Preemptive `Proxy-Authorization` value (HTTP/HTTPS proxies). */
     proxyAuthorizationHeader?: string;
   }
 
   /** What a `proxy.onRequest` listener may return. */
-  type ProxyOnRequestResult = ProxyInfo | ProxyInfo[] | null;
+  type ProxyOnRequestResult = ProxyInfo | Array<ProxyInfo | null> | null;
 }

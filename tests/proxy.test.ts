@@ -170,7 +170,9 @@ describe("decideProxy", () => {
   });
 
   it("bypasses loopback and configured hosts", () => {
-    const active = target({ bypassHosts: ["example.org", "10.0.0.0/8"] });
+    const active = target({
+      bypassHosts: ["localhost", "127.0.0.1", "::1", "example.org", "10.0.0.0/8"],
+    });
     expect(decideProxy(active, "http://localhost:3000/")).toEqual({ type: "direct" });
     expect(decideProxy(active, "http://127.0.0.1/")).toEqual({ type: "direct" });
     expect(decideProxy(active, "https://www.example.org/")).toEqual({ type: "direct" });
@@ -184,7 +186,9 @@ describe("decideProxy", () => {
   });
 
   it("routes WebSocket traffic through the same proxy and bypass rules", () => {
-    const active = target({ bypassHosts: ["example.org", "10.0.0.0/8"] });
+    const active = target({
+      bypassHosts: ["localhost", "127.0.0.1", "::1", "example.org", "10.0.0.0/8"],
+    });
     const routed = decideProxy(active, "wss://example.com/socket");
     expect(routed.type).toBe("http");
     expect(routed.host).toBe("proxy.example.com");
@@ -199,6 +203,10 @@ describe("decideProxy", () => {
       type: "http",
       host: "proxy.example.com",
     });
+  });
+
+  it("does not invent a localhost bypass when the profile omits it", () => {
+    expect(decideProxy(target({ bypassHosts: [] }), "http://127.0.0.1/").type).toBe("http");
   });
 
   it("leaves non-network schemes direct even while a proxy is active", () => {

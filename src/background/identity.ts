@@ -16,8 +16,9 @@
  *     newer profile.
  *   - Activation never throws at the caller: failures become a precise state and
  *     audit entry instead.
- *   - The session snapshot is written as soon as routing changes, so a suspended
- *     background page can never silently fall back to a direct connection.
+ *   - The non-secret applied route is committed durably. A session snapshot
+ *     restores credentials and identity while Firefox stays open; after a full
+ *     exit, the durable route still prevents silent direct fallback.
  *
  * All collaborators are injected, so the whole lifecycle is unit testable without
  * Firefox.
@@ -55,6 +56,7 @@ import {
   isBuiltinDirectProfile,
   defaultWebRtcPolicyFor,
   isProxied,
+  type AppliedSelection,
   type IdentityProfile,
 } from "../profile/schema";
 import {
@@ -73,7 +75,9 @@ import {
 import type { CredentialStore } from "./credentials";
 import {
   decideProxy,
+  decideFailClosedProxy,
   decideProxyAuth,
+  parseRequestUrl,
   type ActiveProxyTarget,
   type FirefoxProxySettingsSnapshot,
   type ProxyAuthChallenge,
@@ -129,26 +133,37 @@ function identityConfigFrom(identity: ResolvedIdentity): IdentityProfile["identi
   };
 }
 
+/** Session data may be stale after an interrupted Apply; durable intent wins. */
+function snapshotMatchesApplied(
+  snapshot: ActiveTargetSnapshot | null,
+  selection: AppliedSelection | null,
+): snapshot is ActiveTargetSnapshot {
+  if (snapshot === null || selection === null || selection.kind === "unresolved") return false;
+  if (selection.kind === "builtin-direct")
+    return isBuiltinDirectProfile(snapshot.profileId) && snapshot.proxy.type === "direct";
+  return (
+    snapshot.profileId === selection.profile.id &&
+    snapshot.appliedRevision === selection.profile.revision &&
+    JSON.stringify(snapshot.proxy) === JSON.stringify(selection.profile.proxy)
+  );
+}
+
 export class ActivationController {
   private readonly deps: ActivationDeps;
   private generation = 0;
   private target: ActiveProxyTarget | null = null;
   private appliedProfile: IdentityProfile | null = null;
+  /** Display-only selection when an older document cannot prove its applied route. */
+  private blockedProfile: IdentityProfile | null = null;
   private state: RuntimeState;
   private content: ContentRuntimeState = { ...EMPTY_CONTENT_STATE };
   private diagnostics: ContentDiagnostic[] = [];
   private activeTabId: number | null = null;
   private abortController: AbortController | null = null;
-  private pendingTargetLoad: Promise<ActiveProxyTarget | null> | null = null;
-  /**
-   * `absent` means a restore already found no usable snapshot. Further requests
-   * answer from that memory until activation or deactivation changes it.
-   */
-  private snapshotRestore: "unknown" | "absent" = "unknown";
-
-  private snapshotWasCleared(): boolean {
-    return this.snapshotRestore === "absent";
-  }
+  private routingIntent: "off" | "direct" | "proxy" | "blocked" | null = null;
+  private pendingRoutingIntent: Promise<void> | null = null;
+  private networkHealthEpoch = 0;
+  private networkUnavailable = false;
   /**
    * False until the first committed startup result. Content scripts that ask
    * before then are told geolocation is controlled, so a restoring profile
@@ -213,48 +228,90 @@ export class ActivationController {
    * Proxy decision for one request.
    *
    * Synchronous when the target is already in memory. If the background event page
-   * was suspended and restarted, the session snapshot is loaded first: answering
-   * "direct" during that window would silently send traffic outside the proxy.
+   * was suspended or Firefox fully restarted, durable applied intent is loaded
+   * before answering. An unsafe route is canceled by shouldBlockRequest().
    */
-  decideProxyForRequest(url: string): browser.proxy.ProxyInfo | Promise<browser.proxy.ProxyInfo> {
-    if (this.target !== null) return decideProxy(this.target, url);
-    if (this.snapshotRestore === "absent") return decideProxy(null, url);
-    if (this.pendingTargetLoad === null) {
-      this.pendingTargetLoad = this.loadTargetFromSnapshot().finally(() => {
-        this.pendingTargetLoad = null;
-      });
-    }
-    return this.pendingTargetLoad.then((target) => decideProxy(this.target ?? target, url));
+  decideProxyForRequest(
+    url: string,
+  ):
+    | browser.proxy.ProxyInfo
+    | Array<browser.proxy.ProxyInfo | null>
+    | Promise<browser.proxy.ProxyInfo | Array<browser.proxy.ProxyInfo | null>> {
+    if (this.target !== null) return decideFailClosedProxy(this.target, url);
+    return this.ensureRoutingIntentLoaded().then(() => decideFailClosedProxy(this.target, url));
   }
 
-  private async loadTargetFromSnapshot(): Promise<ActiveProxyTarget | null> {
-    if (this.target !== null) return this.target;
+  /** A blocking webRequest gate covers states for which ProxyInfo cannot express cancel. */
+  async shouldBlockRequest(url: string): Promise<boolean> {
+    if (parseRequestUrl(url) === null) return false;
+    await this.ensureRoutingIntentLoaded();
+    return (
+      this.routingIntent === "blocked" || (this.routingIntent === "proxy" && this.target === null)
+    );
+  }
 
-    const snapshot = await this.deps.targets.load();
-    // Activation or deactivation can win while the session read is in flight.
-    if (this.snapshotWasCleared() || this.target !== null) return this.target;
+  private ensureRoutingIntentLoaded(): Promise<void> {
+    if (this.target !== null || this.routingIntent !== null) return Promise.resolve();
+    if (this.pendingRoutingIntent !== null) return this.pendingRoutingIntent;
+    this.pendingRoutingIntent = this.loadRoutingIntent().finally(() => {
+      this.pendingRoutingIntent = null;
+    });
+    return this.pendingRoutingIntent;
+  }
 
-    if (snapshot === null) {
-      this.snapshotRestore = "absent";
-      return null;
+  private async loadRoutingIntent(): Promise<void> {
+    try {
+      const stored = await this.deps.profiles.load();
+      if (this.routingIntent !== null || this.target !== null) return;
+      if (this.deps.profiles.migrationWarning() !== null) {
+        this.routingIntent = "blocked";
+        return;
+      }
+      if (stored.activeProfileId === null) {
+        this.routingIntent = "off";
+        return;
+      }
+      const durableProfile =
+        stored.appliedSelection?.kind === "profile"
+          ? stored.appliedSelection.profile
+          : stored.appliedSelection?.kind === "builtin-direct"
+            ? findProfile(stored, stored.activeProfileId)
+            : null;
+      if (durableProfile === null) {
+        this.blockedProfile = findProfile(stored, stored.activeProfileId);
+        this.routingIntent = "blocked";
+        return;
+      }
+      // The session snapshot preserves the applied revision after a later Save.
+      // Losing it on full exit is safe: the validated durable proxy is still used.
+      let snapshot: ActiveTargetSnapshot | null = null;
+      try {
+        snapshot = await this.deps.targets.load();
+      } catch {
+        /* durable route remains authoritative */
+      }
+      if (this.routingIntent !== null || this.target !== null) return;
+      const matchingSnapshot = snapshotMatchesApplied(snapshot, stored.appliedSelection)
+        ? snapshot
+        : null;
+      const proxy = matchingSnapshot?.proxy ?? durableProfile.proxy;
+      const validated = parseProfile({ ...durableProfile, proxy });
+      if (!validated.ok) {
+        this.blockedProfile = durableProfile;
+        this.routingIntent = "blocked";
+        return;
+      }
+      this.routingIntent = proxy.type === "direct" ? "direct" : "proxy";
+      this.target = {
+        profileId: durableProfile.id,
+        profileName: matchingSnapshot?.profileName ?? durableProfile.name,
+        generation: matchingSnapshot?.generation ?? this.generation,
+        proxy,
+        credentials: matchingSnapshot?.credentials ?? null,
+      };
+    } catch {
+      if (this.routingIntent === null && this.target === null) this.routingIntent = "blocked";
     }
-
-    const stored = await this.deps.profiles.load();
-    if (this.snapshotWasCleared() || this.target !== null) return this.target;
-    if (stored.activeProfileId !== snapshot.profileId) {
-      this.snapshotRestore = "absent";
-      return null;
-    }
-
-    this.generation = Math.max(this.generation, snapshot.generation);
-    this.target = {
-      profileId: snapshot.profileId,
-      profileName: snapshot.profileName,
-      generation: snapshot.generation,
-      proxy: snapshot.proxy,
-      credentials: snapshot.credentials,
-    };
-    return this.target;
   }
 
   decideProxyAuth(challenge: ProxyAuthChallenge): ProxyAuthCredentials | null {
@@ -272,12 +329,8 @@ export class ActivationController {
       if (this.generation !== epoch) return this.state;
       const migrationWarning = this.deps.profiles.migrationWarning();
       if (migrationWarning !== null) {
-        const idle = await this.composeIdleState(this.generation, {
-          code: "schema_unsupported",
-          message: migrationWarning,
-        });
-        if (this.generation !== epoch) return this.state;
-        return await this.commit(idle, false);
+        this.routingIntent = "blocked";
+        return await this.failWith("schema_unsupported", migrationWarning);
       }
       if (stored.activeProfileId === null) {
         const idle = await this.composeIdleState(this.generation);
@@ -288,8 +341,7 @@ export class ActivationController {
       const snapshot = await this.deps.targets.load();
       if (this.generation !== epoch) return this.state;
       const restorable =
-        snapshot !== null &&
-        snapshot.profileId === stored.activeProfileId &&
+        snapshotMatchesApplied(snapshot, stored.appliedSelection) &&
         (snapshot.status === "ready" || snapshot.status === "idle");
 
       if (snapshot !== null && restorable) {
@@ -329,7 +381,10 @@ export class ActivationController {
       }
 
       if (this.generation !== epoch) return this.state;
-      if (snapshot?.profile !== undefined && snapshot.profileId === stored.activeProfileId) {
+      if (
+        snapshot?.profile !== undefined &&
+        snapshotMatchesApplied(snapshot, stored.appliedSelection)
+      ) {
         // An interrupted Apply already selected this configuration. Resume it,
         // never a newer Save made while its provider request was outstanding.
         this.generation = Math.max(this.generation, snapshot.generation);
@@ -338,7 +393,20 @@ export class ActivationController {
           credentials: snapshot.credentials,
         });
       }
-      return await this.activate(stored.activeProfileId);
+      if (stored.appliedSelection?.kind === "unresolved") {
+        this.blockedProfile = findProfile(stored, stored.activeProfileId);
+        this.routingIntent = "blocked";
+        return await this.failWith(
+          "routing_unresolved",
+          "The previously applied route cannot be reconstructed safely. Select a profile again.",
+        );
+      }
+      return await this.activate(
+        stored.activeProfileId,
+        stored.appliedSelection?.kind === "profile"
+          ? { profile: stored.appliedSelection.profile, credentials: null }
+          : undefined,
+      );
     } catch (error) {
       if (this.generation !== epoch) return this.state;
       return await this.failWith(
@@ -377,10 +445,13 @@ export class ActivationController {
 
       if (generation !== this.generation) return this.state;
       this.diagnostics = [];
+      this.networkUnavailable = false;
+      this.networkHealthEpoch += 1;
       this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };
 
       this.appliedProfile = profile;
+      this.blockedProfile = null;
       // Proxy routing becomes effective for subsequent requests immediately.
       this.target = {
         profileId: profile.id,
@@ -389,10 +460,11 @@ export class ActivationController {
         proxy: profile.proxy,
         credentials,
       };
+      this.routingIntent = profile.proxy.type === "direct" ? "direct" : "proxy";
 
       const activeResult = await mutateProfiles(this.deps.profiles, (current) =>
         generation === this.generation
-          ? setActiveProfile(current, profile.id)
+          ? setActiveProfile(current, profile.id, profile)
           : { ok: true, value: current },
       );
       if (generation !== this.generation) return this.state;
@@ -532,19 +604,23 @@ export class ActivationController {
     try {
       this.abortController?.abort();
       this.abortController = null;
-      this.target = null;
-      this.appliedProfile = null;
-      this.snapshotRestore = "absent";
       this.diagnostics = [];
       this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };
       await this.deps.targets.clear();
-      await mutateProfiles(this.deps.profiles, (current) =>
+      const offResult = await mutateProfiles(this.deps.profiles, (current) =>
         generation === this.generation
           ? setActiveProfile(current, null)
           : { ok: true, value: current },
       );
+      if (!offResult.ok) throw new Error(offResult.errors.join("; "));
       if (this.generation !== generation) return this.state;
+      this.target = null;
+      this.appliedProfile = null;
+      this.blockedProfile = null;
+      this.networkUnavailable = false;
+      this.networkHealthEpoch += 1;
+      this.routingIntent = "off";
       const webrtc = await this.changeWebRtc(() => this.deps.webrtc.release());
       if (this.generation !== generation) return this.state;
       return await this.commit(
@@ -575,6 +651,35 @@ export class ActivationController {
   recordProxyError(error: unknown): void {
     const message = describeError(error, "The proxy reported an error.");
     void this.recordDiagnostic("proxy_error", message);
+  }
+
+  /** Network failure changes health only; the selected proxy remains mandatory. */
+  recordNetworkFailure(url: string, error: unknown): void {
+    if (
+      this.target?.proxy.type === "direct" ||
+      this.target === null ||
+      parseRequestUrl(url) === null
+    )
+      return;
+    if (decideProxy(this.target, url).type === "direct") return;
+    if (this.networkUnavailable) return;
+    this.networkUnavailable = true;
+    void this.recordDiagnostic(
+      "proxy_unavailable",
+      `Proxy request failed: ${describeError(error, "network error")}. Traffic remains restricted to this profile.`,
+      ++this.networkHealthEpoch,
+    );
+  }
+
+  recordNetworkSuccess(url: string): void {
+    if (!this.networkUnavailable || this.target === null) return;
+    if (decideProxy(this.target, url).type === "direct") return;
+    this.networkUnavailable = false;
+    void this.recordDiagnostic(
+      "proxy_recovered",
+      "The selected proxy is reachable again.",
+      ++this.networkHealthEpoch,
+    );
   }
 
   /**
@@ -658,7 +763,11 @@ export class ActivationController {
     if (!unchanged) void this.rebroadcast();
   }
 
-  private async recordDiagnostic(code: string, message: string): Promise<void> {
+  private async recordDiagnostic(
+    code: string,
+    message: string,
+    healthEpoch?: number,
+  ): Promise<void> {
     const generation = this.generation;
     const state = await this.composeState({
       status: this.state.status,
@@ -671,7 +780,11 @@ export class ActivationController {
       content: this.content,
       lastError: { code, message },
     });
-    if (state.generation !== this.generation) return;
+    if (
+      state.generation !== this.generation ||
+      (healthEpoch !== undefined && healthEpoch !== this.networkHealthEpoch)
+    )
+      return;
     this.state = state;
     await this.deps.broadcastState(this.state);
   }
@@ -738,7 +851,7 @@ export class ActivationController {
   /** Rebuilds the minimal profile needed for state composition from the live target. */
   private currentProfileForCompose(): IdentityProfile | null {
     const target = this.target;
-    if (target === null) return null;
+    if (target === null) return this.blockedProfile;
     if (this.appliedProfile !== null) return this.appliedProfile;
     return {
       id: target.profileId,
@@ -751,7 +864,9 @@ export class ActivationController {
   }
 
   private currentIdentityForCompose(): ResolvedIdentity {
-    return this.target !== null && this.target.generation === this.state.generation
+    return this.target !== null &&
+      this.target.generation === this.generation &&
+      this.state.generation === this.generation
       ? this.state.identity
       : { source: "auto", publicIpVerified: false };
   }
@@ -804,6 +919,37 @@ export class ActivationController {
 
     return createRuntimeState({
       status: params.status,
+      desiredRoute:
+        this.routingIntent === "blocked"
+          ? "unknown"
+          : profile === null
+            ? this.routingIntent === "proxy"
+              ? "proxy"
+              : "off"
+            : isProxied(profile.proxy)
+              ? "proxy"
+              : "direct",
+      appliedRoute:
+        this.routingIntent === "blocked" || (this.routingIntent === "proxy" && this.target === null)
+          ? "blocked"
+          : profile === null
+            ? "off"
+            : isProxied(profile.proxy)
+              ? "proxy"
+              : "direct",
+      runtimeHealth:
+        profile !== null &&
+        isProxied(profile.proxy) &&
+        profile.proxy.username &&
+        !params.hasCredentials
+          ? "credentials_required"
+          : this.networkUnavailable
+            ? "unavailable"
+            : params.status === "error"
+              ? "error"
+              : params.lastError !== undefined && params.lastError.code !== "proxy_recovered"
+                ? "degraded"
+                : "healthy",
       generation: params.generation,
       activeProfileId: profile === null ? null : profile.id,
       activeProfileName: profile === null ? null : profile.name,

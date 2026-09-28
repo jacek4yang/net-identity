@@ -98,7 +98,23 @@ let activatingProfileId: string | null = null;
 let isDeactivating = false;
 let displayedGeneration = -1;
 
-function setStatusPill(status: RuntimeStatus): void {
+function setStatusPill(state: RuntimeState | RuntimeStatus): void {
+  const status = typeof state === "string" ? state : state.status;
+  if (typeof state !== "string" && state.runtimeHealth === "unavailable") {
+    elements.statusText.textContent = "Proxy unavailable";
+    elements.statusPill.dataset.tone = "bad";
+    return;
+  }
+  if (typeof state !== "string" && state.runtimeHealth === "credentials_required") {
+    elements.statusText.textContent = "Credentials required";
+    elements.statusPill.dataset.tone = "bad";
+    return;
+  }
+  if (typeof state !== "string" && state.appliedRoute === "blocked") {
+    elements.statusText.textContent = "Routing blocked";
+    elements.statusPill.dataset.tone = "bad";
+    return;
+  }
   const label = LIFECYCLE_LABELS[status] ?? status;
   const tone = LIFECYCLE_TONES[status] ?? "pending";
   elements.statusText.textContent = label;
@@ -122,7 +138,7 @@ function describeEndpoint(state: RuntimeState): string {
 }
 
 function renderRoutes(): void {
-  const isOff = currentActiveId === null && !activatingProfileId;
+  const isOff = currentActiveId === null && currentStatus === "idle" && !activatingProfileId;
   elements.routeOff.setAttribute("aria-checked", String(isOff));
   elements.routeOff.classList.toggle("is-activating", isDeactivating);
 
@@ -181,7 +197,7 @@ function renderIdentity(state: RuntimeState): void {
 
   elements.identityRoute.textContent = isIdle
     ? "None (Off)"
-    : (state.activeProfileName ?? "Direct");
+    : (state.activeProfileName ?? (state.activeProfileId === null ? "Routing blocked" : "Direct"));
 
   if (isIdle) {
     elements.identityIp.textContent = "—";
@@ -254,7 +270,7 @@ function renderState(state: RuntimeState): void {
   activatingProfileId = null;
   isDeactivating = false;
 
-  setStatusPill(state.status);
+  setStatusPill(state);
   renderIdentity(state);
   renderDetails(state);
   renderRoutes();
@@ -262,9 +278,13 @@ function renderState(state: RuntimeState): void {
   elements.refreshButton.disabled = state.activeProfileId === null;
 
   renderError(
-    state.lastError === undefined
-      ? null
-      : explainRuntimeError(state.lastError.code, state.lastError.message),
+    state.runtimeHealth === "credentials_required"
+      ? "Proxy credentials are required. Traffic remains restricted to this profile."
+      : state.runtimeHealth === "unavailable"
+        ? "Traffic is blocked rather than sent directly. Retry this profile after the proxy returns."
+        : state.lastError === undefined
+          ? null
+          : explainRuntimeError(state.lastError.code, state.lastError.message),
   );
 }
 

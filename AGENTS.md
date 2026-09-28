@@ -78,10 +78,10 @@ extension in ways tests will not catch:
    therefore reports Firefox's own `proxy.settings` value separately (`firefox_proxy`).
 4. **`onAuthRequired` is only fired for HTTP/HTTPS proxies, never SOCKS.**
 5. **The MV3 background page can be suspended.** The active target is mirrored into
-   `storage.session`; `decideProxyForRequest` falls back to that snapshot instead of
-   answering `direct`. Never make the in-memory target the only source of truth. A
-   completed restore that finds no usable snapshot is remembered, so later requests
-   do not read `storage.session` again until activation or deactivation.
+   `storage.session`, but that area is lost after a full browser exit. The request
+   listener must recover the durable desired route from `storage.local`; a missing
+   or invalid session snapshot can never imply Direct. Unsafe durable state is
+   blocked by the `webRequest.onBeforeRequest` gate.
 6. **`proxy.onRequest` may return a Promise.** The cold-start fallback depends on it.
 7. **`content_scripts[].world: "MAIN"` requires Firefox 128+**. The manifest floor is
    **140.0** because that is when Firefox shows built-in data-collection consent.
@@ -129,6 +129,20 @@ validate profile
 
 ## 6. Security invariants (do not weaken)
 
+When a proxy profile is the committed desired route, proxy unavailability may reduce
+availability but must never reduce routing confidentiality by falling back to Direct:
+`proxy unavailable -> no network`. The selected profile stays selected through proxy
+errors, GeoIP failures, event-page suspension and full Firefox restarts. The durable
+non-secret applied route, rather than a newer unapplied Save, controls cold routing.
+
+**Fail-closed routing is mandatory.** Once the user selects a proxy profile,
+HTTP/HTTPS/WS/WSS traffic must use exactly that proxy or fail. Proxy outage,
+authentication failure, GeoIP/WebRTC failure, event-page restart and full Firefox
+restart must never select Direct or Off. `storage.local` contains the durable
+desired route; losing `storage.session` can lose credentials but cannot lose the
+proxy requirement. Corrupt or unreadable durable routing state blocks ordinary
+network requests. A proxy becoming unavailable changes health, not route.
+
 1. Proxy credentials never enter page context.
 2. Credentials are never persisted in `storage.local`/`storage.sync`.
 3. Credentials are never logged; use `describeError()` (it redacts auth schemes).
@@ -146,16 +160,19 @@ validate profile
    host **and** port both match the active HTTP/HTTPS proxy. A missing field or a
    second challenge for the same request id fails closed.
 10. `docs/SECURITY.md` is the authoritative list — update it with any change here.
+11. Firefox appends its existing proxy as a fallback when `proxy.onRequest` returns
+    one `ProxyInfo`. A selected proxy must return `[selectedProxy, null]` so failure
+    cannot fall through to Firefox/system routing. Do not remove the terminal null.
 
 Storage layout:
 
-| Key                      | Area              | Contents                                                                            |
-| ------------------------ | ----------------- | ----------------------------------------------------------------------------------- |
-| `ni.state.v1`            | `storage.local`   | profiles + `activeProfileId`. **Never** a password. Schema version 2 (migrates v1). |
-| `ni.cred.v1.<profileId>` | `storage.session` | `{ username, password }`. Cleared when Firefox exits.                               |
-| `ni.active-target.v1`    | `storage.session` | active target snapshot incl. credentials (needed for cold-start routing).           |
+| Key                      | Area              | Contents                                                                                    |
+| ------------------------ | ----------------- | ------------------------------------------------------------------------------------------- |
+| `ni.state.v1`            | `storage.local`   | profiles + selected/applied route. **Never** a password. Schema version 3 (migrates v1/v2). |
+| `ni.cred.v1.<profileId>` | `storage.session` | `{ username, password }`. Cleared when Firefox exits.                                       |
+| `ni.active-target.v1`    | `storage.session` | active target snapshot incl. credentials (needed for cold-start routing).                   |
 
-Durable profile documents are migrated by `src/profile/migrate.ts`. Version 1 is the only released shape; current main migrates it to version 2. A password key found in that document is removed and not written
+Durable profile documents are migrated by `src/profile/migrate.ts`. Versions 1 and 2 are released shapes; current main migrates both to version 3. A password key found in that document is removed and not written
 back. A higher `schemaVersion`, or a version-1 profile that cannot be parsed without
 dropping the profile or its proxy, is left byte-for-byte in storage. Startup then stays
 idle and reports `schema_unsupported` instead of activating a direct connection. Session
@@ -192,6 +209,9 @@ npm run test         # vitest
 npm run package      # artifacts/<name>-<version>.zip + package verification
 npm run e2e          # real-Firefox smoke test (needs Firefox + network)
 npm run e2e:invariants  # local Firefox checks: fail-closed geo, Date, frames, WebRTC
+npm run e2e:fail-closed # local SOCKS outage, zero direct-origin requests, event-page restart
+npm run e2e:restart     # retained-profile full Firefox restart with SOCKS unavailable
+npm run e2e:socks-auth  # session credential loss and recovery without direct fallback
 npm run icons        # regenerate public/icons deterministically
 ```
 
@@ -208,8 +228,9 @@ Package output: `artifacts/`.
 - Keep `tests/manifest.test.ts` honest: it pins MV3, the event page, permissions, the
   version floor and the data-collection declaration.
 - Every change that affects behaviour needs a test that fails without the change.
-- Firefox-only behaviour is covered by `npm run e2e:invariants`, `e2e:websocket` and
-  `e2e:proxy-auth` and `e2e:ui`. Those four run in the real-Firefox CI gate (`docs/CI.md`), which
+- Firefox-only behaviour is covered by `npm run e2e:invariants`, `e2e:websocket`,
+  `e2e:proxy-auth`, `e2e:ui`, `e2e:fail-closed`, `e2e:restart` and `e2e:socks-auth`.
+  Those run in the real-Firefox CI gate (`docs/CI.md`), which
   is required on `main`. `npm run e2e` (the smoke test) needs the public GeoIP
   provider, so it stays out of CI and out of `npm run check`.
 
@@ -299,10 +320,10 @@ not in that list.
 0 required approvals, admins included, no force pushes, no deletions. CI (`quality`)
 is a required check. Merge with `gh pr merge --squash --delete-branch`.
 
-## Post-v1 profile configuration (schema 2)
+## Post-v1 profile configuration (schema 3)
 
-The durable `ni.state.v1` document now has `schemaVersion: 2`. The key stays stable
-so version-1 documents migrate in place. Migration validates every profile, preserves
+The durable `ni.state.v1` document now has `schemaVersion: 3`. The key stays stable
+so version-1 and version-2 documents migrate in place. Migration validates every profile, preserves
 routing and explicit WebRTC choices, strips secret keys and leaves unsupported or
 unsafe documents unchanged. The reserved `builtin-direct` route is projected in the
 domain/UI and is never a persisted user profile. Existing legitimate built-in Direct
@@ -314,7 +335,7 @@ follow/manual, and WebRTC automatic/manual. Automatic WebRTC uses the route reco
 Expert overrides are preserved. Follow-timezone uses the provider's resolved timezone;
 manual coordinates alone do not imply a locally inferred timezone.
 
-Save increments the configuration revision and does not alter runtime. Apply activates
+Save increments the configuration revision and does not alter runtime. The durable applied route is stored separately from the saved profile, without credentials, so a full Firefox restart cannot activate an unapplied edit. An older active user Direct profile with ambiguous applied routing is blocked until the user selects a route again. Apply activates
 the saved revision without saving or discarding unsaved form edits. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
 configuration; Refresh uses that applied configuration, including its session credentials.
 Blank passwords retain saved credentials. Clear changes the saved session credentials;
