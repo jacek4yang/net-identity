@@ -61,13 +61,20 @@ export interface IdentityProfile {
   revision?: number;
 }
 
+export type AppliedSelection =
+  | { kind: "profile"; profile: IdentityProfile }
+  | { kind: "builtin-direct" }
+  | { kind: "unresolved"; profileId: string };
+
 export interface ProfileState {
-  schemaVersion: 2;
+  schemaVersion: 3;
   activeProfileId: string | null;
+  /** Committed, non-secret configuration; Save never changes this. */
+  appliedSelection: AppliedSelection | null;
   profiles: IdentityProfile[];
 }
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** New proxy profiles default to the strictest practical policy. */
 export const DEFAULT_PROXY_WEBRTC_POLICY: WebRTCPolicy = "disable_non_proxied_udp";
@@ -98,6 +105,7 @@ export function createBuiltinDirectProfile(): IdentityProfile {
 export const EMPTY_PROFILE_STATE: ProfileState = {
   schemaVersion: SCHEMA_VERSION,
   activeProfileId: null,
+  appliedSelection: null,
   profiles: [createBuiltinDirectProfile()],
 };
 

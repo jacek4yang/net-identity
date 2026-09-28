@@ -33,6 +33,8 @@ import { fail, isPlainObject, ok, type Result } from "../shared/result";
 import { isValidTimeZone } from "../shared/timezone";
 import {
   SCHEMA_VERSION,
+  isBuiltinDirectProfile,
+  type AppliedSelection,
   type IdentityConfig,
   type IdentityProfile,
   type ProfileState,
@@ -349,8 +351,33 @@ export function parseProfileState(input: unknown): Result<ProfileState> {
 
   const rawActive = input.activeProfileId;
   const activeProfileId = typeof rawActive === "string" && seen.has(rawActive) ? rawActive : null;
+  const selection = parseAppliedSelection(input.appliedSelection, activeProfileId);
+  if (!selection.ok) return selection;
+  return ok({
+    schemaVersion: SCHEMA_VERSION,
+    activeProfileId,
+    appliedSelection: selection.value,
+    profiles,
+  });
+}
 
-  return ok({ schemaVersion: SCHEMA_VERSION, activeProfileId, profiles });
+export function parseAppliedSelection(
+  value: unknown,
+  activeProfileId: string | null,
+): Result<AppliedSelection | null> {
+  if (activeProfileId === null)
+    return value === null ? ok(null) : fail("Off cannot have an applied route");
+  if (!isPlainObject(value)) return fail("applied route is invalid");
+  if (isBuiltinDirectProfile(activeProfileId))
+    return value.kind === "builtin-direct"
+      ? ok({ kind: "builtin-direct" })
+      : fail("reserved Direct route mismatch");
+  if (value.kind === "unresolved" && value.profileId === activeProfileId)
+    return ok({ kind: "unresolved", profileId: activeProfileId });
+  if (value.kind !== "profile") return fail("applied route is invalid");
+  const parsed = parseProfile(value.profile);
+  if (!parsed.ok || parsed.value.id !== activeProfileId) return fail("applied profile mismatch");
+  return ok({ kind: "profile", profile: parsed.value });
 }
 
 export function parseCredentials(input: unknown): Result<ProxyCredentials> {

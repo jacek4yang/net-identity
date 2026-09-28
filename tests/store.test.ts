@@ -29,6 +29,7 @@ describe("profile store", () => {
     await store.save({
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: profile.id,
+      appliedSelection: { kind: "profile", profile },
       profiles: [profile],
     });
     const loaded = await store.load();
@@ -94,7 +95,12 @@ describe("profile store", () => {
     const profiles = Array.from({ length: MAX_PROFILES }, (_, index) =>
       makeProfile({ id: `profile-${String(index).padStart(5, "0")}` }),
     );
-    await store.save({ schemaVersion: SCHEMA_VERSION, activeProfileId: null, profiles });
+    await store.save({
+      schemaVersion: SCHEMA_VERSION,
+      activeProfileId: null,
+      appliedSelection: null,
+      profiles,
+    });
 
     const result = await mutateProfiles(store, (state) =>
       upsertProfile(state, makeProfile({ id: "profile-99999" })),
@@ -107,14 +113,24 @@ describe("profile store", () => {
     const profiles = Array.from({ length: MAX_PROFILES - 1 }, (_, index) =>
       makeProfile({ id: `capacity-${index}` }),
     );
-    await store.save({ schemaVersion: SCHEMA_VERSION, activeProfileId: null, profiles });
+    await store.save({
+      schemaVersion: SCHEMA_VERSION,
+      activeProfileId: null,
+      appliedSelection: null,
+      profiles,
+    });
     const result = await mutateProfiles(store, (state) =>
       upsertProfile(state, makeProfile({ id: "last-user-profile" })),
     );
     expect(result.ok).toBe(true);
     expect(
       findProfile(
-        { schemaVersion: SCHEMA_VERSION, activeProfileId: null, profiles: [] },
+        {
+          schemaVersion: SCHEMA_VERSION,
+          activeProfileId: null,
+          appliedSelection: null,
+          profiles: [],
+        },
         BUILTIN_DIRECT_PROFILE_ID,
       )?.proxy.type,
     ).toBe("direct");
@@ -136,6 +152,7 @@ describe("profile store", () => {
     const state: ProfileState = {
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: profile.id,
+      appliedSelection: { kind: "profile", profile },
       profiles: [profile],
     };
     const next = removeProfile(state, profile.id);
@@ -150,6 +167,7 @@ describe("profile store", () => {
     const state: ProfileState = {
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: null,
+      appliedSelection: null,
       profiles: [createBuiltinDirectProfile(), profile],
     };
     const next = removeProfile(state, BUILTIN_DIRECT_PROFILE_ID);
@@ -161,6 +179,7 @@ describe("profile store", () => {
     const state: ProfileState = {
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: null,
+      appliedSelection: null,
       profiles: [],
     };
     expect(setActiveProfile(state, "profile-0005").ok).toBe(false);
@@ -172,6 +191,7 @@ describe("profile store", () => {
     const state: ProfileState = {
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: null,
+      appliedSelection: null,
       profiles: [profile],
     };
     expect(findProfile(state, profile.id)?.id).toBe(profile.id);

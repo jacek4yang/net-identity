@@ -14,6 +14,7 @@ import {
   createDeferred,
   createFailingProvider,
   createHarness,
+  createMemoryStorage,
   createScriptedProvider,
   makeProfile,
   waitUntil,
@@ -31,6 +32,17 @@ const BERLIN_GEO: GeoIpResult = {
 
 function checkStatus(harness: ReturnType<typeof createHarness>, id: string): string | undefined {
   return harness.controller.getState().audit.checks.find((check) => check.id === id)?.status;
+}
+
+function terminalProxy(
+  decision: browser.proxy.ProxyInfo | Array<browser.proxy.ProxyInfo | null>,
+): browser.proxy.ProxyInfo {
+  expect(Array.isArray(decision)).toBe(true);
+  if (!Array.isArray(decision)) throw new Error("expected a terminal proxy list");
+  expect(decision[1]).toBeNull();
+  expect(decision[0]?.failoverTimeout).toBe(1);
+  if (decision[0] === null || decision[0] === undefined) throw new Error("proxy is missing");
+  return decision[0];
 }
 
 describe("activation", () => {
@@ -107,7 +119,9 @@ describe("activation", () => {
     expect(JSON.stringify(harness.envelopes)).not.toContain("hunter2");
 
     // The credential does reach Firefox's proxy decision, where it is needed.
-    const decision = await harness.controller.decideProxyForRequest("https://example.com/");
+    const decision = terminalProxy(
+      await harness.controller.decideProxyForRequest("https://example.com/"),
+    );
     expect(decision.proxyAuthorizationHeader).toBeDefined();
     expect(decision.proxyAuthorizationHeader).toContain("Basic ");
   });
@@ -167,7 +181,9 @@ describe("activation", () => {
     expect(checkStatus(harness, "public_ip")).toBe("provider_error");
 
     // Routing is unaffected by a failed lookup.
-    const decision = await harness.controller.decideProxyForRequest("https://example.com/");
+    const decision = terminalProxy(
+      await harness.controller.decideProxyForRequest("https://example.com/"),
+    );
     expect(decision.type).toBe("http");
 
     // The page must stay under extension control, with no coordinates to fall back on.
@@ -305,7 +321,7 @@ describe("activation", () => {
     };
     const state = await harness.controller.deactivate();
     expect(state.status).toBe("error");
-    expect(state.activeProfileId).toBeNull();
+    expect(state.activeProfileId).toBe(profile.id);
     expect(state.identity.latitude).toBeUndefined();
     expect(state.identity.timezone).toBeUndefined();
     expect(harness.controller.getEnvelope()).toMatchObject({ payload: null, controlled: true });
@@ -357,7 +373,7 @@ describe("activation", () => {
 
     const deactivation = harness.controller.deactivate();
     await waitUntil(() => clearStarted);
-    harness.controller.recordProxyError(new Error("boom"));
+    void harness.controller.recordProxyError(new Error("boom"));
     await waitUntil(() => harness.controller.getState().lastError?.code === "proxy_error");
 
     expect(harness.controller.getState().activeProfileId).toBeNull();
@@ -498,16 +514,72 @@ describe("activation", () => {
     await harness.saveProfile(profile);
     await harness.controller.activate(profile.id);
 
-    harness.controller.recordProxyError(new Error("Proxy-Authorization: Basic dXNlcjpwdw=="));
+    void harness.controller.recordProxyError(new Error("Proxy-Authorization: Basic dXNlcjpwdw=="));
     await waitUntil(() => harness.controller.getState().lastError?.code === "proxy_error");
 
     const message = harness.controller.getState().lastError?.message ?? "";
     expect(message).not.toContain("dXNlcjpwdw==");
     expect(message).toContain("[redacted]");
   });
+
+  it("does not let an in-flight proxy diagnostic erase a newly resolved identity", async () => {
+    const provider = createDeferred<GeoIpResult>();
+    const diagnosticStarted = createDeferred<void>();
+    const releaseDiagnostic = createDeferred<void>();
+    const h = createHarness({ provider: createScriptedProvider(() => provider.promise) });
+    const readSettings = h.deps.readFirefoxProxySettings;
+    let holdNextRead = false;
+    h.deps.readFirefoxProxySettings = async () => {
+      if (holdNextRead) {
+        holdNextRead = false;
+        diagnosticStarted.resolve();
+        await releaseDiagnostic.promise;
+      }
+      return readSettings();
+    };
+    const profile = makeProfile({ id: "diagnostic-race" });
+    await h.saveProfile(profile);
+    const activation = h.controller.activate(profile.id);
+    await waitUntil(() => h.providerResolveCount() === 1);
+    holdNextRead = true;
+    const diagnostic = h.controller.recordProxyError(new Error("proxy reported a transient error"));
+    await diagnosticStarted.promise;
+    provider.resolve(SAMPLE_GEO);
+    await activation;
+    releaseDiagnostic.resolve();
+    await diagnostic;
+    expect(h.controller.getState().identity.timezone).toBe("Europe/Amsterdam");
+    expect(h.controller.getEnvelope().payload?.timezone).toBe("Europe/Amsterdam");
+  });
 });
 
 describe("background restart", () => {
+  it("ignores a stale session snapshot after a newer Apply of the same profile", async () => {
+    const h = createHarness();
+    const first = makeProfile({ id: "same-profile", revision: 1 });
+    await h.saveProfile(first);
+    await h.controller.activate(first.id);
+    const oldSnapshot = h.sessionArea.snapshot()["ni.active-target.v1"];
+
+    const second = makeProfile({
+      id: first.id,
+      revision: 2,
+      proxy: { type: "http", host: "127.0.0.1", port: 9090, proxyDNS: false, bypassHosts: [] },
+    });
+    await h.saveProfile(second);
+    await h.controller.activate(second.id);
+    await h.sessionArea.set({ "ni.active-target.v1": oldSnapshot });
+
+    const revived = createHarness({ localArea: h.localArea, sessionArea: h.sessionArea });
+    const firstRequest = terminalProxy(
+      await revived.controller.decideProxyForRequest("https://example.invalid/"),
+    );
+    expect(firstRequest.port).toBe(9090);
+    const state = await revived.controller.initialize();
+    expect(state.activeProfileId).toBe(first.id);
+    expect(revived.controller.getTarget()?.proxy.port).toBe(9090);
+  });
+
   it("restores routing and identity from the session snapshot without a new lookup", async () => {
     const harness = createHarness();
     const profile = makeProfile({ id: "profile-0020", name: "Airport" });
@@ -544,12 +616,16 @@ describe("background restart", () => {
     });
 
     // No initialize() call yet: the first proxy decision must still be proxied.
-    const decision = await restarted.controller.decideProxyForRequest("https://example.com/");
+    const decision = terminalProxy(
+      await restarted.controller.decideProxyForRequest("https://example.com/"),
+    );
     expect(decision.type).toBe("http");
     expect(decision.host).toBe("127.0.0.1");
 
     // WebSocket traffic uses the same restored route. A loopback bypass still applies.
-    const websocket = await restarted.controller.decideProxyForRequest("wss://example.com/socket");
+    const websocket = terminalProxy(
+      await restarted.controller.decideProxyForRequest("wss://example.com/socket"),
+    );
     expect(websocket.type).toBe("http");
     expect(websocket.host).toBe("127.0.0.1");
     expect(await restarted.controller.decideProxyForRequest("ws://localhost/socket")).toEqual({
@@ -615,7 +691,7 @@ describe("background restart", () => {
     });
   });
 
-  it("reads a missing snapshot once, then still activates and deactivates", async () => {
+  it("does not need a session snapshot for Off, then activates and deactivates", async () => {
     const harness = createHarness();
     let reads = 0;
     const originalLoad = harness.targetStore.load.bind(harness.targetStore);
@@ -630,12 +706,14 @@ describe("background restart", () => {
     expect(await harness.controller.decideProxyForRequest("https://example.com/again")).toEqual({
       type: "direct",
     });
-    expect(reads).toBe(1);
+    expect(reads).toBe(0);
 
     const profile = makeProfile({ id: "profile-0023" });
     await harness.saveProfile(profile);
     await harness.controller.activate(profile.id);
-    const active = await harness.controller.decideProxyForRequest("https://example.com/");
+    const active = terminalProxy(
+      await harness.controller.decideProxyForRequest("https://example.com/"),
+    );
     expect(active.type).toBe("http");
     expect(active.host).toBe("127.0.0.1");
 
@@ -667,8 +745,12 @@ describe("background restart", () => {
       return originalLoad();
     };
 
-    const first = await restarted.controller.decideProxyForRequest("https://example.com/");
-    const second = await restarted.controller.decideProxyForRequest("https://example.org/");
+    const first = terminalProxy(
+      await restarted.controller.decideProxyForRequest("https://example.com/"),
+    );
+    const second = terminalProxy(
+      await restarted.controller.decideProxyForRequest("https://example.org/"),
+    );
     expect(first.type).toBe("http");
     expect(second.type).toBe("http");
     expect(second.host).toBe("127.0.0.1");
@@ -688,6 +770,122 @@ describe("background restart", () => {
     expect(state.status).toBe("ready");
     expect(state.activeProfileId).toBe(profile.id);
     expect(freshSession.providerResolveCount()).toBe(1);
+  });
+
+  it("routes through the durable proxy before initialize when session storage is empty", async () => {
+    const first = createHarness();
+    const profile = makeProfile({ id: "durable-startup" });
+    await first.saveProfile(profile);
+    await first.controller.activate(profile.id);
+
+    const fresh = createHarness({ localArea: first.localArea });
+    const [http, https, ws, wss] = await Promise.all([
+      fresh.controller.decideProxyForRequest("http://example.invalid/"),
+      fresh.controller.decideProxyForRequest("https://example.invalid/"),
+      fresh.controller.decideProxyForRequest("ws://example.invalid/"),
+      fresh.controller.decideProxyForRequest("wss://example.invalid/"),
+    ]);
+    for (const decision of [http, https, ws, wss]) {
+      const proxy = terminalProxy(decision);
+      expect(proxy.type).toBe("http");
+      expect(proxy.host).toBe(profile.proxy.host);
+    }
+    expect(await fresh.controller.shouldBlockRequest("https://example.invalid/")).toBe(false);
+    expect(fresh.providerResolveCount()).toBe(0);
+  });
+
+  it("keeps the applied proxy after Save changes its configuration and Firefox loses session storage", async () => {
+    const first = createHarness();
+    const profile = makeProfile({ id: "saved-but-not-applied" });
+    await first.saveProfile(profile);
+    await first.controller.activate(profile.id);
+    await first.saveProfile({
+      ...profile,
+      revision: 2,
+      proxy: { type: "direct", proxyDNS: false, bypassHosts: [] },
+    });
+    const fresh = createHarness({ localArea: first.localArea });
+    const routed = terminalProxy(
+      await fresh.controller.decideProxyForRequest("https://example.invalid/"),
+    );
+    expect(routed.type).toBe("http");
+    expect(routed.host).toBe(profile.proxy.host);
+    expect((await fresh.controller.initialize()).activeProfileId).toBe(profile.id);
+  });
+
+  it("blocks malformed durable routing state instead of treating it as Off", async () => {
+    const localArea = createMemoryStorage({
+      "ni.state.v1": { schemaVersion: 2, profiles: [], activeProfileId: "missing" },
+    });
+    const fresh = createHarness({ localArea });
+    expect(await fresh.controller.shouldBlockRequest("https://example.invalid/")).toBe(true);
+    expect(await fresh.controller.shouldBlockRequest("wss://example.invalid/")).toBe(true);
+    expect(await fresh.controller.shouldBlockRequest("moz-extension://test/page.html")).toBe(false);
+  });
+
+  it("blocks requests when durable storage cannot be read", async () => {
+    const localArea = createMemoryStorage();
+    localArea.get = async () => {
+      throw new Error("storage unavailable");
+    };
+    const fresh = createHarness({ localArea });
+    expect(await fresh.controller.shouldBlockRequest("https://example.invalid/")).toBe(true);
+    expect(await fresh.controller.shouldBlockRequest("ws://example.invalid/")).toBe(true);
+  });
+
+  it("keeps an authenticated SOCKS route after the session password disappears", async () => {
+    const first = createHarness();
+    const profile = makeProfile({
+      id: "auth-restart",
+      proxy: {
+        type: "socks5",
+        host: "127.0.0.1",
+        port: 1080,
+        username: "user",
+        proxyDNS: true,
+        bypassHosts: [],
+      },
+      identity: {
+        mode: "manual",
+        geoIpPolicy: "disabled",
+        latitude: 0,
+        longitude: 0,
+        accuracy: 20000,
+        timezone: "UTC",
+      },
+    });
+    await first.saveProfile(profile);
+    await first.credentialStore.set(profile.id, { username: "user", password: "test-password" });
+    await first.controller.activate(profile.id);
+    const fresh = createHarness({ localArea: first.localArea });
+    const routed = terminalProxy(
+      await fresh.controller.decideProxyForRequest("https://example.invalid/"),
+    );
+    expect(routed.type).toBe("socks");
+    expect(routed.username).toBeUndefined();
+    const state = await fresh.controller.initialize();
+    expect(state.desiredRoute).toBe("proxy");
+    expect(state.appliedRoute).toBe("proxy");
+    expect(state.runtimeHealth).toBe("credentials_required");
+    expect(state.activeProfileId).toBe(profile.id);
+  });
+
+  it("changes proxy health without changing the selected route, and recovers", async () => {
+    const harness = createHarness();
+    const profile = makeProfile({ id: "health-proxy" });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+    harness.controller.recordNetworkFailure("https://example.invalid/", "NS_ERROR_NET_RESET");
+    await waitUntil(() => harness.controller.getState().runtimeHealth === "unavailable");
+    harness.controller.recordNetworkFailure("https://example.invalid/", "NS_ERROR_NET_RESET");
+    void harness.controller.recordProxyError(new Error("proxy failed"));
+    expect(harness.controller.getState().desiredRoute).toBe("proxy");
+    expect(harness.controller.getState().appliedRoute).toBe("proxy");
+    expect(harness.controller.getState().activeProfileId).toBe(profile.id);
+    terminalProxy(await harness.controller.decideProxyForRequest("https://example.invalid/"));
+    harness.controller.recordNetworkSuccess("https://example.invalid/");
+    await waitUntil(() => harness.controller.getState().runtimeHealth === "healthy");
+    expect(harness.controller.getState().activeProfileId).toBe(profile.id);
   });
 
   it("does not call the GeoIP provider for a direct profile without personal-data consent", async () => {

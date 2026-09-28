@@ -494,6 +494,12 @@ function renderStatus(state: RuntimeState): void {
     state.activeProfileId === null ? "not_configured" : "ok",
   );
   addRow(
+    "Routing",
+    `${state.desiredRoute} / ${state.appliedRoute}`,
+    state.appliedRoute === "blocked" ? "error" : "ok",
+  );
+  addRow("Network health", state.runtimeHealth, state.runtimeHealth === "healthy" ? "ok" : "error");
+  addRow(
     "Public IP",
     state.identity.publicIp === undefined
       ? "unknown"

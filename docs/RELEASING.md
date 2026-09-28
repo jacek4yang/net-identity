@@ -14,15 +14,17 @@ and AMO submission are immutable; its tag targets
 `e3f8b22ed08e2acc13e93aad180b2e4e28f69325`.
 
 Before tagging clean, merged main, run `npm ci`, `npm run check`, `npm run package`,
-`npm run e2e:invariants`, `npm run e2e:websocket`, `npm run e2e:proxy-auth` and
-`npm run e2e:ui` on the exact commit. Wait for both required CI checks. Follow
+`npm run e2e:invariants`, `npm run e2e:websocket`, `npm run e2e:proxy-auth`,
+`npm run e2e:ui`, `npm run e2e:fail-closed`, `npm run e2e:restart` and
+`npm run e2e:socks-auth` on the exact commit. The last three use Firefox Developer
+Edition for preinstalled unsigned-candidate restart coverage. Wait for both required CI checks. Follow
 [the release checklist](RELEASE-CHECKLIST.md). Create and push the new immutable tag
 only after every pre-submission gate passes. Never move or reuse a rejected tag.
 
 ## Phase 1: validate, record, submit
 
 `.github/workflows/release.yml` checks out the exact tag, runs quality/package and the
-shared four real-Firefox gates. Its submission job archives readable source with
+shared real-Firefox gates. Its submission job archives readable source with
 `git archive`, hashes every production payload file, and records provenance in a **draft**
 release. The tagged `release-config.json` selects `listed` or `unlisted`; historical
 v1.1.0 defaults to listed. It submits with `web-ext sign --channel=<channel>`, API v5, `amo-metadata.json`,

@@ -7,6 +7,26 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
 
 ## Invariants
 
+**Fail-closed proxy routing.** When a proxy profile is the committed desired route,
+proxy unavailability can reduce availability but must never reduce routing
+confidentiality by falling back to Direct. HTTP, HTTPS, WS, and WSS requests use
+that proxy or fail. A missing session snapshot after full Firefox exit does not
+remove the durable selection in `storage.local`; the request listener restores the
+validated proxy configuration before allowing a request. If durable routing state
+cannot be parsed or read safely, `webRequest.onBeforeRequest` cancels ordinary
+network requests. Firefox otherwise appends its current system proxy as a
+fallback to a single `ProxyInfo`; proxied decisions therefore return a terminal
+`[selectedProxy, null]` list. The null entry ends the failover chain. An outage
+changes diagnostic health only. In particular:
+
+```
+proxy unavailable -> no network
+```
+
+The route changes only after an explicit user action. Proxy passwords remain
+session-only; after a full restart an authenticated proxy can reject requests
+until credentials are supplied again, but traffic must never go direct.
+
 1. **Proxy credentials never enter page context.**
    The MAIN world and every `window.postMessage` payload carry exactly
    `{ ns, generation, latitude, longitude, accuracy, timezone }`
@@ -153,10 +173,13 @@ If you add another provider, re-review this declaration, this document, the READ
 the test. `docs/ROADMAP.md` tracks making the provider selectable so the declaration can
 stay accurate per configuration.
 
-## Post-v1 profile configuration (schema 2)
+## Post-v1 profile configuration (schema 3)
 
-The durable `ni.state.v1` document now has `schemaVersion: 2`. The key stays stable
-so version-1 documents migrate in place. Migration validates every profile, preserves
+The durable `ni.state.v1` document now has `schemaVersion: 3`. The key stays stable
+so version-1 and version-2 documents migrate in place. The non-secret applied route
+is stored separately from the saved profile; Save cannot change full-restart routing.
+An older selected user Direct profile whose applied route cannot be proved is blocked
+until the user explicitly selects a route again. Migration validates every profile, preserves
 routing and explicit WebRTC choices, strips secret keys and leaves unsupported or
 unsafe documents unchanged. The reserved `builtin-direct` route is projected in the
 domain/UI and is never a persisted user profile. Existing legitimate built-in Direct

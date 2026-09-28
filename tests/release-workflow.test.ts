@@ -17,7 +17,15 @@ describe("two-phase AMO publication", () => {
     expect(workflow).toContain("uses: ./.github/workflows/firefox-invariants.yml");
     for (const command of ["npm ci", "npm run check", "npm run package"])
       expect(workflow).toContain(command);
-    for (const command of ["e2e:invariants", "e2e:websocket", "e2e:proxy-auth", "e2e:ui"])
+    for (const command of [
+      "e2e:invariants",
+      "e2e:websocket",
+      "e2e:proxy-auth",
+      "e2e:ui",
+      "e2e:fail-closed",
+      "e2e:restart",
+      "e2e:socks-auth",
+    ])
       expect(firefox).toContain(command);
   });
   it("phase one cannot finalize a release", () => {

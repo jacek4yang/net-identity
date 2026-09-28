@@ -68,8 +68,10 @@ a signed build, a real proxy or a second Firefox version.
 
 - [ ] Start from a previous-schema fixture/version and confirm valid profiles survive and
       an unsafe/unparseable document leaves the extension idle instead of direct.
-- [ ] Restart Firefox (or reload the extension) and confirm the active profile is
-      restored, including proxy routing.
+- [ ] Restart Firefox with the selected proxy unavailable. The active profile
+      remains selected; HTTP/HTTPS/WS/WSS fail and the recording direct origin
+      receives zero requests. Restart the proxy and confirm recovery without
+      switching routes.
 
 ## 7. Audit
 
@@ -94,8 +96,9 @@ and tag. Never move or reuse a rejected tag.
 
 ## Distribution gates
 
-Before tag: `npm ci`, `npm run check`, `npm run package` and all four Firefox E2Es
-(invariants, websocket, proxy-auth, ui), plus green required CI on exact merged main.
+Before tag: `npm ci`, `npm run check`, `npm run package` and every Firefox E2E
+(invariants, websocket, proxy-auth, ui, fail-closed, restart, socks-auth), plus
+green required CI on exact merged main.
 Do not require a signed artifact before submitting its new version for signing.
 
 After approval: verify exact AMO public version/channel, unchanged downloaded XPI hash,

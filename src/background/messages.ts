@@ -54,6 +54,7 @@ export interface MessageRouterDeps {
   credentials: CredentialStore;
   controller: ActivationController;
   runtimeId: string;
+  startupReady?: () => Promise<unknown>;
 }
 
 function mutation(
@@ -180,6 +181,7 @@ export function createMessageHandler(
 
     switch (parsed.value.type) {
       case "state:get": {
+        await deps.startupReady?.();
         const response: StateResponse = { state: deps.controller.getState() };
         return response;
       }

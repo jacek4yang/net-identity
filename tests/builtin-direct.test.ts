@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUILTIN_DIRECT_NAME,
   BUILTIN_DIRECT_PROFILE_ID,
+  SCHEMA_VERSION,
   createBuiltinDirectProfile,
   isBuiltinDirectProfile,
 } from "../src/profile/schema";
@@ -82,6 +83,7 @@ describe("built-in Direct route", () => {
     const stored = {
       schemaVersion: 1,
       activeProfileId: null,
+      appliedSelection: null,
       profiles: [direct, custom],
     };
 
@@ -96,8 +98,9 @@ describe("built-in Direct route", () => {
 
   it("cannot be deleted via store.removeProfile or profiles:delete", async () => {
     const state = {
-      schemaVersion: 2 as const,
+      schemaVersion: SCHEMA_VERSION as 3,
       activeProfileId: null,
+      appliedSelection: null,
       profiles: [createBuiltinDirectProfile(), makeProfile({ id: "p1" })],
     };
     const updated = removeProfile(state, BUILTIN_DIRECT_PROFILE_ID);

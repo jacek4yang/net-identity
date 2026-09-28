@@ -194,8 +194,16 @@ browser.proxy.onRequest.addListener((details) => controller.decideProxyForReques
   urls: ["<all_urls>"],
 });
 
+// ProxyInfo has no "block" value. Cancel requests whose durable route cannot
+// be reconstructed; a proxy.onRequest error must never become a direct request.
+browser.webRequest.onBeforeRequest.addListener(
+  async (details) => ({ cancel: await controller.shouldBlockRequest(details.url) }),
+  { urls: ["<all_urls>"] },
+  ["blocking"],
+);
+
 browser.proxy.onError.addListener((error) => {
-  controller.recordProxyError(error);
+  void controller.recordProxyError(error);
 });
 
 /**
@@ -231,12 +239,26 @@ function releaseProxyAuthAttempt(details: { requestId: string }): void {
 
 browser.webRequest.onCompleted.addListener(releaseProxyAuthAttempt, { urls: ["<all_urls>"] });
 browser.webRequest.onErrorOccurred.addListener(releaseProxyAuthAttempt, { urls: ["<all_urls>"] });
+browser.webRequest.onCompleted.addListener(
+  (details) => {
+    controller.recordNetworkSuccess(details.url);
+  },
+  { urls: ["<all_urls>"] },
+);
+browser.webRequest.onErrorOccurred.addListener(
+  (details) => {
+    controller.recordNetworkFailure(details.url, details.error);
+  },
+  { urls: ["<all_urls>"] },
+);
 
+let startup = controller.initialize();
 const handleMessage = createMessageHandler({
   profiles: profileStore,
   credentials: credentialStore,
   controller,
   runtimeId: browser.runtime.id,
+  startupReady: () => startup,
 });
 
 browser.runtime.onMessage.addListener((message: unknown, sender) => {
@@ -251,12 +273,11 @@ browser.runtime.onMessage.addListener((message: unknown, sender) => {
 });
 
 browser.runtime.onStartup.addListener(() => {
-  void controller.initialize();
+  startup = controller.initialize();
 });
 
 browser.tabs.onRemoved.addListener((tabId) => {
   controller.forgetContentTab(tabId);
 });
 
-// Restore or re-establish the active identity whenever this event page starts.
-void controller.initialize();
+// The startup promise also keeps state:get from reporting Off during restoration.

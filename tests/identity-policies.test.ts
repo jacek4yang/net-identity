@@ -39,6 +39,9 @@ describe("independent identity policies", () => {
       }).ok,
     ).toBe(false);
     expect(parseRuntimeState({ ...state, appliedRevision: -1 }).ok).toBe(false);
+    expect(parseRuntimeState({ ...state, desiredRoute: "missing" }).ok).toBe(false);
+    expect(parseRuntimeState({ ...state, appliedRoute: "leak" }).ok).toBe(false);
+    expect(parseRuntimeState({ ...state, runtimeHealth: "unknown" }).ok).toBe(false);
     const snapshot = await h.targetStore.load();
     expect(parseActiveTargetSnapshot({ ...snapshot, appliedRevision: "1" }).ok).toBe(false);
     expect(parseActiveTargetSnapshot({ ...snapshot, appliedRevision: 0 }).ok).toBe(false);

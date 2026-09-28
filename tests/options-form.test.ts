@@ -253,6 +253,6 @@ describe("proxy field hints", () => {
 
 describe("persisted state expectations", () => {
   it("keeps the schema version stable for the stored state", () => {
-    expect(SCHEMA_VERSION).toBe(2);
+    expect(SCHEMA_VERSION).toBe(3);
   });
 });

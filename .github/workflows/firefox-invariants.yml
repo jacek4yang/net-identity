@@ -35,7 +35,7 @@ jobs:
           printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
             | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
           sudo apt-get update
-          sudo apt-get install -y firefox
+          sudo apt-get install -y firefox firefox-devedition
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -74,6 +74,9 @@ jobs:
           run websocket npm run e2e:websocket -- --firefox "$firefox"
           run ui npm run e2e:ui -- --firefox "$firefox"
           run proxy-auth npm run e2e:proxy-auth -- --firefox "$firefox"
+          run fail-closed npm run e2e:fail-closed -- --firefox /usr/bin/firefox-devedition
+          run restart npm run e2e:restart -- --firefox /usr/bin/firefox-devedition
+          run socks-auth npm run e2e:socks-auth -- --firefox /usr/bin/firefox-devedition
           exit "$status"
 
       # Uploaded only on failure. The output contains loopback ports and the bundled

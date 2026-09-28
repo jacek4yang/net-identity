@@ -69,6 +69,7 @@ describe("credential store", () => {
     await profiles.save({
       schemaVersion: SCHEMA_VERSION,
       activeProfileId: profile.id,
+      appliedSelection: { kind: "profile", profile },
       profiles: [profile],
     });
     await credentials.set(profile.id, { username: "user", password: "hunter2-secret" });
