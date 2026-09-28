@@ -373,7 +373,7 @@ describe("activation", () => {
 
     const deactivation = harness.controller.deactivate();
     await waitUntil(() => clearStarted);
-    harness.controller.recordProxyError(new Error("boom"));
+    void harness.controller.recordProxyError(new Error("boom"));
     await waitUntil(() => harness.controller.getState().lastError?.code === "proxy_error");
 
     expect(harness.controller.getState().activeProfileId).toBeNull();
@@ -514,12 +514,42 @@ describe("activation", () => {
     await harness.saveProfile(profile);
     await harness.controller.activate(profile.id);
 
-    harness.controller.recordProxyError(new Error("Proxy-Authorization: Basic dXNlcjpwdw=="));
+    void harness.controller.recordProxyError(new Error("Proxy-Authorization: Basic dXNlcjpwdw=="));
     await waitUntil(() => harness.controller.getState().lastError?.code === "proxy_error");
 
     const message = harness.controller.getState().lastError?.message ?? "";
     expect(message).not.toContain("dXNlcjpwdw==");
     expect(message).toContain("[redacted]");
+  });
+
+  it("does not let an in-flight proxy diagnostic erase a newly resolved identity", async () => {
+    const provider = createDeferred<GeoIpResult>();
+    const diagnosticStarted = createDeferred<void>();
+    const releaseDiagnostic = createDeferred<void>();
+    const h = createHarness({ provider: createScriptedProvider(() => provider.promise) });
+    const readSettings = h.deps.readFirefoxProxySettings;
+    let holdNextRead = false;
+    h.deps.readFirefoxProxySettings = async () => {
+      if (holdNextRead) {
+        holdNextRead = false;
+        diagnosticStarted.resolve();
+        await releaseDiagnostic.promise;
+      }
+      return readSettings();
+    };
+    const profile = makeProfile({ id: "diagnostic-race" });
+    await h.saveProfile(profile);
+    const activation = h.controller.activate(profile.id);
+    await waitUntil(() => h.providerResolveCount() === 1);
+    holdNextRead = true;
+    const diagnostic = h.controller.recordProxyError(new Error("proxy reported a transient error"));
+    await diagnosticStarted.promise;
+    provider.resolve(SAMPLE_GEO);
+    await activation;
+    releaseDiagnostic.resolve();
+    await diagnostic;
+    expect(h.controller.getState().identity.timezone).toBe("Europe/Amsterdam");
+    expect(h.controller.getEnvelope().payload?.timezone).toBe("Europe/Amsterdam");
   });
 });
 
@@ -848,7 +878,7 @@ describe("background restart", () => {
     harness.controller.recordNetworkFailure("https://example.invalid/", "NS_ERROR_NET_RESET");
     await waitUntil(() => harness.controller.getState().runtimeHealth === "unavailable");
     harness.controller.recordNetworkFailure("https://example.invalid/", "NS_ERROR_NET_RESET");
-    harness.controller.recordProxyError(new Error("proxy failed"));
+    void harness.controller.recordProxyError(new Error("proxy failed"));
     expect(harness.controller.getState().desiredRoute).toBe("proxy");
     expect(harness.controller.getState().appliedRoute).toBe("proxy");
     expect(harness.controller.getState().activeProfileId).toBe(profile.id);

@@ -203,7 +203,7 @@ browser.webRequest.onBeforeRequest.addListener(
 );
 
 browser.proxy.onError.addListener((error) => {
-  controller.recordProxyError(error);
+  void controller.recordProxyError(error);
 });
 
 /**

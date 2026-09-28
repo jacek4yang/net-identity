@@ -648,9 +648,9 @@ export class ActivationController {
   }
 
   /** `proxy.onError`: surfaced in the UI, never containing credentials. */
-  recordProxyError(error: unknown): void {
+  recordProxyError(error: unknown): Promise<void> {
     const message = describeError(error, "The proxy reported an error.");
-    void this.recordDiagnostic("proxy_error", message);
+    return this.recordDiagnostic("proxy_error", message, this.networkHealthEpoch);
   }
 
   /** Network failure changes health only; the selected proxy remains mandatory. */
@@ -707,6 +707,7 @@ export class ActivationController {
     // old identity coordinates and would re-publish them to pages. Wait for the
     // transition to commit its idle state instead.
     if (!this.initialized || this.isBusy() || this.deactivating) return this.state;
+    const baseState = this.state;
     const read = await this.deps.webrtc.read();
     const webrtc = describeObservedWebRtc(this.state.webrtc.desired, read);
     const state = await this.composeState({
@@ -727,7 +728,7 @@ export class ActivationController {
       state.webrtc.actual === this.state.webrtc.actual &&
       state.webrtc.levelOfControl === this.state.webrtc.levelOfControl;
     if (unchanged) return this.state;
-    if (state.generation !== this.generation) return this.state;
+    if (state.generation !== this.generation || this.state !== baseState) return this.state;
     this.state = state;
     await this.deps.broadcastState(this.state);
     return this.state;
@@ -769,6 +770,7 @@ export class ActivationController {
     healthEpoch?: number,
   ): Promise<void> {
     const generation = this.generation;
+    const baseState = this.state;
     const state = await this.composeState({
       status: this.state.status,
       generation,
@@ -782,6 +784,7 @@ export class ActivationController {
     });
     if (
       state.generation !== this.generation ||
+      this.state !== baseState ||
       (healthEpoch !== undefined && healthEpoch !== this.networkHealthEpoch)
     )
       return;
@@ -815,6 +818,7 @@ export class ActivationController {
   }
 
   private async rebroadcast(): Promise<void> {
+    const baseState = this.state;
     const state = await this.composeState({
       status: this.state.status,
       generation: this.state.generation,
@@ -826,7 +830,7 @@ export class ActivationController {
       content: this.content,
       ...(this.state.lastError === undefined ? {} : { lastError: this.state.lastError }),
     });
-    if (state.generation !== this.generation) return;
+    if (state.generation !== this.generation || this.state !== baseState) return;
     this.state = state;
     await this.deps.broadcastState(state);
   }

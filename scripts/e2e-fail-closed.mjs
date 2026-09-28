@@ -196,7 +196,13 @@ async function startFirefox(profileDir, marionettePort, pageUrl) {
     "--firefox",
     firefoxPath,
   ];
-  const child = spawn(process.execPath, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.execPath, args, {
+    cwd: root,
+    stdio: ["ignore", "pipe", "pipe"],
+    // web-ext is a Node wrapper around Firefox. Kill the whole group on Linux,
+    // otherwise Firefox retains the profile lock after only Node exits.
+    detached: process.platform !== "win32",
+  });
   let output = "";
   child.stdout.on("data", (chunk) => {
     output += String(chunk);
@@ -224,7 +230,7 @@ async function startFirefox(profileDir, marionettePort, pageUrl) {
     await client.send("WebDriver:Navigate", {
       url: new URL("options/options.html", location.baseURL).href,
     });
-    return { child, client, baseURL: location.baseURL, output: () => output };
+    return { child, client, profileDir, baseURL: location.baseURL, output: () => output };
   } catch (error) {
     await stopFirefox({ child, client: null });
     throw new Error(`${String(error)}\n${output.split("\n").slice(-15).join("\n")}`, {
@@ -235,16 +241,29 @@ async function startFirefox(profileDir, marionettePort, pageUrl) {
 
 async function stopFirefox(browser) {
   browser.client?.close();
-  if (browser.child.exitCode === null && browser.child.signalCode === null) {
-    if (process.platform === "win32") {
+  if (process.platform === "win32") {
+    if (browser.child.exitCode === null && browser.child.signalCode === null) {
       const killer = spawn("taskkill", ["/PID", String(browser.child.pid), "/T", "/F"], {
         stdio: "ignore",
       });
       await new Promise((resolve) => killer.once("exit", resolve));
-    } else browser.child.kill("SIGTERM");
+    }
+  } else {
+    try {
+      process.kill(-browser.child.pid, "SIGTERM");
+    } catch (error) {
+      if (error?.code !== "ESRCH") throw error;
+    }
   }
   if (browser.child.exitCode === null && browser.child.signalCode === null)
     await new Promise((resolve) => browser.child.once("exit", resolve));
+  if (process.platform !== "win32" && browser.profileDir) {
+    const lock = path.join(browser.profileDir, "parent.lock");
+    const lockDeadline = Date.now() + 15000;
+    while (existsSync(lock) && Date.now() < lockDeadline)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    if (existsSync(lock)) throw new Error("Firefox did not release its profile lock");
+  }
 }
 
 async function message(browser, payload) {
