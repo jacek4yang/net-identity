@@ -4,11 +4,11 @@ net-identity does not include telemetry, analytics, or remotely loaded program c
 
 ## What is stored on this computer
 
-| Data                                                                                      | Where                                       | How long                                      |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------- |
-| Profiles (name, proxy host, username, location, timezone, WebRTC choice)                  | Firefox extension storage (`storage.local`) | Until you delete the profile or the extension |
-| Proxy password                                                                            | Firefox session storage                     | Until Firefox exits                           |
-| Active routing snapshot, including the password needed after the background page restarts | Firefox session storage                     | Until Firefox exits                           |
+| Data                                                                                                  | Where                                       | How long                                      |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------- |
+| Profiles and non-secret applied route (name, proxy host, username, location, timezone, WebRTC choice) | Firefox extension storage (`storage.local`) | Until you delete the profile or the extension |
+| Proxy password                                                                                        | Firefox session storage                     | Until Firefox exits                           |
+| Active routing snapshot, including the password needed after the background page restarts             | Firefox session storage                     | Until Firefox exits                           |
 
 A password is not written into the saved profile. Migration removes secret keys from
 supported documents that can be migrated safely. Newer or unsafe documents are left
@@ -21,6 +21,10 @@ unchanged and held inactive, rather than silently dropping a profile or its prox
 **Location picker.** The map uses a bundled local coordinate grid. No tile provider is enabled and no map requests leave the options page. Typed coordinates, panning, zoom, selection and marker drag work offline. Neither a Referer override nor a spoofed web origin is used.
 
 **Proxy traffic.** Traffic you choose to send through a proxy goes to that proxy. The extension does not add its own analytics to that traffic.
+If a selected proxy fails, ordinary external traffic fails rather than switching to
+Firefox's direct or system route. The selected profile stays selected and can recover
+without a route switch. After a full Firefox exit, a session-only password is lost;
+traffic remains restricted to the selected proxy until credentials are supplied again.
 
 ## What pages can see
 
@@ -35,4 +39,4 @@ Pages receive the location and timezone of the active profile through compatibil
 - Save stores edits; Apply activates the saved configuration and leaves unsaved form edits alone. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. A blank password keeps existing session credentials, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
 
-These notes describe version 1.1.0. The immutable v1.0.0 AMO submission retains the privacy behavior documented in its tagged source archive. Version 1.1.0 keeps the coordinate picker entirely local, exposes Direct virtually, and separates saved configuration from applied runtime.
+These notes describe version 1.1.2. Earlier AMO submissions retain the privacy behavior documented in their immutable tagged source archives. The coordinate picker remains entirely local, Direct is virtual, and the committed applied route is stored separately from saved edits without a password.

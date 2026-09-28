@@ -1,7 +1,7 @@
 # Firefox distribution releases
 
 Listed releases use AMO as the canonical public distribution and automatic-update channel.
-Version 1.1.1 uses Mozilla unlisted signing for self-distribution through GitHub. A final GitHub
+Versions 1.1.1 and 1.1.2 use Mozilla unlisted signing for self-distribution through GitHub. A final GitHub
 Release offers the exact Mozilla-signed XPI, installable in normal Firefox. Listed upload
 acceptance is **not approval**. Never rename an unsigned submission ZIP to imply signing.
 
@@ -132,3 +132,14 @@ reconstructing that single byte in memory and matching the original submission S
 it does not normalize JSON or allow value changes. All other payload files must remain
 byte-identical. Release metadata records both manifest hashes and whether this occurred.
 The downloaded signed XPI is never rewritten.
+
+## 1.1.2 fail-closed security release
+
+Version 1.1.2 follows merged security PR #74 and keeps the unlisted channel selected by
+`release-config.json`. It is the first schema-3 version: a non-secret applied route is
+stored separately from editable saved profiles, so full Firefox restart cannot make an
+unapplied Direct edit effective. Proxy outages, lost session credentials, and unsafe
+startup state fail external requests instead of falling back to Direct. The release
+gate includes the SOCKS outage, event-page restart, full-restart, authenticated SOCKS,
+HTTP/HTTPS/WS/WSS, DNS, and zero direct-origin leak checks. v1.1.0 remains listed and
+unreviewed; v1.1.1 and older tags, releases, and AMO submissions are unchanged.
