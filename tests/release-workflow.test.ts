@@ -8,6 +8,9 @@ const ci = readFileSync(".github/workflows/ci.yml", "utf8");
 const firefox = readFileSync(".github/workflows/firefox-invariants.yml", "utf8");
 
 describe("two-phase AMO publication", () => {
+  it("selects listed distribution for the next release without changing channel support", () => {
+    expect(JSON.parse(readFileSync("release-config.json", "utf8"))).toEqual({ channel: "listed" });
+  });
   it("submits only from version tags after both complete gates", () => {
     expect(workflow).toContain('"v[0-9]+.[0-9]+.[0-9]+"');
     expect(workflow).toContain(

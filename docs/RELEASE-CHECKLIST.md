@@ -122,3 +122,21 @@ channel, then update README in a separate documentation PR if needed.
       when applicable; screenshots are not evidence of Mozilla approval or signature
 - [ ] Authenticated AMO state confirms the next patch version is unused before the
       separate version PR. Do not infer availability from Git tags alone
+
+## 1.1.3 listed-release plan
+
+- [ ] Confirm package, lockfile and manifest remain 1.1.3 and the tagged release-config
+      selects listed; do not alter historical 1.1.1/1.1.2 submissions or assets
+- [ ] Recheck authenticated AMO status immediately before submission. The earlier
+      [status run](https://github.com/jacek4yang/net-identity/actions/runs/36807778410)
+      reported 1.1.3 absent at 02:51:21 UTC on 2026-10-01; the
+      [04:20:22 UTC recheck](https://github.com/jacek4yang/net-identity/actions/runs/36814633282)
+      again found it absent. Neither check reserves the version
+- [ ] Verify dual-mode SOCKS rejects ordinary fixture traffic while credentials are
+      missing, then restores authenticated access after Save and Apply
+- [ ] Keep Firefox-protected browser-service anonymous-access limitations visible in
+      reviewer notes, privacy text and listing; do not claim a browser-wide kill switch
+- [ ] After exact listed-version approval and release finalization, run the separate
+      listing publisher dry-run, review its plan and publish only the reviewed copy/media
+- [ ] Visually inspect the public listing and rendered media; report moderation/cache
+      delay honestly and do not equate accepted uploads with public visibility

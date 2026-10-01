@@ -122,22 +122,24 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 ## Installation
 
-For normal Firefox, use a verified signed installer from the
-[GitHub Releases](https://github.com/jacek4yang/net-identity/releases) page. The
-[v1.1.0 public release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0)
-records the canonical [AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
-Status checked on 2026-10-01 from GitHub release provenance; the live AMO page was
-not independently reachable during this check. The earlier statement that no listing
-exists is obsolete.
+For normal Firefox, install from the public
+[AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
+The listing and public API were independently checked on 2026-10-01; the current
+listed version is 1.1.0. Its signed installer and provenance are also available in the
+[v1.1.0 GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0).
 
-New unlisted releases remain draft until Mozilla signs the exact version and the
-finalizer verifies its bytes and permanent installation in normal Firefox. Download
+Version 1.1.3 is being prepared for listed distribution and the default AMO update
+channel. It is a candidate, not a claim of submission, signing or publication.
+The release remains draft until Mozilla approves the exact listed version and the
+finalizer verifies its bytes and permanent installation in normal Firefox.
+
+Versions 1.1.1 and 1.1.2 remain historical unlisted self-distribution releases; their
+submissions and assets are unchanged. For a verified signed GitHub installer, download
 `net-identity-<version>-firefox-signed.xpi` and use Add-ons and themes → gear →
 Install Add-on From File. Source, checksums and provenance accompany the installer.
-Versions 1.1.1 and 1.1.2 use unlisted self-distribution; that does not confer public
-listing approval. GitHub does not automatically update installations. No custom update
-URL is configured; a higher listed AMO version may update the installation through
-Firefox's default AMO update service.
+GitHub itself does not automatically update installations. No custom update URL is
+configured; a higher listed AMO version may update them through Firefox's default
+AMO update service, subject to approval and any required consent prompts.
 
 See [reviewer notes](docs/AMO-REVIEW.md), [release checklist](docs/RELEASE-CHECKLIST.md),
 [privacy policy](docs/PRIVACY.md), and [release process](docs/RELEASING.md).
