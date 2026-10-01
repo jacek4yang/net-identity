@@ -87,7 +87,7 @@ The Firefox API surface is injected everywhere:
 
 - `index.ts` is the only background file that touches `browser.*`.
 - `src/profile/`, `src/geo/`, `src/shared/` and the pure parts of `src/content/` are
-  plain TypeScript that runs in Node, which is why 200+ unit tests need no browser.
+  plain TypeScript that runs in Node, so the unit tests need no browser.
 - The content shims receive their realm (`Date`, `Intl`, constructors) as parameters, so
   `tests/timezone-shim.test.ts` exercises the real patch behaviour against Node's real
   implementations.

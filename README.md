@@ -228,8 +228,8 @@ stay direct.
 
 - A `document_start`, `MAIN`-world content script overrides
   `navigator.geolocation.getCurrentPosition`, `watchPosition` and `clearWatch`.
-- While no profile is active, calls are delegated to the native implementation, so an
-  idle extension is invisible.
+- Once Off has successfully committed, calls are delegated to the native implementation.
+  The compatibility shim remains detectable; this is not an invisibility guarantee.
 - While a profile is active, pending, or still starting, the shim does not call
   Firefox's geolocation API. A previous synthetic position is kept until the new
   identity is committed. If none is available, the page gets a timeout or
@@ -294,11 +294,11 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 301 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – browser-free unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
-  credential separation, message-router authorisation, the manifest contract, the
-  manual location map (projection, seeding, tile URLs), profile schema migration,
+  session-only credential separation, bounded SOCKS health and cooldown, message-router authorisation, the manifest contract, the
+  offline location map (projection, seeding and interaction), profile schema migration,
   per-frame page-shim diagnostics, audit updates after external proxy or WebRTC setting
   changes, the AMO reviewer metadata, the real-Firefox CI gate, the AMO submission
   workflow, and the GitHub Release metadata and checksums.
@@ -318,10 +318,19 @@ tests/            vitest unit tests (no browser required)
   `Date` getters follow the profile, that child frames see the same timezone, and
   that deactivation restores the previous WebRTC policy and the native position.
 - `npm run e2e:proxy-auth` – launches real Firefox against the bundled authenticating
-  proxy and checks that a correct password is accepted without a 407 loop, and a wrong
-  password is challenged only a bounded number of times.
+  local CONNECT fixture and checks that a correct password is accepted without a 407
+  loop, and a wrong password is challenged only a bounded number of times. No public
+  provider or upstream service is contacted.
+- `npm run e2e:ui` – checks the real popup, profile Save/Apply and offline map interactions.
+- `npm run e2e:fail-closed` – checks SOCKS outage and event-page recovery with zero direct
+  or system-proxy fallback for HTTP, HTTPS, WS, WSS and proxy DNS.
+- `npm run e2e:restart` – checks retained-profile full Firefox restart while SOCKS is down.
+- `npm run e2e:socks-auth` – checks session credential loss and recovery through the same
+  selected proxy after restart.
+- `npm run e2e:flap` – checks three SOCKS outage/recovery cycles, burst failures, stable
+  identity/generation, no failed-request replay and zero fallback sentinel hits.
 
-CI requires `quality` and `firefox / invariants`. Its deterministic loopback gates
+CI requires `quality` and `firefox / invariants`. Its eight deterministic loopback browser gates
 cover invariants, WebSockets, proxy authentication, UI, fail-closed outages, full
 restart, credential loss and `e2e:flap` (three SOCKS outage/recovery cycles).
 They do not contact the public GeoIP provider. Only `npm run e2e`, the optional public

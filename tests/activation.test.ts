@@ -6,7 +6,7 @@
  * overwrite a newer one, credentials stay in session storage, routing survives a
  * background restart, and deactivation really stops the spoofing.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BRIDGE_SOURCE, GEOIP_ACCURACY_METERS, PAGE_SOURCE } from "../src/shared/constants";
 import type { GeoIpResult } from "../src/geo/provider";
 import {
@@ -879,6 +879,10 @@ describe("background restart", () => {
     });
     await harness.saveProfile(profile);
     const activated = await harness.controller.activate(profile.id);
+    const providerCalls = harness.providerResolveCount();
+    const webRtcSets = harness.webrtcSetting.setCalls;
+    const webRtcClears = harness.webrtcSetting.clearCalls;
+    const envelopes = structuredClone(harness.envelopes);
     const observations = [];
     for (let i = 0; i < 6; i++) {
       const url = `https://origin${i % 2}.invalid/`;
@@ -904,15 +908,23 @@ describe("background restart", () => {
     expect(harness.controller.getState().appliedRoute).toBe("proxy");
     expect(harness.controller.getState().identity).toEqual(activated.identity);
     expect(harness.controller.getState().generation).toBe(activated.generation);
+    expect(harness.providerResolveCount()).toBe(providerCalls);
+    expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
+    expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
+    expect(harness.envelopes).toEqual(envelopes);
     for (const details of observations.slice(3)) {
       harness.controller.recordNetworkSuccess(details);
       now += 600;
     }
     await waitUntil(() => harness.controller.getState().runtimeHealth === "healthy");
     expect(harness.controller.getState().activeProfileId).toBe(profile.id);
+    expect(harness.providerResolveCount()).toBe(providerCalls);
+    expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
+    expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
+    expect(harness.envelopes).toEqual(envelopes);
   });
 
-  it("ignores stale generation, uncorrelated, bypass, cached and origin-only failures", async () => {
+  it("ignores stale generations and repeated failures from only one origin", async () => {
     let now = 0;
     const harness = createHarness({ now: () => now });
     const profile = makeProfile({
@@ -933,6 +945,167 @@ describe("background restart", () => {
     }
     expect(harness.controller.getState().runtimeHealth).toBe("healthy");
     expect(harness.controller.decideProxyForRequest(url)).not.toBeInstanceOf(Promise);
+  });
+
+  it.each(["bypass", "direct", "wrong-type", "wrong-host", "cached", "uncorrelated"])(
+    "ignores %s failures even across independent origins and time buckets",
+    async (kind) => {
+      let now = 0;
+      const harness = createHarness({ now: () => now });
+      const profile = makeProfile({
+        id: "health-exclusions",
+        proxy: {
+          type: "socks5",
+          host: "proxy.invalid",
+          port: 1080,
+          proxyDNS: true,
+          bypassHosts: kind === "bypass" ? ["origin0.invalid", "origin1.invalid"] : [],
+        },
+      });
+      await harness.saveProfile(profile);
+      await harness.controller.activate(profile.id);
+      for (let i = 0; i < 4; i++) {
+        const url = `https://origin${i % 2}.invalid/`;
+        const requestId = `excluded-${i}`;
+        const decision = await harness.controller.decideProxyForRequest(url, requestId);
+        if (kind === "bypass") expect(decision).toEqual({ type: "direct" });
+        else terminalProxy(decision);
+        const proxyInfo =
+          kind === "direct"
+            ? { type: "direct" }
+            : {
+                type: kind === "wrong-type" ? "http" : "socks",
+                host: kind === "wrong-host" ? "other.invalid" : "proxy.invalid",
+                port: 1080,
+              };
+        // A bypassed request must remain untracked even if a misleading later event
+        // claims the active endpoint. DIRECT actual proxyInfo is tested separately.
+        harness.controller.recordNetworkFailure({
+          url,
+          requestId: kind === "uncorrelated" ? `unknown-${i}` : requestId,
+          proxyInfo,
+          fromCache: kind === "cached",
+          error: "NS_ERROR_NET_RESET",
+        });
+        now += 400;
+      }
+      expect(harness.controller.getState().runtimeHealth).toBe("healthy");
+      expect(
+        harness.controller.decideProxyForRequest("https://network.invalid/"),
+      ).not.toBeInstanceOf(Promise);
+    },
+  );
+
+  it("ignores late A successes and failures after switching to B at the same endpoint", async () => {
+    let now = 0;
+    const harness = createHarness({ now: () => now });
+    const proxy = {
+      type: "socks5" as const,
+      host: "proxy.invalid",
+      port: 1080,
+      proxyDNS: true,
+      bypassHosts: [],
+    };
+    const a = makeProfile({ id: "late-route-a", proxy });
+    const b = makeProfile({ id: "late-route-b", proxy });
+    await harness.saveProfile(a);
+    await harness.saveProfile(b);
+    await harness.controller.activate(a.id);
+    const old = [];
+    for (let i = 0; i < 6; i++) {
+      const url = `https://origin${i % 2}.invalid/`;
+      const requestId = `old-a-${i}`;
+      const proxyInfo = terminalProxy(
+        await harness.controller.decideProxyForRequest(url, requestId),
+      );
+      old.push({ url, requestId, proxyInfo, fromCache: false, error: "NS_ERROR_NET_RESET" });
+    }
+    const activatedB = await harness.controller.activate(b.id);
+    for (const details of old.slice(0, 3)) {
+      harness.controller.recordNetworkFailure(details);
+      now += 400;
+    }
+    // Allow any mistakenly accepted diagnostic composition to publish before asserting.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(harness.controller.getState()).toBe(activatedB);
+    for (let i = 0; i < 3; i++) {
+      const url = `https://origin${i % 2}.invalid/`;
+      const requestId = `current-b-${i}`;
+      const proxyInfo = terminalProxy(
+        await harness.controller.decideProxyForRequest(url, requestId),
+      );
+      harness.controller.recordNetworkFailure({
+        url,
+        requestId,
+        proxyInfo,
+        error: "NS_ERROR_NET_RESET",
+      });
+      now += 400;
+    }
+    await waitUntil(() => harness.controller.getState().runtimeHealth === "degraded");
+    const suspectB = harness.controller.getState();
+    for (const details of old.slice(3)) {
+      harness.controller.recordNetworkSuccess(details);
+      now += 600;
+    }
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(harness.controller.getState()).toBe(suspectB);
+    expect(suspectB.activeProfileId).toBe(b.id);
+    expect(suspectB.generation).toBe(activatedB.generation);
+    expect(suspectB.identity).toEqual(activatedB.identity);
+  });
+
+  it("cancels A's actual pending cooldown when Apply switches to B", async () => {
+    vi.useFakeTimers();
+    try {
+      let now = 0;
+      const harness = createHarness({ now: () => now });
+      const a = makeProfile({
+        id: "cooldown-a",
+        proxy: { type: "socks5", host: "a.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
+      });
+      const b = makeProfile({ id: "cooldown-b", proxy: { ...a.proxy, host: "b.invalid" } });
+      await harness.saveProfile(a);
+      await harness.saveProfile(b);
+      await harness.controller.activate(a.id);
+      for (let i = 0; i < 3; i++) {
+        const url = `https://origin${i % 2}.invalid/`;
+        const requestId = `cooldown-${i}`;
+        const proxyInfo = terminalProxy(
+          await harness.controller.decideProxyForRequest(url, requestId),
+        );
+        harness.controller.recordNetworkFailure({
+          url,
+          requestId,
+          proxyInfo,
+          error: "NS_ERROR_NET_RESET",
+        });
+        if (i < 2) now += 350;
+      }
+      const pending = harness.controller.decideProxyForRequest("https://pending.invalid/");
+      expect(pending).toBeInstanceOf(Promise);
+      expect(vi.getTimerCount()).toBe(1);
+      let resolved = false;
+      void Promise.resolve(pending).then(() => {
+        resolved = true;
+      });
+      await harness.controller.activate(b.id);
+      // No clock advance: Apply must wake the decision rather than await its timer.
+      expect(resolved).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+      // During Apply, the prior route remains mandatory until B becomes effective.
+      // The awakened decision may precede that point, but can never be Direct.
+      terminalProxy(await pending);
+      const current = harness.controller.decideProxyForRequest("https://pending.invalid/");
+      expect(current).not.toBeInstanceOf(Promise);
+      expect(terminalProxy(await current).host).toBe("b.invalid");
+      expect(harness.controller.getState().activeProfileId).toBe(b.id);
+      expect(harness.controller.getState().runtimeHealth).toBe("healthy");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("wakes cooldown on Off and recomputes the route without retaining the old proxy", async () => {

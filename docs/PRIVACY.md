@@ -26,6 +26,13 @@ Firefox's direct or system route. The selected profile stays selected and can re
 without a route switch. After a full Firefox exit, session-only usernames and passwords are lost;
 traffic remains restricted to the selected proxy until credentials are supplied again.
 
+**Proxy transport security.** Session-only storage does not encrypt the connection to a proxy.
+SOCKS5 username/password authentication is plaintext on that connection
+([RFC 1929](https://www.rfc-editor.org/rfc/rfc1929.html#section-3)); HTTP proxy Basic
+authentication likewise needs a protected transport. HTTPS to a destination does not
+by itself encrypt the preceding SOCKS authentication. Use only a trusted proxy and
+a suitably protected network path. This extension does not add an encrypted tunnel.
+
 ## What pages can see
 
 Pages receive the location and timezone of the active profile through compatibility shims. Those shims are visible to a page that inspects them. They are not a claim that the browser is anonymous or undetectable. A frame Firefox will not inject into can still see the computer's timezone and location.
@@ -39,7 +46,7 @@ Pages receive the location and timezone of the active profile through compatibil
 - Save stores edits; Apply activates the saved configuration and leaves unsaved form edits alone. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. Leaving both username and password blank keeps existing session credentials; entering either replaces the pair, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
 
-These notes describe the current schema-4 candidate; its release version has not yet been selected. Earlier AMO submissions retain the privacy behavior documented in their immutable tagged source archives. The coordinate picker remains entirely local, Direct is virtual, and the committed applied route is stored separately from saved edits without usernames or passwords.
+These notes describe the current schema-4 candidate; its package version remains 1.1.2 until the separate release PR. Version 1.1.3 was verified absent on AMO on 2026-10-01 and is the candidate patch, not a published release. Earlier AMO submissions retain the privacy behavior documented in their immutable tagged source archives. The coordinate picker remains entirely local, Direct is virtual, and the committed applied route is stored separately from saved edits without usernames or passwords.
 
 ## Passive health observations
 
