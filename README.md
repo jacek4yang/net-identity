@@ -337,6 +337,7 @@ tests/            vitest unit tests (no browser required)
 - `LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox /path/to/firefox`
   – requires real WebGL rendering: local vector geometry, raster/sprite data, packaged
   worker, CSP, map interactions and screenshot pixel assertions. No silent render skip.
+  Run `npm run build:prod` first (development source maps are rejected).
   Both map modes serve the production provider origin through a local HTTPS fixture;
   its short-lived CA is trusted only in a disposable test Firefox profile, which is
   removed afterwards. System and normal-user trust stores are not changed.

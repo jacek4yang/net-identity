@@ -85,6 +85,20 @@ async function main() {
     !existsSync(path.join(root, "dist/manifest.json"))
   )
     throw new Error("Pass --firefox and build dist/ first");
+  const sourceMapsPresent = [
+    "background.js.map",
+    "popup/popup.js.map",
+    "content/bridge.js.map",
+    "content/page-shim.js.map",
+    "options/options.js.map",
+    "options/maplibre.js.map",
+    "options/maplibre-worker.js.map",
+  ].filter((file) => existsSync(path.join(root, "dist", file)));
+  const productionBundle = sourceMapsPresent.length === 0;
+  if (!productionBundle)
+    throw new Error(
+      "The map release gate requires npm run build:prod; development source maps were found.",
+    );
   const directory = await mkdtemp(path.join(tmpdir(), "ni-map-"));
   let fixture, firefox, client;
   try {
@@ -442,7 +456,8 @@ async function main() {
               {
                 userAgent: await execute("return navigator.userAgent;"),
                 fixture: "exact production OpenFreeMap origin via loopback CONNECT proxy",
-                productionBundle: true,
+                productionBundle,
+                sourceMapsPresent,
                 sourceHashes,
                 colors,
                 cspViolations: await execute("return window.__mapCsp;"),

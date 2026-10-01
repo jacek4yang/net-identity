@@ -47,7 +47,7 @@ jobs:
         run: npm ci
 
       - name: Build the extension
-        run: npm run build
+        run: npm run build:prod
 
       # The harnesses print their progress to stderr and exit non-zero when a check
       # fails. Run every one of them even if one fails so a single job log shows the

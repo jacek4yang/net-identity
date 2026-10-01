@@ -43,6 +43,13 @@ export const FIXTURE_STYLE = {
       paint: { "fill-color": "#55bb66" },
     },
     {
+      id: "water",
+      type: "fill",
+      source: "openmaptiles",
+      "source-layer": "water",
+      paint: { "fill-color": "#2266dd" },
+    },
+    {
       id: "road",
       type: "line",
       source: "openmaptiles",
@@ -111,6 +118,25 @@ export const VECTOR_TILE = Buffer.concat([
         [2850, 3400],
         [1000, 3200],
         [450, 1800],
+      ],
+      true,
+    ),
+  ),
+  // Keep an actual vector-water polygon inside the initial center/zoom. The
+  // first CI capture was 660×280: the exterior coast only exposed 612 background
+  // pixels at its corners, although all vector geometry rendered correctly.
+  // This inland polygon projects wholly inside that unchanged view, so the
+  // existing >1000 water-pixel assertion now verifies vector decoding too.
+  layer(
+    "water",
+    feature(
+      3,
+      [
+        [1400, 1900],
+        [1850, 1750],
+        [2050, 1950],
+        [1900, 2300],
+        [1450, 2250],
       ],
       true,
     ),

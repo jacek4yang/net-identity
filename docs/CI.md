@@ -21,6 +21,10 @@ run on Developer Edition so the exact unsigned candidate can be preinstalled bef
 startup; the release finalizer separately verifies the Mozilla-signed XPI in normal
 stable Firefox.
 
+The browser job uses `npm run build:prod`, so every deterministic harness exercises
+the minified, source-map-free distribution that is packaged for release. Map capture
+metadata inspects the build instead of assuming that any `dist/` is a production build.
+
 - `npm run e2e:invariants` – fail-closed controlled geolocation, `Date`/`Intl`
   timezone consistency, supported frames, and WebRTC apply/restore.
 - `npm run e2e:websocket` – `ws`/`wss` routing through the active proxy while a
@@ -89,6 +93,7 @@ network traffic. The target still exercises wrong and correct credentials unchan
 ```bash
 npm ci
 npm run check
+npm run build:prod
 npm run e2e:invariants -- --firefox "<path to Firefox>"
 npm run e2e:websocket -- --firefox "<path to Firefox>"
 npm run e2e:proxy-auth -- --firefox "<path to Firefox>"
