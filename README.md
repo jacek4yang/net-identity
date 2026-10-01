@@ -13,8 +13,8 @@ content scripts) precisely because those APIs allow a correct implementation.
 - Node.js for development: **>= 22** (required by `web-ext` 10)
 - Locally bundled MapLibre renderer; no telemetry or remote executable code
 
-**Unreleased source change:** online OpenFreeMap basemaps are being added after
-1.1.3. The published 1.1.3 package still has the offline coordinate grid. This
+**1.1.4 release candidate (unreleased source change):** online OpenFreeMap basemaps
+are being prepared after 1.1.3. The published 1.1.3 package still has the offline coordinate grid. This
 source documentation is not a claim that a newer map-enabled version is on AMO.
 
 ## Why it exists
@@ -435,4 +435,6 @@ install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/d
 
 [Four real Firefox UI captures](store-assets/README.md#screenshots) accompany the
 candidate. They use a labeled local demonstration profile with GeoIP disabled and no
-credentials. They are unsigned-candidate UI evidence, not signing or listing approval.
+credentials. The map capture shows actual OpenFreeMap geography and visible attribution;
+[its review](store-assets/screenshots/capture-review.json) verifies the production source
+hashes and pixels. These remain unsigned-candidate UI evidence, not signing or listing approval.

@@ -16,7 +16,7 @@ Content scripts run in every frame, including `about:blank`. The MAIN-world scri
 
 A sandboxed frame Firefox refuses to inject can still see the computer's timezone and location. That is a platform limit.
 
-## Map (unreleased source change after 1.1.3)
+## Map (1.1.4 candidate, unreleased source change after 1.1.3)
 
 The published 1.1.3 package remains the offline-only grid. The new implementation adds
 an explicit **Load online map** action using locally bundled MapLibre GL JS and worker;
@@ -33,6 +33,15 @@ omits credentials/cookies/referrers, and cancels stale-generation loads. Closing
 the editor, route changes, permission revocation and background restart require a fresh
 map enable action. The renderer and third-party notices are packaged locally; attribution
 links OpenMapTiles and OpenStreetMap. See `docs/TILE-POLICY.md` and `docs/PRIVACY.md`.
+
+CJK ideographs use brokered provider glyph data (`localIdeographFontFamily: false`),
+so map labels do not depend on operating-system CJK fonts. Validated resource URLs are
+serialized once with `URL.href` for both fetching and pending-request correlation,
+including encoded font-stack spaces. A renderer FIFO admits at most 8 active broker
+requests and 256 waiting URL/control records, with a 60-second queue-inclusive deadline;
+it caches no response bytes, never retries and cancels on removal. Aborted active work
+retains its slot until the broker RPC settles. Existing broker/network/byte bounds remain
+unchanged. Glyph errors stay visible instead of being erased by a later load event.
 
 Renderer dependency: **MapLibre GL JS 6.11.2**, pinned in the lockfile and bundled
 from its local ESM distribution. The earlier unpublished 5.24.0 candidate was rejected
@@ -82,12 +91,13 @@ versions retain their immutable tagged source archives for historical review.
 
 ## Install channel
 
-Listed releases use AMO for public installation and automatic updates. The 1.1.3
-candidate selects listed distribution. Public AMO 1.1.0 was independently confirmed
-through the API and rendered listing on 2026-10-01; 1.1.3 is not yet claimed submitted
-or approved. Historical 1.1.1/1.1.2 unlisted distribution remains unchanged. Each GitHub Release remains draft until its
-exact AMO file is public and the Mozilla signature has been verified. Its primary installer is the exact XPI downloaded from
-Mozilla, hash-checked and permanently installed in signature-enforcing normal Firefox.
+Listed releases use AMO for public installation and automatic updates. The provisional
+1.1.4 map candidate selects listed distribution; this does not imply submission, review
+approval or signing. Public 1.1.3 remains the released offline-picker version. Historical
+listed 1.1.0/1.1.3 and unlisted 1.1.1/1.1.2 assets/submissions remain unchanged. Each
+GitHub Release stays draft until its exact AMO file is public and the Mozilla signature
+has been verified. Its primary installer is the exact XPI downloaded from Mozilla,
+hash-checked and permanently installed in signature-enforcing normal Firefox.
 No unsigned submission ZIP is presented as a signed installer. Source and provenance
 refer to the same tag, version and commit. See `docs/RELEASING.md`.
 
@@ -108,14 +118,17 @@ The committed PNGs are:
 3. [`03-identity-audit.png`](../store-assets/screenshots/03-identity-audit.png)
 4. [`04-local-location-picker.png`](../store-assets/screenshots/04-local-location-picker.png)
 
-[Capture metadata](../store-assets/screenshots/metadata.json) records stable Firefox 157.0 on
-Linux, candidate extension version 1.1.3, dark theme, source/image hashes and the
-`Tokyo · Local demo` fixture: loopback proxy, GeoIP disabled, no credentials, synthetic
-coordinates and timezone. The popup is the real 380px UI centered on a plain 1280×800
-canvas; the audit view uses a lossless native-scale crop of the actual identity and
-diagnostics cards with plain matching-background margins, without changing status
-content. Options retain their normal layout. [Asset instructions](../store-assets/README.md)
-explain deterministic icon generation and screenshot reproduction.
+[Capture metadata](../store-assets/screenshots/metadata.json) records stable Firefox
+157.0 on Linux, unsigned candidate 1.1.4, dark theme and the synthetic `Tokyo · Local demo`
+profile (loopback endpoint, disabled GeoIP and no credentials). The final
+[capture run](https://github.com/jacek4yang/net-identity/actions/runs/36856670754) used
+production source `d28d356746bd7cc62e3477d5d3c2167eea04f919` and actual OpenFreeMap
+geography. Four 1280×800 images and nine UI/renderer hashes match the production package.
+[Visual review](../store-assets/screenshots/capture-review.json) confirms readable Tokyo
+CJK labels, local SVG power icon, complete map fieldset, attribution and privacy-safe
+fixture content. The raw capture review-required flag is preserved; adjacent review
+records completion. No signed-release or listing-publication claim follows from capture.
+Historical 1.1.3 images remain in that immutable tag and its publication record.
 
 ## After a review comment
 
@@ -190,3 +203,12 @@ identity requires server-side rejection of anonymous access; this is not a unive
 switch. The dual-mode fixture records and rejects browser-service attempts locally,
 asserts zero ordinary-fixture CONNECTs/origin hits without credentials, and requires the
 pre-fix negative control to fail. See docs/SECURITY.md for official source references.
+
+## HTTP/HTTPS proxy account identity
+
+The proxy server must enforce authentication. Keeping a username/password pair in the
+session does not prove every HTTP/HTTPS proxy connection used that account: a server
+accepting anonymous CONNECT requests may not issue a 407 challenge. This applies to
+ordinary webpage and map traffic too, independently of the Firefox-protected service
+limitation. Require the server to reject anonymous access when account identity matters.
+This is not a Direct fallback or a guarantee of reauthentication of existing connections.

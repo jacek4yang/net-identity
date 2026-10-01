@@ -243,3 +243,45 @@ The ordinary-request missing-credential gate does not cancel all Firefox-protect
 browser-service requests. They can still reach the selected proxy anonymously if it
 accepts that mode. Require upstream rejection of anonymous clients for browser-wide
 account identity; neither the release nor listing must claim a universal kill switch.
+
+## Provisional 1.1.4 release preparation (2026-10-01)
+
+The separate release candidate aligns package, lockfile and manifest to 1.1.4 with
+listed distribution, based on map implementation [PR #81](https://github.com/jacek4yang/net-identity/pull/81),
+squash-merged as `8b11d42df339fd55a15ab7c751e2bfba22da91e4`. Its corrected production
+[CI run](https://github.com/jacek4yang/net-identity/actions/runs/36846371498) passed
+all ten deterministic Firefox suites and unsigned-installer rejection. Real-render
+artifacts were independently inspected and their runtime hashes matched the packaged
+production payload. This is implementation evidence, not a claim that 1.1.4 is signed
+or publicly available.
+
+Remote tags still ended at v1.1.3 and public AMO still served 1.1.3 at the 09:49 UTC
+check; public v1.1.4 returned 404. At 09:51 UTC, the authenticated owner's complete
+DevHub history again showed only 1.1.3, 1.1.2, 1.1.1, 1.1.0 and 1.0.0, with no
+pending version, 1.1.4 or additional page. These observations neither reserve the
+version nor establish submission; recheck if intervening submissions occur.
+
+The subsequent font/icon/framing and bounded renderer-queue fix, [PR #83](https://github.com/jacek4yang/net-identity/pull/83),
+was squash-merged as `2b2d331342e4ccd1ae7cac489da1d84376470ed8` and merged into this
+release branch without rewriting its published history. Its exact-head production
+[CI](https://github.com/jacek4yang/net-identity/actions/runs/36855352089) and
+[live provider capture](https://github.com/jacek4yang/net-identity/actions/runs/36855558235)
+passed. The latter showed actual Tokyo CJK labels, the local SVG power icon and complete
+map fieldset. It recorded 109 map RPCs (99 glyphs), peak 8, zero failures and 20,564,081
+transferred bytes; nine runtime hashes matched the production package. This capture was
+from the implementation's 1.1.3 candidate and is not the final versioned 1.1.4 imagery.
+
+The updated 1.1.4 candidate `d28d356746bd7cc62e3477d5d3c2167eea04f919` passed
+[CI 36856519447](https://github.com/jacek4yang/net-identity/actions/runs/36856519447).
+Its subsequent [versioned live capture](https://github.com/jacek4yang/net-identity/actions/runs/36856670754)
+also passed, with independently reviewed real Tokyo geography/CJK labels, local SVG icon,
+complete fieldset and attribution. All four images are 1280×800, and nine captured
+UI/renderer hashes match the production package. It recorded 109 requests, 99 glyph
+requests, peak 8, zero failures and 20,564,081 bytes. Raw metadata and source commit are
+preserved alongside [the capture review](../store-assets/screenshots/capture-review.json).
+
+The capture uses an unsigned temporary add-on; it is not signing or AMO-publication
+proof. Final asset integration must pass the release PR's checks, followed by exact
+merged-main gates before an immutable tag. Keep the existing listed submission/finalizer
+and historical 1.1.3 release/publication evidence. Manual AMO previews still require
+reviewed operator reconciliation, never automatic adoption.
