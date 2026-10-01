@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { assertAmoMetadata } from "../src/release/amo-metadata";
 
 const metadata = JSON.parse(readFileSync("amo-metadata.json", "utf8")) as {
   summary?: Record<string, string>;
@@ -8,17 +9,20 @@ const metadata = JSON.parse(readFileSync("amo-metadata.json", "utf8")) as {
   support_url?: Record<string, string>;
   version?: { license?: string; approval_notes?: string };
 };
+const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
 const privacy = readFileSync("docs/PRIVACY.md", "utf8");
 const review = readFileSync("docs/AMO-REVIEW.md", "utf8");
 const readme = readFileSync("README.md", "utf8");
 
 describe("AMO reviewer package", () => {
   it("carries the first-listing metadata web-ext requires", () => {
+    expect(() => assertAmoMetadata(metadata)).not.toThrow();
     expect(metadata.summary?.["en-US"]).toBeTruthy();
     expect(metadata.summary?.["en-US"]?.length).toBeLessThanOrEqual(250);
     expect(metadata.categories).toEqual(["privacy-security"]);
     expect(metadata.version?.license).toBe("MIT");
     expect(metadata.version?.approval_notes).toContain("docs/AMO-REVIEW.md");
+    expect(metadata.version?.approval_notes).toContain(packageJson.version);
   });
 
   it("links a homepage and privacy policy a reviewer can open", () => {

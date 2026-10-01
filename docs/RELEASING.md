@@ -30,12 +30,19 @@ map rendering. Before submission, reviewer notes must explain explicit online-ma
 activation, OpenFreeMap's viewed-region/IP exposure, routing/consent limits, bundled
 MapLibre code/worker and dependency notices. Preserve the offline coordinate fallback.
 
-For the next map release, 1.1.4 is currently a provisional unused patch: the authenticated
-owner DevHub version list inspected on 2026-10-01 contained listed 1.1.3/1.1.0,
-self-distributed 1.1.2/1.1.1 and disabled 1.0.0, with no 1.1.4 or additional page; remote
-tags also stopped at 1.1.3. Recheck immediately before the separate release PR/submission.
-Do not bump versions in the implementation PR or infer availability from public API 404
-alone. See [the map release readiness checklist](RELEASE-CHECKLIST.md#next-listed-map-release-provisional-114).
+The next metadata-fix candidate is 1.1.5. Version 1.1.4 remains an immutable failed
+submission attempt, not an approved release. Remote tags checked on 2026-10-01 at
+12:23 UTC end at v1.1.4. The authenticated owner DevHub list at 12:18 UTC contained
+only 1.1.3, 1.1.2, 1.1.1, 1.1.0 and 1.0.0, with no 1.1.4/1.1.5 or pagination.
+Refresh availability before publication. Do not infer availability from a public API 404 alone. See
+[the release readiness checklist](RELEASE-CHECKLIST.md#next-listed-map-release-provisional-115).
+
+`npm run check:version` also validates reviewer notes against Mozilla's 3,000-character
+limit (Unicode code points), before release submission. Keep short notes pointing to
+full tagged source documentation; do not silently truncate them. The official
+[Version model](https://github.com/mozilla/addons-server/blob/master/src/olympia/versions/models.py)
+and [developer serializer](https://github.com/mozilla/addons-server/blob/master/src/olympia/addons/serializers.py)
+define this constraint.
 
 ## Phase 1: validate, record, submit
 
@@ -244,7 +251,7 @@ browser-service requests. They can still reach the selected proxy anonymously if
 accepts that mode. Require upstream rejection of anonymous clients for browser-wide
 account identity; neither the release nor listing must claim a universal kill switch.
 
-## Provisional 1.1.4 release preparation (2026-10-01)
+## Historical 1.1.4 release preparation (2026-10-01)
 
 The separate release candidate aligns package, lockfile and manifest to 1.1.4 with
 listed distribution, based on map implementation [PR #81](https://github.com/jacek4yang/net-identity/pull/81),
@@ -278,10 +285,33 @@ also passed, with independently reviewed real Tokyo geography/CJK labels, local 
 complete fieldset and attribution. All four images are 1280×800, and nine captured
 UI/renderer hashes match the production package. It recorded 109 requests, 99 glyph
 requests, peak 8, zero failures and 20,564,081 bytes. Raw metadata and source commit are
-preserved alongside [the capture review](../store-assets/screenshots/capture-review.json).
+preserved alongside [the capture review](https://github.com/jacek4yang/net-identity/blob/4d99c9a0eeeb3217ae9c8fd32dbcbdd428dc1370/store-assets/screenshots/capture-review.json).
 
 The capture uses an unsigned temporary add-on; it is not signing or AMO-publication
 proof. Final asset integration must pass the release PR's checks, followed by exact
 merged-main gates before an immutable tag. Keep the existing listed submission/finalizer
 and historical 1.1.3 release/publication evidence. Manual AMO previews still require
 reviewed operator reconciliation, never automatic adoption.
+
+## Failed 1.1.4 submission and 1.1.5 metadata correction (2026-10-01)
+
+Immutable tag `v1.1.4` targets `4d99c9a0eeeb3217ae9c8fd32dbcbdd428dc1370`.
+[Release run 36860205203](https://github.com/jacek4yang/net-identity/actions/runs/36860205203)
+passed both quality/package and Firefox gates. Its submission job failed at 12:15:57 UTC
+with web-ext exit 1 and an authenticated exact-version query reporting AMO absent.
+The owner's DevHub version history and activity at 12:18 UTC also showed no 1.1.4
+version or review. Raw client errors were deliberately not logged, so the exact API
+rejection was not observed. Investigation found 4,527 reviewer-note characters,
+exceeding the server model's 3,000-character limit. The existing tag, draft provenance
+and source archive remain unchanged; no signed/public 1.1.4 release is claimed.
+
+The normal separate 1.1.5 release corrects this concrete metadata defect and adds a
+length validation gate. Extension runtime behavior, dependencies and permissions are
+unchanged. It does not bypass a pending Mozilla review and introduces no recovery
+workflow, metadata override, new credential scope or signing exception. The existing
+listed submission and finalizer remain authoritative.
+
+Versioned 1.1.5 capture is still pending. Existing 1.1.4 screenshots retain their honest
+provenance until fresh capture is verified. Full candidate checks/package, exact-runtime
+comparison and required CI must pass before release merge; exact-main release gates
+and a new immutable tag follow. No AMO submission or approval is implied by preparation.

@@ -20,7 +20,11 @@ dimensions, alpha, and equality with listing artwork.
 
 ## Screenshots
 
-**1.1.4 candidate capture:** [run 36856670754](https://github.com/jacek4yang/net-identity/actions/runs/36856670754)
+**1.1.5 capture pending:** the existing images below are preserved 1.1.4 candidate evidence.
+A fresh versioned capture and runtime-hash verification are required before publishing
+these assets for 1.1.5.
+
+**Historical 1.1.4 candidate capture:** [run 36856670754](https://github.com/jacek4yang/net-identity/actions/runs/36856670754)
 captured these four PNGs from production source commit
 `d28d356746bd7cc62e3477d5d3c2167eea04f919` after the mandatory deterministic
 render gate passed. The map contains actual OpenFreeMap geography, including Tokyo CJK
@@ -59,7 +63,7 @@ cannot establish; it does not claim successful network egress verification.
 3. `screenshots/03-identity-audit.png` — Inspect routing, WebRTC policy and identity checks, including unverified states
 4. `screenshots/04-local-location-picker.png` — Choose manual coordinates on an optional OpenFreeMap basemap, with visible attribution
 
-The captions match the prepared 1.1.4 copy in `listing-en-US.json`. Publish only after
+The captions match the prepared 1.1.5 copy in `listing-en-US.json`. Publish only after
 the exact listed release is approved and finalized, with operator reconciliation of
 existing manually uploaded preview IDs. The images themselves contain only
 extension UI. Upload artwork through the listing editor after human review;

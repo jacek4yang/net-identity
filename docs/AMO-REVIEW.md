@@ -2,6 +2,15 @@
 
 The extension id is `net-identity@jacek4yang.github.io` and does not change between versions.
 
+## Metadata-fix release 1.1.5
+
+The immutable v1.1.4 submission attempt failed before an AMO version or review existed.
+Its reviewer notes exceeded the official 3,000-character model limit; the hidden API
+response was not retained, so the exact server rejection was not observed. This release
+shortens notes and adds a pre-submission metadata guard without changing runtime behavior.
+The v1.1.4 tag and draft evidence remain intact. Fresh versioned 1.1.5 capture is pending;
+the currently committed screenshots below remain labeled 1.1.4 evidence.
+
 ## Permissions
 
 - `proxy` and `<all_urls>`: `proxy.onRequest` decides the proxy for `http`, `https`, `ws`, and `wss`. Host permission is required for that listener. Other schemes stay direct.
@@ -16,7 +25,7 @@ Content scripts run in every frame, including `about:blank`. The MAIN-world scri
 
 A sandboxed frame Firefox refuses to inject can still see the computer's timezone and location. That is a platform limit.
 
-## Map (1.1.4 candidate, unreleased source change after 1.1.3)
+## Map (1.1.5 candidate, unreleased source change after 1.1.3)
 
 The published 1.1.3 package remains the offline-only grid. The new implementation adds
 an explicit **Load online map** action using locally bundled MapLibre GL JS and worker;
@@ -92,7 +101,7 @@ versions retain their immutable tagged source archives for historical review.
 ## Install channel
 
 Listed releases use AMO for public installation and automatic updates. The provisional
-1.1.4 map candidate selects listed distribution; this does not imply submission, review
+1.1.5 map candidate selects listed distribution; this does not imply submission, review
 approval or signing. Public 1.1.3 remains the released offline-picker version. Historical
 listed 1.1.0/1.1.3 and unlisted 1.1.1/1.1.2 assets/submissions remain unchanged. Each
 GitHub Release stays draft until its exact AMO file is public and the Mozilla signature
