@@ -377,15 +377,8 @@ async function main() {
     await execute(
       `window.__mapCsp=[];document.addEventListener('securitypolicyviolation',e=>window.__mapCsp.push({directive:e.violatedDirective,blocked:e.blockedURI.startsWith("moz-extension:")?"extension-resource":e.blockedURI}));`,
     );
-    if (!values["no-webgl"]) {
-      const available = await execute(
-        `const c=document.createElement('canvas');const gl=c.getContext('webgl2');if(!gl)return false;gl.getExtension('WEBGL_lose_context')?.loseContext();return true;`,
-      );
-      if (!available)
-        throw new Error(
-          "Real WebGL is unavailable. Run the render check under xvfb-run with Mesa; rendering was NOT verified.",
-        );
-    }
+    // The production renderer and pixel assertions below prove WebGL support.
+    // Do not allocate a disposable probe context before testing its real lifecycle.
     await click("#load-online-map");
 
     if (values["no-webgl"]) {
@@ -500,36 +493,57 @@ async function main() {
           ),
         );
       }
-      fixture.setFailRaster(true);
-      await click("#map-zoom-in");
-      await waitFor(
-        `return document.getElementById('location-map-surface').dataset.online==='partial';`,
-      );
-      check(
-        fixture.requests.some((x) => x.status === 503) &&
-          (await execute(
-            `return document.querySelectorAll('#location-map-tiles canvas').length===1 && /Reload/.test(document.getElementById('load-online-map').textContent);`,
-          )),
-        "A post-load raster failure retains rendered geography and exposes explicit Reload",
-      );
-      if (values.screenshots) {
-        const partial = (
-          await client.send("WebDriver:TakeScreenshot", { id: element[ELEMENT], full: false })
-        ).value;
-        await writeFile(
-          path.join(path.resolve(values.screenshots), "map-partial.png"),
-          Buffer.from(partial, "base64"),
+      for (let reloadCycle = 1; reloadCycle <= 3; reloadCycle++) {
+        const failureStart = fixture.requests.length;
+        fixture.setFailRaster(true);
+        await click("#map-zoom-in");
+        await waitFor(
+          `return document.getElementById('location-map-surface').dataset.online==='partial';`,
         );
+        check(
+          fixture.requests.slice(failureStart).some((x) => x.status === 503) &&
+            (await execute(
+              `return document.querySelectorAll('#location-map-tiles canvas').length===1 && /Reload/.test(document.getElementById('load-online-map').textContent);`,
+            )),
+          `Reload cycle ${reloadCycle}: a post-load raster failure retains geography and exposes Reload`,
+        );
+        if (values.screenshots && reloadCycle === 1) {
+          const partial = (
+            await client.send("WebDriver:TakeScreenshot", { id: element[ELEMENT], full: false })
+          ).value;
+          await writeFile(
+            path.join(path.resolve(values.screenshots), "map-partial.png"),
+            Buffer.from(partial, "base64"),
+          );
+        }
+        fixture.setFailRaster(false);
+        await click("#load-online-map");
+        await waitFor(
+          `return document.getElementById('location-map-surface').dataset.online==='ready';`,
+        );
+        check(
+          await execute(
+            `return document.querySelectorAll('#location-map-tiles canvas').length===1;`,
+          ),
+          `Reload cycle ${reloadCycle}: immediate Reload recovers partial data without duplicate canvases`,
+        );
+        const diagnostics = await execute(
+          `
+        const canvas=document.querySelector('#location-map-tiles canvas');
+        const gl=canvas?.getContext('webgl2');
+        return {cycle:arguments[0],online:document.getElementById('location-map-surface').dataset.online,
+          canvases:document.querySelectorAll('#location-map-tiles canvas').length,
+          width:canvas?.width,height:canvas?.height,contextLost:gl?.isContextLost(),
+          version:gl?.getParameter(gl.VERSION),renderer:gl?.getParameter(gl.RENDERER)};
+      `,
+          [reloadCycle],
+        );
+        check(
+          diagnostics.contextLost === false,
+          `Reload cycle ${reloadCycle}: production WebGL context remains live`,
+        );
+        log(`Production canvas diagnostics: ${JSON.stringify(diagnostics)}`);
       }
-      fixture.setFailRaster(false);
-      await click("#load-online-map");
-      await waitFor(
-        `return document.getElementById('location-map-surface').dataset.online==='ready';`,
-      );
-      check(
-        await execute(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`),
-        "Explicit Reload recovers partial data without duplicate canvases",
-      );
       const before = await readMap();
       const p = await point("#location-map-surface");
       await pointer(p, { x: p.x + 65, y: p.y + 15 });
