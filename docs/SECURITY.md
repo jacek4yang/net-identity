@@ -88,6 +88,9 @@ but protected browser requests require server-side rejection of anonymous access
 MapLibre main code, CSS and worker are local package assets. Only approved HTTPS data
 paths under `tiles.openfreemap.org` can reach the network through the typed background
 broker. A page cannot supply arbitrary URLs, HTTP methods, headers or proxy credentials.
+Validated map URLs are serialized once with `URL.href` before both fetch and pending
+request correlation, so font-stack spaces match Firefox's encoded request URL. The
+network gate still matches the exact authorized resource, never just the provider host.
 The map protocol carries public map data, never authentication state. The provider is
 not exempted from existing fail-closed or missing-proxy-credential gates.
 

@@ -34,6 +34,15 @@ the editor, route changes, permission revocation and background restart require 
 map enable action. The renderer and third-party notices are packaged locally; attribution
 links OpenMapTiles and OpenStreetMap. See `docs/TILE-POLICY.md` and `docs/PRIVACY.md`.
 
+CJK ideographs use brokered provider glyph data (`localIdeographFontFamily: false`),
+so map labels do not depend on operating-system CJK fonts. Validated resource URLs are
+serialized once with `URL.href` for both fetching and pending-request correlation,
+including encoded font-stack spaces. A renderer FIFO admits at most 8 active broker
+requests and 256 waiting URL/control records, with a 60-second queue-inclusive deadline;
+it caches no response bytes, never retries and cancels on removal. Aborted active work
+retains its slot until the broker RPC settles. Existing broker/network/byte bounds remain
+unchanged. Glyph errors stay visible instead of being erased by a later load event.
+
 Renderer dependency: **MapLibre GL JS 6.11.2**, pinned in the lockfile and bundled
 from its local ESM distribution. The earlier unpublished 5.24.0 candidate was rejected
 because it falls within [GHSA-jrc7-96c5-q579](https://github.com/maplibre/maplibre-gl-js/security/advisories/GHSA-jrc7-96c5-q579)

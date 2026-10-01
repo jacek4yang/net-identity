@@ -21,6 +21,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createLiveMapProxy } from "./live-map-proxy.mjs";
+import { captureFrameFits } from "./capture-frame.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WINDOWS_DEVELOPER_EDITION = "C:\\Program Files\\Firefox Developer Edition\\firefox.exe";
@@ -410,6 +411,68 @@ async function main() {
       }
       throw new Error(`UI condition not reached: ${script}`);
     }
+    // Capture-only observer, installed in the actual options page. It forwards
+    // every argument/receiver and returns the original value (including the same
+    // Promise); the separate observer never retries or changes an API response.
+    async function startMapRequestEvidence() {
+      await execute(`const page = window.wrappedJSObject || window;
+        const runtime = page.browser.runtime;
+        if (page.__netIdentityCaptureMapRpc || !Object.getOwnPropertyDescriptor(runtime, "sendMessage")?.writable)
+          throw new Error("Cannot safely install capture-only map RPC observer");
+        const original = runtime.sendMessage;
+        if (typeof original !== "function") throw new Error("Capture API method is not callable");
+        const counters = { active:0, peak:0, total:0, glyphRequests:0,
+          failures:0, glyphFailures:0, totalBytes:0, glyphBytes:0, observerErrors:0 };
+        function wrapped(...args) {
+          const message = typeof args[0] === "string" ? args[1] : args[0];
+          if (!message || message.type !== "map:fetch") return Reflect.apply(original, this, args);
+          const glyph = typeof message.url === "string" && message.url.startsWith("https://tiles.openfreemap.org/fonts/");
+          counters.total++; counters.active++; counters.peak = Math.max(counters.peak, counters.active);
+          if (glyph) counters.glyphRequests++;
+          let settled = false;
+          const finish = (response, rejected) => {
+            if (settled) return;
+            settled = true; counters.active--;
+            try {
+              if (rejected || response?.ok === false) {
+                counters.failures++; if (glyph) counters.glyphFailures++;
+              } else if (response?.ok === true) {
+                const bytes = response.data?.byteLength;
+                if (typeof bytes === "number" && Number.isSafeInteger(bytes) && bytes >= 0) {
+                  counters.totalBytes += bytes; if (glyph) counters.glyphBytes += bytes;
+                }
+              }
+            } catch { counters.observerErrors++; }
+          };
+          let result;
+          try { result = Reflect.apply(original, this, args); }
+          catch (error) { finish(null, true); throw error; }
+          try {
+            if (result && typeof result.then === "function") result.then(value => finish(value, false), () => finish(null, true));
+            else finish(result, false);
+          } catch { counters.observerErrors++; finish(null, true); }
+          return result;
+        }
+        runtime.sendMessage = wrapped;
+        if (runtime.sendMessage !== wrapped) throw new Error("Capture-only map RPC wrapper did not install");
+        page.__netIdentityCaptureMapRpc = { original, wrapped, counters };`);
+    }
+    async function readMapRequestEvidence(restore = false) {
+      return execute(
+        `const page = window.wrappedJSObject || window;
+        const observer = page.__netIdentityCaptureMapRpc;
+        if (!observer || page.browser.runtime.sendMessage !== observer.wrapped)
+          throw new Error("Capture-only map RPC observer was replaced");
+        const counters = {...observer.counters};
+        if (arguments[0]) {
+          if (counters.active !== 0) throw new Error("Map RPCs still active at observer teardown");
+          page.browser.runtime.sendMessage = observer.original;
+          delete page.__netIdentityCaptureMapRpc;
+        }
+        return counters;`,
+        [restore],
+      );
+    }
     async function click(selector) {
       const found = (
         await client.send("WebDriver:FindElement", { using: "css selector", value: selector })
@@ -462,8 +525,13 @@ async function main() {
       const directory = path.resolve(values.screenshots);
       if (!liveMap) await mkdir(directory, { recursive: true });
       const images = [];
-      const capture = async (name, selector, offset = 24, frameIdentityAudit = false) => {
-        if (selector)
+      let mapRequestEvidence = null;
+      const capture = async (name, selector, offset = 24, frame = null) => {
+        if (frame === "picker") {
+          await execute(
+            `document.getElementById("location-map").closest("fieldset").scrollIntoView({block:"start"}); window.scrollBy(0, -16);`,
+          );
+        } else if (selector)
           await execute(
             'document.querySelector(arguments[0]).scrollIntoView({block:"start"}); window.scrollBy(0, -arguments[1]);',
             [selector, offset],
@@ -473,18 +541,22 @@ async function main() {
         await new Promise((resolve) => setTimeout(resolve, 150));
         const result = await client.send("WebDriver:TakeScreenshot", { full: false });
         let encoded = result.value;
-        if (frameIdentityAudit) {
-          // Reframe only the real, fully visible identity + audit pixels. No
-          // status text is removed or altered; surrounding canvas is the same
-          // background as the popup. Keep the native scale and 380px layout.
+        if (frame) {
+          // Reframe real pixels at native scale: either identity + audit or the
+          // complete Identity & Privacy fieldset. The picker includes its legend,
+          // policy controls, override warning, map, attribution, provider/privacy
+          // disclosure, online state and all coordinate inputs. Never shorten or
+          // hide these to make a picture fit; fail if the whole region won't fit.
           const framed = await client.send("WebDriver:ExecuteAsyncScript", {
             script: `const done = arguments[arguments.length - 1];
-              const top = document.querySelector(".identity-card").getBoundingClientRect();
-              const bottom = document.querySelector("#details-panel").getBoundingClientRect();
+              const picker = document.getElementById("location-map")?.closest("fieldset");
+              const top = (arguments[1] === "picker" ? picker : document.querySelector(".identity-card")).getBoundingClientRect();
+              const bottom = (arguments[1] === "picker" ? picker : document.querySelector("#details-panel")).getBoundingClientRect();
               const x = Math.floor(top.left), y = Math.floor(top.top);
               const width = Math.ceil(top.right) - x, height = Math.ceil(bottom.bottom) - y;
-              if (y < 0 || bottom.bottom > innerHeight || height > 768) {
-                done({error: "Identity/audit content does not fit fully inside the capture"}); return;
+              const fits = (${captureFrameFits.toString()})(arguments[1], {x,y,width,height}, {width:innerWidth,height:innerHeight});
+              if (!fits) {
+                done({error: "Real UI region does not fit fully inside the capture: " + JSON.stringify({y,height,bottom:bottom.bottom})}); return;
               }
               const screenshot = new Image();
               screenshot.onload = () => {
@@ -499,7 +571,7 @@ async function main() {
               };
               screenshot.onerror = () => done({error: "Could not decode the real Firefox capture"});
               screenshot.src = "data:image/png;base64," + arguments[0];`,
-            args: [encoded],
+            args: [encoded, frame],
           });
           if (framed.value.error) throw new Error(framed.value.error);
           encoded = framed.value.image;
@@ -552,6 +624,7 @@ async function main() {
       );
       await capture("02-profile-management.png");
       if (liveMap) {
+        await startMapRequestEvidence();
         await click("#load-online-map");
         await waitFor(
           `return document.getElementById("location-map-surface").dataset.online === "ready";`,
@@ -579,9 +652,30 @@ async function main() {
           throw new Error("Live map became partial or unavailable; no final screenshot exported");
         if (liveMap.counts().accepted === 0)
           throw new Error("No actual provider connection occurred");
-        await capture("04-local-location-picker.png", "#location-map", 24);
+        await capture("04-local-location-picker.png", "#location-map", 24, "picker");
+        await waitFor(
+          `return (window.wrappedJSObject || window).__netIdentityCaptureMapRpc?.counters.active === 0;`,
+          400,
+        );
+        mapRequestEvidence = await readMapRequestEvidence(true);
+        if (
+          mapRequestEvidence.observerErrors !== 0 ||
+          mapRequestEvidence.peak > 8 ||
+          mapRequestEvidence.glyphRequests < 1
+        )
+          throw new Error(
+            `Live map capture did not establish bounded RPC and glyph request evidence: ${JSON.stringify(mapRequestEvidence)}`,
+          );
+        if (
+          !(await execute(
+            'return document.getElementById("location-map-surface").dataset.online === "ready";',
+          ))
+        )
+          throw new Error(
+            "Live map became incomplete during capture; no successful metadata exported",
+          );
       } else {
-        await capture("04-local-location-picker.png", ".identity-mode-group", 48);
+        await capture("04-local-location-picker.png", ".identity-mode-group", 48, "picker");
       }
       await client.send("WebDriver:Navigate", { url: popupUrl });
       await waitFor(
@@ -593,7 +687,7 @@ async function main() {
         document.body.style.marginTop = Math.max(16, Math.floor((innerHeight - document.body.getBoundingClientRect().height) / 2)) + "px";`);
       await capture("01-active-profile.png");
       await click("#toggle-details");
-      await capture("03-identity-audit.png", "#details-panel", 0, true);
+      await capture("03-identity-audit.png", "#details-panel", 0, "audit");
       const userAgent = await execute("return navigator.userAgent;");
       const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));
       const sourceHashes = {};
@@ -640,6 +734,7 @@ async function main() {
                       ready: true,
                       attribution: ["OpenFreeMap", "© OpenMapTiles", "Data from OpenStreetMap"],
                       requiresVisualReview: true,
+                      requestEvidence: mapRequestEvidence,
                     },
                   }
                 : {}),
@@ -700,6 +795,29 @@ async function main() {
 
     await client.send("WebDriver:Navigate", { url: optionsUrl });
     await waitFor('return !document.getElementById("direct-view").hidden;');
+    await startMapRequestEvidence();
+    const observedStateProbe = await call({ type: "state:get" });
+    const blockedMapProbe = await call({
+      type: "map:fetch",
+      sessionId: "capture-no-session",
+      requestId: "capture-probe",
+      url: "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf",
+    });
+    const mapProbeEvidence = await readMapRequestEvidence(true);
+    check(
+      observedStateProbe.state?.activeProfileId === null &&
+        blockedMapProbe.ok === false &&
+        mapProbeEvidence.total === 1 &&
+        mapProbeEvidence.glyphRequests === 1 &&
+        mapProbeEvidence.failures === 1 &&
+        mapProbeEvidence.glyphFailures === 1 &&
+        mapProbeEvidence.totalBytes === 0 &&
+        mapProbeEvidence.active === 0 &&
+        mapProbeEvidence.peak === 1 &&
+        mapProbeEvidence.observerErrors === 0,
+      "Capture observer counts a blocked map RPC without changing its response or contacting the provider",
+    );
+
     check(
       await execute('return document.getElementById("profile-form").hidden;'),
       "Built-in Direct is read-only",

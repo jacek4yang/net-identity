@@ -21,6 +21,8 @@ describe("real-Firefox release gate", () => {
     expect(firefox).toContain("run: npm run build:prod");
     expect(firefox).not.toMatch(/run: npm run build\s*\n/);
     expect(firefox).toContain("openssl xvfb libgl1-mesa-dri");
+    expect(firefox).toContain("fontconfig fonts-dejavu-core");
+    expect(firefox).toContain("--no-local-cjk --screenshots artifacts/map-render");
     expect(firefox).toContain("run map-fallback npm run e2e:map-fallback");
     expect(firefox).toContain(
       "run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map",

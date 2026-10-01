@@ -14,8 +14,21 @@ describe("locally packaged map security contract", () => {
     expect(html).toContain('href="maplibre.css"');
     expect(renderer).toContain('extensionUrl("options/maplibre-worker.js")');
     expect(renderer).toContain("attributionControl: false");
+    expect(renderer).toContain("localIdeographFontFamily: false");
     expect(renderer).not.toMatch(/\.innerHTML\s*=|new\s+(?:Popup|ScaleControl)\b|\.setHTML\(/);
     expect(renderer).not.toMatch(/\bfetch\s*\(/);
+  });
+  it("draws the decorative Off icon without requiring a system-font glyph", () => {
+    const popup = read("src/popup/popup.html");
+    const offButton = popup.split('id="route-off"')[1]?.split("</button>")[0] ?? "";
+    expect(offButton).toContain('role="radio"');
+    expect(offButton).toContain('aria-checked="true"');
+    expect(offButton).toContain('class="route-lead" aria-hidden="true"');
+    expect(offButton).toContain("<svg");
+    expect(offButton).toContain('focusable="false"');
+    expect(offButton).toContain('class="route-name">Off</span>');
+    expect(offButton).not.toContain("⏻");
+    expect(offButton).not.toMatch(/(?:href|src)=/);
   });
   it("pins upstream bytes and does not suppress unsafe vendor DOM warnings", () => {
     const build = read("scripts/build.mjs");

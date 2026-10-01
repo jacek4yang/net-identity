@@ -70,3 +70,12 @@ hashes, including the bundled map worker. The CI artifact separately records
 its exact source commit. It explicitly requires visual review. The release owner coordinates
 final frozen-build recapture, version consistency, listing/privacy/caption
 changes and publication. Do not modify historical release assets.
+
+The picker image centers the complete Identity & Privacy fieldset at native scale,
+including policies, map attribution, provider disclosure, status and coordinate inputs.
+It fails rather than cropping those controls to fit. Capture metadata also records
+aggregate map/glyph request counts, returned bytes and peak pending RPCs. The temporary
+API observer forwards original calls and responses unchanged, stores no URLs, IDs or
+payloads, and is removed once all requests settle. A successful capture requires glyph
+requests and at most eight pending map RPCs; these counters are test evidence, not
+production telemetry or a claim about peak queue depth inside the renderer.

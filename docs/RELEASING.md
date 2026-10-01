@@ -261,9 +261,19 @@ DevHub history again showed only 1.1.3, 1.1.2, 1.1.1, 1.1.0 and 1.0.0, with no
 pending version, 1.1.4 or additional page. These observations neither reserve the
 version nor establish submission; recheck if intervening submissions occur.
 
+The subsequent font/icon/framing and bounded renderer-queue fix, [PR #83](https://github.com/jacek4yang/net-identity/pull/83),
+was squash-merged as `2b2d331342e4ccd1ae7cac489da1d84376470ed8` and merged into this
+release branch without rewriting its published history. Its exact-head production
+[CI](https://github.com/jacek4yang/net-identity/actions/runs/36855352089) and
+[live provider capture](https://github.com/jacek4yang/net-identity/actions/runs/36855558235)
+passed. The latter showed actual Tokyo CJK labels, the local SVG power icon and complete
+map fieldset. It recorded 109 map RPCs (99 glyphs), peak 8, zero failures and 20,564,081
+transferred bytes; nine runtime hashes matched the production package. This capture was
+from the implementation's 1.1.3 candidate and is not the final versioned 1.1.4 imagery.
+
 Final versioned-candidate validation, provider-dependent asset capture and review remain
-required. The manual capture workflow is now merged, but actual-provider screenshots must
-be captured from the published 1.1.4 candidate branch and verified before being claimed
-as new release assets. Keep the existing listed submission/finalizer and immutable
-historical 1.1.3 release/publication evidence. Manual AMO previews still require reviewed
-operator reconciliation, never automatic adoption.
+required. The manual capture workflow is merged, but actual-provider screenshots must
+be recaptured from the updated published 1.1.4 candidate branch and verified before
+being claimed as release assets. Keep the existing listed submission/finalizer and
+immutable historical 1.1.3 release/publication evidence. Manual AMO previews still
+require reviewed operator reconciliation, never automatic adoption.
