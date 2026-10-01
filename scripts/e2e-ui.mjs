@@ -298,7 +298,7 @@ async function main() {
       const directory = path.resolve(values.screenshots);
       await mkdir(directory, { recursive: true });
       const images = [];
-      const capture = async (name, selector, offset = 24) => {
+      const capture = async (name, selector, offset = 24, frameIdentityAudit = false) => {
         if (selector)
           await execute(
             'document.querySelector(arguments[0]).scrollIntoView({block:"start"}); window.scrollBy(0, -arguments[1]);',
@@ -308,7 +308,39 @@ async function main() {
         await execute("document.activeElement?.blur();");
         await new Promise((resolve) => setTimeout(resolve, 150));
         const result = await client.send("WebDriver:TakeScreenshot", { full: false });
-        const bytes = Buffer.from(result.value, "base64");
+        let encoded = result.value;
+        if (frameIdentityAudit) {
+          // Reframe only the real, fully visible identity + audit pixels. No
+          // status text is removed or altered; surrounding canvas is the same
+          // background as the popup. Keep the native scale and 380px layout.
+          const framed = await client.send("WebDriver:ExecuteAsyncScript", {
+            script: `const done = arguments[arguments.length - 1];
+              const top = document.querySelector(".identity-card").getBoundingClientRect();
+              const bottom = document.querySelector("#details-panel").getBoundingClientRect();
+              const x = Math.floor(top.left), y = Math.floor(top.top);
+              const width = Math.ceil(top.right) - x, height = Math.ceil(bottom.bottom) - y;
+              if (y < 0 || bottom.bottom > innerHeight || height > 768) {
+                done({error: "Identity/audit content does not fit fully inside the capture"}); return;
+              }
+              const screenshot = new Image();
+              screenshot.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = 1280; canvas.height = 800;
+                const context = canvas.getContext("2d");
+                context.fillStyle = getComputedStyle(document.body).backgroundColor;
+                context.fillRect(0, 0, 1280, 800);
+                context.drawImage(screenshot, x, y, width, height,
+                  Math.floor((1280 - width) / 2), Math.floor((800 - height) / 2), width, height);
+                done({image: canvas.toDataURL("image/png").split(",")[1]});
+              };
+              screenshot.onerror = () => done({error: "Could not decode the real Firefox capture"});
+              screenshot.src = "data:image/png;base64," + arguments[0];`,
+            args: [encoded],
+          });
+          if (framed.value.error) throw new Error(framed.value.error);
+          encoded = framed.value.image;
+        }
+        const bytes = Buffer.from(encoded, "base64");
         if (bytes.readUInt32BE(16) !== 1280 || bytes.readUInt32BE(20) !== 800) {
           throw new Error(`Unexpected screenshot dimensions for ${name}`);
         }
@@ -362,10 +394,11 @@ async function main() {
       );
       // The popup is intrinsically 380px wide. Center the unchanged popup on a
       // plain canvas, without scaling, invented chrome, captions, or overlays.
-      await execute('document.body.style.margin = "36px auto";');
+      await execute(`document.body.style.margin = "0 auto";
+        document.body.style.marginTop = Math.max(16, Math.floor((innerHeight - document.body.getBoundingClientRect().height) / 2)) + "px";`);
       await capture("01-active-profile.png");
       await click("#toggle-details");
-      await capture("03-identity-audit.png", "#details-panel", 0);
+      await capture("03-identity-audit.png", "#details-panel", 0, true);
       const userAgent = await execute("return navigator.userAgent;");
       const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));
       const sourceHashes = {};

@@ -43,13 +43,13 @@
       "file": "01-active-profile.png",
       "width": 1280,
       "height": 800,
-      "sha256": "777fd20db83346a23830a3b1921291f4930849d892957f1ee1705c337c9a93fb"
+      "sha256": "3bb8bab88bce1c495efc569bc14148944c3d39b095a14ff54f288c5e98781677"
     },
     {
       "file": "03-identity-audit.png",
       "width": 1280,
       "height": 800,
-      "sha256": "6fd71ed115e03193ca45c369164c94fe8c828bfbf16aa7e7f5217e8e6d5199f0"
+      "sha256": "171a20239e6e39dbb1e3aa4a9f22415b07e2da4dbfce4b0a3a32f4f796514a5d"
     }
   ]
 }

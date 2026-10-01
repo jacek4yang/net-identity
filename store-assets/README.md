@@ -26,6 +26,8 @@ that candidate as a temporary add-on in a disposable profile; these captures do
 not demonstrate installation of a signed or released XPI. No marketing mockups, fabricated status labels, device
 frames, or promotional paragraphs are overlaid. Popup captures center the
 unchanged 380px popup on a plain canvas; options captures retain the normal layout.
+The audit view is a lossless crop of the actual identity and diagnostics cards,
+reframed at native scale with plain matching-background margins. No status content is altered.
 All images are 1280 × 800 PNGs. The content viewport excludes browser chrome.
 `screenshots/metadata.json` records the captured extension version, browser user
 agent, fixture, dimensions, and SHA-256 of each image and captured UI source. Dark theme is fixed by a
@@ -73,3 +75,10 @@ regressions. Export fails rather than accepting incorrect image dimensions.
 Review each regenerated image before uploading: viewport clipping, installed
 fonts, and Firefox rendering may differ by host. No AMO credentials are needed to
 regenerate the assets, and the export command never uploads them.
+
+## Controlled publication
+
+The reviewed English copy is in `listing-en-US.json`. The separate main-only
+listing workflow waits for the exact listed version and finalized signed GitHub
+Release before writing public AMO metadata or uploading media. It is dry-run by
+default and uses resumable receipts; see [AMO listing publication](../docs/AMO-LISTING.md).
