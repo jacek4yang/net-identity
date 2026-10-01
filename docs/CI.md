@@ -61,6 +61,9 @@ The unreleased map implementation adds two required checks to the same job:
   vector/raster data through the packaged MapLibre worker, checks canvas pixels and
   CSP, exercises repeated editor interactions and partial-load recovery, and saves
   screenshots. Missing WebGL or blank geography fails; a fallback is not a render pass.
+  The required run uses a private Latin-only fontconfig and verifies a deterministic
+  CJK glyph's strokes/holes plus its exact brokered PBF request. It neither installs
+  CJK fonts to hide missing glyphs nor modifies the system font configuration.
 
 Both use an authenticated loopback CONNECT proxy serving the exact production
 `tiles.openfreemap.org` HTTPS origin. The harness generates a temporary test CA and

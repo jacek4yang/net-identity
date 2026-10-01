@@ -5,11 +5,13 @@
  * vector-tile parsing, packaged workers, CSP, and rasterized canvas pixels.
  *
  * node scripts/e2e-map.mjs --firefox /path/to/firefox --screenshots /tmp/map-shots
- * xvfb-run -a node scripts/e2e-map.mjs --firefox /path/to/firefox
+ * xvfb-run -a node scripts/e2e-map.mjs --firefox /path/to/firefox --no-local-cjk
  * node scripts/e2e-map.mjs --firefox /path/to/firefox --no-webgl
  *
  * The render run requires a working WebGL display; it never silently substitutes
- * mocks or reports the no-WebGL fallback as a rendering pass.
+ * mocks or reports the no-WebGL fallback as a rendering pass. --no-local-cjk
+ * uses a temporary Latin-only fontconfig (fontconfig + fonts-dejavu-core needed)
+ * to prove that CJK provider glyphs render even when local CJK fonts are absent.
  */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -21,7 +23,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { connectMarionette } from "./release-marionette.mjs";
-import { createMapFixture, listen, PROVIDER, readPng } from "./fixtures/map-provider.mjs";
+import {
+  createMapFixture,
+  GLYPH_PATH,
+  inspectGlyphPixels,
+  isolateLatinFonts,
+  listen,
+  PROVIDER,
+  readPng,
+} from "./fixtures/map-provider.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({
@@ -30,6 +40,7 @@ const { values } = parseArgs({
     timeout: { type: "string", default: "120" },
     screenshots: { type: "string" },
     "no-webgl": { type: "boolean", default: false },
+    "no-local-cjk": { type: "boolean", default: false },
   },
 });
 const redactExtensionOrigin = (value) =>
@@ -102,6 +113,11 @@ async function main() {
   const directory = await mkdtemp(path.join(tmpdir(), "ni-map-"));
   let fixture, firefox, client;
   try {
+    const fonts = values["no-local-cjk"]
+      ? await isolateLatinFonts(directory)
+      : { env: {}, evidence: { isolated: false } };
+    if (fonts.evidence.isolated)
+      log("Fontconfig isolated: Latin coverage present, CJK U+65E5 coverage absent");
     fixture = await createMapFixture(directory);
     const probe = net.createServer();
     const marionettePort = await listen(probe);
@@ -148,6 +164,7 @@ async function main() {
         cwd: root,
         env: {
           ...process.env,
+          ...fonts.env,
           HOME: home,
           TMPDIR: directory,
           TMP: directory,
@@ -408,6 +425,8 @@ async function main() {
       ).value;
       const pngBytes = Buffer.from(encoded, "base64");
       const decoded = readPng(pngBytes);
+      const glyph = inspectGlyphPixels(decoded);
+      const glyphRequests = fixture.requests.filter((x) => x.path.startsWith("/fonts/"));
       const colors = { water: 0, land: 0, roads: 0, cities: 0 };
       const expected = {
         water: [34, 102, 221],
@@ -423,8 +442,17 @@ async function main() {
         `Real Firefox rasterizes vector water/land/roads/city features: ${JSON.stringify(colors)}`,
       );
       check(
-        fixture.requests.some((x) => x.path.endsWith(".pbf")),
+        fixture.requests.some((x) => x.path.startsWith("/planet/") && x.path.endsWith(".pbf")),
         "Packaged MapLibre worker processes a fetched vector tile",
+      );
+      check(
+        glyphRequests.some((x) => x.path === GLYPH_PATH) &&
+          glyphRequests.every((x) => x.path === GLYPH_PATH),
+        "CJK U+65E5 requests its exact provider glyph PBF range through the broker",
+      );
+      check(
+        glyph.rendered,
+        `Provider CJK glyph rasterizes five strokes and two open holes (not tofu): ${JSON.stringify(glyph)}`,
       );
       check(
         fixture.requests.some((x) => /\/sprites\/.+\.png$/.test(x.path)) &&
@@ -460,6 +488,9 @@ async function main() {
                 sourceMapsPresent,
                 sourceHashes,
                 colors,
+                glyph,
+                glyphRequests: glyphRequests.map((x) => x.path),
+                localFonts: fonts.evidence,
                 cspViolations: await execute("return window.__mapCsp;"),
                 manifest: JSON.parse(await readFile(path.join(root, "dist/manifest.json"), "utf8")),
               },
@@ -611,12 +642,33 @@ async function main() {
       );
     }
     check(resource.ok, "Background gateway fetches exact provider data through the active route");
+    for (const [id, url] of [
+      ["raw-space", `${PROVIDER}/fonts/Fixture Sans/25856-26111.pbf`],
+      ["encoded-space", `${PROVIDER}${GLYPH_PATH}`],
+      ["canonical-host-port", `https://TILES.OPENFREEMAP.ORG:443${GLYPH_PATH}`],
+    ]) {
+      const beforeGlyph = fixture.requests.length;
+      const glyph = await call({
+        type: "map:fetch",
+        sessionId: session.sessionId,
+        requestId: `glyph-${id}`,
+        url,
+      });
+      check(
+        glyph.ok &&
+          fixture.requests.length === beforeGlyph + 1 &&
+          fixture.requests[beforeGlyph].path === GLYPH_PATH,
+        `The ${id} glyph URL reaches only its canonical allowlisted provider resource`,
+      );
+    }
     const beforeRejected = fixture.requests.length;
     for (const url of [
       "https://example.com/tile.pbf",
       `${PROVIDER}/not-a-map`,
       `${PROVIDER}/styles/liberty?token=secret`,
       "https://user:password@tiles.openfreemap.org/styles/liberty",
+      `${PROVIDER}/fonts/Fixture%2fSans/25856-26111.pbf`,
+      `${PROVIDER}/fonts/Fixture%5cSans/25856-26111.pbf`,
       "http://tiles.openfreemap.org/styles/liberty",
     ]) {
       const denied = await call({
@@ -754,6 +806,11 @@ async function main() {
         await mkdir(out, { recursive: true });
         const screenshot = await client.send("WebDriver:TakeScreenshot", { full: false });
         await writeFile(path.join(out, "map-failure.png"), Buffer.from(screenshot.value, "base64"));
+        const ui = await client.send("WebDriver:ExecuteScript", {
+          script:
+            "return {status:document.getElementById('map-online-status')?.textContent,online:document.getElementById('location-map-surface')?.dataset.online,canvases:document.querySelectorAll('#location-map-tiles canvas').length,csp:window.__mapCsp||[]};",
+          args: [],
+        });
         await client.send("Marionette:SetContext", { value: "chrome" });
         const diagnostics = await client.send("WebDriver:ExecuteScript", {
           script:
@@ -763,7 +820,21 @@ async function main() {
         await writeFile(
           path.join(out, "failure.json"),
           redactExtensionOrigin(
-            JSON.stringify({ error: String(error), console: diagnostics.value }, null, 2),
+            JSON.stringify(
+              {
+                error: String(error),
+                console: diagnostics.value,
+                ui: ui.value,
+                requests: fixture?.requests.map((entry) => ({
+                  path: entry.path,
+                  status: entry.status ?? 200,
+                  closed: entry.closed,
+                })),
+                connects: fixture?.connects,
+              },
+              null,
+              2,
+            ),
           ),
         );
       } catch (captureError) {

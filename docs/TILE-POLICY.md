@@ -17,6 +17,9 @@ with no availability SLA. It is not the standard `tile.openstreetmap.org` servic
   visible **Load online map** action for the current editor session.
 - MapLibre code, CSS, worker and required license notices ship locally. Remote
   styles, tile metadata, vector/raster tiles, sprites and glyphs are data, not scripts.
+- CJK ideographs use the style's provider glyphs (`localIdeographFontFamily: false`),
+  rather than assuming the operating system has an appropriate CJK font. This can
+  request more glyph ranges, still only after explicit map enablement.
 - Only validated HTTPS paths at `tiles.openfreemap.org` are permitted. Current
   resources include Liberty styles, `/planet` metadata and its versioned vector tiles,
   Natural Earth raster tiles, revisioned sprites, and font glyph ranges. Weekly tile
@@ -24,6 +27,12 @@ with no availability SLA. It is not the standard `tile.openstreetmap.org` servic
 - A background broker bounds sessions, in-flight work, byte sizes and deadlines.
   Fetches omit cookies/origin credentials/referrer and reject redirects. There is no
   spoofed Referer, remote plugin import or arbitrary URL/HTTP proxy endpoint.
+- A renderer-side FIFO admits at most 8 broker requests and 256 waiting URL/control
+  records, with a 60-second queue-inclusive deadline. It stores no response-byte
+  cache, cancels on removal and never retries. An aborted active request retains its
+  slot until the broker RPC settles. Existing broker/network/byte limits are unchanged.
+  Glyph failures are reported directly because the renderer may otherwise substitute
+  an unavailable local font silently; a later load event cannot erase that warning.
 - The active route remains authoritative. A failed proxy is never retried through
   Direct. Provider-host bypass rules prevent map activation rather than being overridden.
   Direct/Off additionally requires the existing optional personal-data consent.
