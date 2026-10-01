@@ -155,14 +155,16 @@ channel, then update README in a separate documentation PR if needed.
 - [ ] Visually inspect the public listing and rendered media; report moderation/cache
       delay honestly and do not equate accepted uploads with public visibility
 
-## Next listed map release: provisional 1.1.4
+## Next listed map release: provisional 1.1.5
 
 - [ ] Merge the reviewed map implementation only after `quality` and `firefox / invariants`
       pass on its exact head, including both map gates and existing network regression suites
-- [ ] Recheck version availability before the separate release PR. On 2026-10-01, the
-      authenticated owner DevHub showed approved listed 1.1.3/1.1.0, approved self-distributed
-      1.1.2/1.1.1 and disabled 1.0.0, with no 1.1.4 or pagination. Tags also stopped at
-      1.1.3. This observation does not reserve 1.1.4 or prove a later submission absent
+- [ ] Recheck owner-visible AMO version availability before publication. Tags checked on
+      2026-10-01 at 12:23 UTC stop at v1.1.4; that immutable attempt failed before an AMO
+      version existed. Owner DevHub at 12:18 UTC showed no 1.1.4/1.1.5 or pagination.
+      Do not reuse its tag or treat it as pending review
+- [ ] Keep reviewer notes at or below Mozilla's 3,000-character limit; run the metadata
+      guard and boundary tests. Link full tagged docs instead of expanding API notes
 - [ ] In that separate release PR, align package, lockfile and manifest to the next
       confirmed-unused version, retain `listed`, and update reviewer metadata/privacy/listing
       copy for opt-in OpenFreeMap traffic, viewed-region/IP disclosure and packaged MapLibre

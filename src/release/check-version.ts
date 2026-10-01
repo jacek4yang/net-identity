@@ -12,10 +12,18 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertAmoMetadata } from "./amo-metadata.ts";
 import { checkReleaseVersion } from "./version.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const requireClean = process.argv.includes("--release");
+
+try {
+  assertAmoMetadata(JSON.parse(readFileSync(path.join(root, "amo-metadata.json"), "utf8")));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : "Invalid AMO metadata");
+  process.exit(1);
+}
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as {
   version?: string;

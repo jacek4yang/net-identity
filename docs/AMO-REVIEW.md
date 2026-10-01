@@ -2,6 +2,15 @@
 
 The extension id is `net-identity@jacek4yang.github.io` and does not change between versions.
 
+## Metadata-fix release 1.1.5
+
+The immutable v1.1.4 submission attempt failed before an AMO version or review existed.
+Its reviewer notes exceeded the official 3,000-character model limit; the hidden API
+response was not retained, so the exact server rejection was not observed. This release
+shortens notes and adds a pre-submission metadata guard without changing runtime behavior.
+The v1.1.4 tag and draft evidence remain intact. Fresh versioned 1.1.5 capture passed
+artifact, runtime-hash and independent visual verification; evidence is linked below.
+
 ## Permissions
 
 - `proxy` and `<all_urls>`: `proxy.onRequest` decides the proxy for `http`, `https`, `ws`, and `wss`. Host permission is required for that listener. Other schemes stay direct.
@@ -16,7 +25,7 @@ Content scripts run in every frame, including `about:blank`. The MAIN-world scri
 
 A sandboxed frame Firefox refuses to inject can still see the computer's timezone and location. That is a platform limit.
 
-## Map (1.1.4 candidate, unreleased source change after 1.1.3)
+## Map (1.1.5 candidate, unreleased source change after 1.1.3)
 
 The published 1.1.3 package remains the offline-only grid. The new implementation adds
 an explicit **Load online map** action using locally bundled MapLibre GL JS and worker;
@@ -92,7 +101,7 @@ versions retain their immutable tagged source archives for historical review.
 ## Install channel
 
 Listed releases use AMO for public installation and automatic updates. The provisional
-1.1.4 map candidate selects listed distribution; this does not imply submission, review
+1.1.5 map candidate selects listed distribution; this does not imply submission, review
 approval or signing. Public 1.1.3 remains the released offline-picker version. Historical
 listed 1.1.0/1.1.3 and unlisted 1.1.1/1.1.2 assets/submissions remain unchanged. Each
 GitHub Release stays draft until its exact AMO file is public and the Mozilla signature
@@ -119,10 +128,10 @@ The committed PNGs are:
 4. [`04-local-location-picker.png`](../store-assets/screenshots/04-local-location-picker.png)
 
 [Capture metadata](../store-assets/screenshots/metadata.json) records stable Firefox
-157.0 on Linux, unsigned candidate 1.1.4, dark theme and the synthetic `Tokyo · Local demo`
+157.0 on Linux, unsigned candidate 1.1.5, dark theme and the synthetic `Tokyo · Local demo`
 profile (loopback endpoint, disabled GeoIP and no credentials). The final
-[capture run](https://github.com/jacek4yang/net-identity/actions/runs/36856670754) used
-production source `d28d356746bd7cc62e3477d5d3c2167eea04f919` and actual OpenFreeMap
+[capture run](https://github.com/jacek4yang/net-identity/actions/runs/36863012728) used
+production source `e5bb71c3fbcd777755a00a231d6e0da54ec2892d` and actual OpenFreeMap
 geography. Four 1280×800 images and nine UI/renderer hashes match the production package.
 [Visual review](../store-assets/screenshots/capture-review.json) confirms readable Tokyo
 CJK labels, local SVG power icon, complete map fieldset, attribution and privacy-safe

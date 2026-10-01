@@ -3,7 +3,7 @@
 net-identity does not include telemetry, analytics, or remotely loaded program code.
 
 **Release boundary:** the online-map behavior below is an unreleased source change
-selected for the provisional 1.1.4 listed candidate after 1.1.3. The immutable 1.1.3 package and its published privacy policy describe
+selected for the provisional 1.1.5 listed candidate after 1.1.3. The immutable 1.1.3 package and its published privacy policy describe
 the earlier offline-only picker. Do not publish this new policy against that old
 package as though it already makes map requests.
 
