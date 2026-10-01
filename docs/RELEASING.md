@@ -243,3 +243,27 @@ The ordinary-request missing-credential gate does not cancel all Firefox-protect
 browser-service requests. They can still reach the selected proxy anonymously if it
 accepts that mode. Require upstream rejection of anonymous clients for browser-wide
 account identity; neither the release nor listing must claim a universal kill switch.
+
+## Provisional 1.1.4 release preparation (2026-10-01)
+
+The separate release candidate aligns package, lockfile and manifest to 1.1.4 with
+listed distribution, based on map implementation [PR #81](https://github.com/jacek4yang/net-identity/pull/81),
+squash-merged as `8b11d42df339fd55a15ab7c751e2bfba22da91e4`. Its corrected production
+[CI run](https://github.com/jacek4yang/net-identity/actions/runs/36846371498) passed
+all ten deterministic Firefox suites and unsigned-installer rejection. Real-render
+artifacts were independently inspected and their runtime hashes matched the packaged
+production payload. This is implementation evidence, not a claim that 1.1.4 is signed
+or publicly available.
+
+Remote tags still ended at v1.1.3 and public AMO still served 1.1.3 at the 09:49 UTC
+check; public v1.1.4 returned 404. At 09:51 UTC, the authenticated owner's complete
+DevHub history again showed only 1.1.3, 1.1.2, 1.1.1, 1.1.0 and 1.0.0, with no
+pending version, 1.1.4 or additional page. These observations neither reserve the
+version nor establish submission; recheck if intervening submissions occur.
+
+Final versioned-candidate validation, provider-dependent asset capture and review remain
+required. The manual capture workflow is now merged, but actual-provider screenshots must
+be captured from the published 1.1.4 candidate branch and verified before being claimed
+as new release assets. Keep the existing listed submission/finalizer and immutable
+historical 1.1.3 release/publication evidence. Manual AMO previews still require reviewed
+operator reconciliation, never automatic adoption.

@@ -6,8 +6,8 @@ import {
 } from "../src/release/version";
 
 const current = {
-  packageVersion: "1.1.3",
-  manifestVersion: "1.1.3",
+  packageVersion: "1.1.4",
+  manifestVersion: "1.1.4",
   extensionId: "net-identity@jacek4yang.github.io",
 };
 
@@ -16,12 +16,12 @@ describe("release version policy", () => {
     expect(
       checkReleaseVersion({
         ...current,
-        tag: "v1.1.3",
-        previousVersions: ["1.0.0", "1.1.0", "1.1.1", "1.1.2"],
+        tag: "v1.1.4",
+        previousVersions: ["1.0.0", "1.1.0", "1.1.1", "1.1.2", "1.1.3"],
         dirty: false,
         requireClean: true,
       }),
-    ).toEqual({ ok: true, version: "1.1.3" });
+    ).toEqual({ ok: true, version: "1.1.4" });
   });
 
   it("rejects a mismatched tag, a dirty tree, a downgrade, and a repeat", () => {
@@ -34,7 +34,7 @@ describe("release version policy", () => {
     const downgraded = checkReleaseVersion({ ...current, previousVersions: ["1.2.0"] });
     expect(downgraded.ok).toBe(false);
 
-    const duplicate = checkReleaseVersion({ ...current, previousVersions: ["1.1.3"] });
+    const duplicate = checkReleaseVersion({ ...current, previousVersions: ["1.1.4"] });
     expect(duplicate.ok).toBe(false);
 
     const malformed = checkReleaseVersion({ ...current, packageVersion: "0.2" });

@@ -13,8 +13,8 @@ content scripts) precisely because those APIs allow a correct implementation.
 - Node.js for development: **>= 22** (required by `web-ext` 10)
 - Locally bundled MapLibre renderer; no telemetry or remote executable code
 
-**Unreleased source change:** online OpenFreeMap basemaps are being added after
-1.1.3. The published 1.1.3 package still has the offline coordinate grid. This
+**1.1.4 release candidate (unreleased source change):** online OpenFreeMap basemaps
+are being prepared after 1.1.3. The published 1.1.3 package still has the offline coordinate grid. This
 source documentation is not a claim that a newer map-enabled version is on AMO.
 
 ## Why it exists

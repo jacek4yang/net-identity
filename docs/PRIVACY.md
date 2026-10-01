@@ -3,7 +3,7 @@
 net-identity does not include telemetry, analytics, or remotely loaded program code.
 
 **Release boundary:** the online-map behavior below is an unreleased source change
-after 1.1.3. The immutable 1.1.3 package and its published privacy policy describe
+selected for the provisional 1.1.4 listed candidate after 1.1.3. The immutable 1.1.3 package and its published privacy policy describe
 the earlier offline-only picker. Do not publish this new policy against that old
 package as though it already makes map requests.
 
@@ -124,3 +124,12 @@ permitted webpage traffic and observable GeoIP requests remain covered by the mi
 credential gate. For account identity across all browser traffic, configure the proxy
 server to reject anonymous access. The extension is not a browser-wide kill switch and
 does not change OS firewalls or Firefox security settings.
+
+## HTTP/HTTPS proxy account identity
+
+The proxy server must enforce authentication. Keeping a username/password pair in the
+session does not prove every HTTP/HTTPS proxy connection used that account: a server
+accepting anonymous CONNECT requests may not issue a 407 challenge. This applies to
+ordinary webpage and map traffic too, independently of the Firefox-protected service
+limitation. Require the server to reject anonymous access when account identity matters.
+This is not a Direct fallback or a guarantee of reauthentication of existing connections.

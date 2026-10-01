@@ -1,6 +1,6 @@
 # Location picker and tile policy
 
-## Unreleased MapLibre + OpenFreeMap integration
+## 1.1.4 candidate: unreleased MapLibre + OpenFreeMap integration
 
 The real basemap is an explicit source change after the released **1.1.3** offline
 picker. Historical tags, signed packages and listing assets are not rewritten.
