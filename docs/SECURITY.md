@@ -9,8 +9,9 @@ enforce it (`tests/credentials.test.ts`, `tests/messages-router.test.ts`,
 
 **Fail-closed proxy routing.** When a proxy profile is the committed desired route,
 proxy unavailability can reduce availability but must never reduce routing
-confidentiality by falling back to Direct. HTTP, HTTPS, WS, and WSS requests use
-that proxy or fail. A missing session snapshot after full Firefox exit does not
+confidentiality by deliberately falling back to Direct. Extension-observable ordinary
+HTTP, HTTPS, WS, and WSS requests use that proxy or fail. Protected Firefox system
+requests lie outside the cancellation boundary described below. A missing session snapshot after full Firefox exit does not
 remove the durable selection in `storage.local`; the request listener restores the
 validated proxy configuration before allowing a request. If durable routing state
 cannot be parsed or read safely, `webRequest.onBeforeRequest` cancels ordinary
@@ -20,12 +21,13 @@ fallback to a single `ProxyInfo`; proxied decisions therefore return a terminal
 changes diagnostic health only. In particular:
 
 ```
-proxy unavailable -> no network
+ordinary proxy-bound request + unavailable proxy -> request failure
 ```
 
 The route changes only after an explicit user action. Proxy usernames and passwords remain
-session-only; after a full restart an authenticated proxy can reject requests
-until credentials are supplied again, but traffic must never go direct.
+session-only. After a full restart the missing-credential gate cancels ordinary
+proxy-bound traffic until credentials are applied. It does not add a Direct fallback,
+but protected browser requests require server-side rejection of anonymous access.
 
 1. **Proxy credentials never enter page context.**
    The MAIN world and every `window.postMessage` payload carry exactly
@@ -247,3 +249,31 @@ sent to the user-selected proxy, alongside required `locationInfo`; optional
 `personallyIdentifyingInfo` remains the gate for direct GeoIP lookup. This declaration
 correction adds no new collection or API capability. Required-data consent can change
 install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).
+
+## Missing required credentials and the Firefox cancellation boundary
+
+For an applied proxy with `authenticationRequired: true`, a missing session credential
+pair is a blocking condition in `webRequest.onBeforeRequest`, not merely a diagnostic.
+The extension cancels non-bypassed ordinary webpage HTTP/HTTPS/WS/WSS and its observable
+GeoIP requests before they use the proxy anonymously. The same endpoint might otherwise
+accept anonymous access with a different egress identity. A matching session snapshot
+restores the applied pair; full browser exit loses it. Save alone does not change the
+applied route: the user must Apply replacement credentials. Explicit bypasses and
+intentionally unauthenticated profiles retain their existing policy.
+
+**This is not a browser-wide kill switch.** Firefox protects system-principal requests
+from webRequest cancellation. Firefox 158 Remote Settings traffic was observed entering
+`proxy.onRequest` while bypassing the cancellation listener; it could attempt anonymous
+access to the same selected proxy after session credentials were lost. Terminal-null
+routing does not introduce Direct fallback, but cannot enforce authentication for those
+protected requests. To maintain account identity across all browser traffic, the proxy
+server must reject anonymous access. No OS firewall, native helper or browser security
+setting is changed by this extension.
+
+[MDN documents protected system requests](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onAuthRequired#proxy_authorization).
+Gecko's [ChannelWrapper](https://raw.githubusercontent.com/mozilla-firefox/firefox/main/toolkit/components/extensions/webrequest/ChannelWrapper.cpp)
+separates system modification from proxy matching; [ProxyChannelFilter](https://searchfox.org/firefox-main/source/toolkit/components/extensions/ProxyChannelFilter.sys.mjs)
+uses proxy matching. The dual-mode fixture records and locally rejects browser-service
+attempts, while asserting zero anonymous fixture CONNECTs and origin hits from ordinary
+test traffic. It does not assert zero browser-wide SOCKS handshakes. Removing the gate
+must make the ordinary-traffic negative control fail.

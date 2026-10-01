@@ -122,22 +122,24 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 ## Installation
 
-For normal Firefox, use a verified signed installer from the
-[GitHub Releases](https://github.com/jacek4yang/net-identity/releases) page. The
-[v1.1.0 public release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0)
-records the canonical [AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
-Status checked on 2026-10-01 from GitHub release provenance; the live AMO page was
-not independently reachable during this check. The earlier statement that no listing
-exists is obsolete.
+For normal Firefox, install from the public
+[AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
+The listing and public API were independently checked on 2026-10-01; the current
+listed version is 1.1.0. Its signed installer and provenance are also available in the
+[v1.1.0 GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0).
 
-New unlisted releases remain draft until Mozilla signs the exact version and the
-finalizer verifies its bytes and permanent installation in normal Firefox. Download
+Version 1.1.3 is being prepared for listed distribution and the default AMO update
+channel. It is a candidate, not a claim of submission, signing or publication.
+The release remains draft until Mozilla approves the exact listed version and the
+finalizer verifies its bytes and permanent installation in normal Firefox.
+
+Versions 1.1.1 and 1.1.2 remain historical unlisted self-distribution releases; their
+submissions and assets are unchanged. For a verified signed GitHub installer, download
 `net-identity-<version>-firefox-signed.xpi` and use Add-ons and themes → gear →
 Install Add-on From File. Source, checksums and provenance accompany the installer.
-Versions 1.1.1 and 1.1.2 use unlisted self-distribution; that does not confer public
-listing approval. GitHub does not automatically update installations. No custom update
-URL is configured; a higher listed AMO version may update the installation through
-Firefox's default AMO update service.
+GitHub itself does not automatically update installations. No custom update URL is
+configured; a higher listed AMO version may update them through Firefox's default
+AMO update service, subject to approval and any required consent prompts.
 
 See [reviewer notes](docs/AMO-REVIEW.md), [release checklist](docs/RELEASE-CHECKLIST.md),
 [privacy policy](docs/PRIVACY.md), and [release process](docs/RELEASING.md).
@@ -355,6 +357,15 @@ The build fails fast if the manifest references a file that was not emitted, so 
 misconfigured manifest cannot produce a silently broken extension.
 
 ## Known limitations
+
+**Firefox-protected browser traffic:** the missing-credential gate cancels ordinary
+extension-observable webpage and GeoIP requests, but Firefox does not allow extensions
+to cancel all browser-service requests. On Firefox 158, protected Remote Settings traffic
+could still attempt anonymous access to the same selected proxy after credentials were
+lost. This does not add Direct fallback; a server accepting anonymous access can still
+assign a different egress identity. For the same account identity across all browser
+traffic, the proxy server must reject anonymous clients. This extension is not a
+browser-wide kill switch. See [the documented boundary](docs/SECURITY.md#missing-required-credentials-and-the-firefox-cancellation-boundary).
 
 - Firefox desktop only, 140+.
 - A sandboxed frame that Firefox will not inject a content script into can still see

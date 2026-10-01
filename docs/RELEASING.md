@@ -95,8 +95,11 @@ its canonical URL and update README via a separate docs PR; do not modify tagged
 ## Credentials and diagnostics
 
 Existing repository secrets `AMO_JWT_ISSUER` / `AMO_JWT_SECRET` are used only by trusted
-submission/finalization and the main-only read-only status workflow. PR workflows never
-receive them. Node's built-in HMAC-SHA256 creates a JWT valid for 60 seconds. API GETs use
+submission/finalization, the main-only read-only status workflow, and the separate
+manual main-only listing publisher. The publisher changes only reviewed public listing
+copy/media after exact listed-version approval and release finalization; it cannot sign
+or submit a version. Its read-only GitHub permissions, fixed AMO endpoints and resumable
+write receipts keep it separate from signing. PR workflows never receive these secrets. Node's built-in HMAC-SHA256 creates a JWT valid for 60 seconds. API GETs use
 a fixed AMO v5 origin, reject redirects and bound response sizes. Tokens, headers and raw
 signing-client output are never logged or archived. No local or third-party signing occurs.
 
@@ -149,26 +152,43 @@ and AMO submissions remain unchanged; see the dated status below.
 The public [v1.1.0 GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0)
 now records listed distribution and the canonical
 [AMO URL](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
-This corrects the earlier historical pending-review statements. The live AMO page was
-not independently reachable during this check; GitHub release provenance is the evidence
-for this documentation update, not a new claim about live listing availability.
+The public API and rendered listing were independently verified on 2026-10-01:
+the add-on is enabled/public and its current listed version is 1.1.0. The API was
+rechecked at 04:13 UTC. This supersedes earlier notes that relied only on GitHub
+release provenance; historical pending-review observations remain dated history.
 
 Version 1.1.3 is the selected schema-4 release candidate, with session-only usernames
 and passwords, passive SOCKS health, bounded cooldown and repeated-flap coverage.
 The implementation was squash-merged in [PR #76](https://github.com/jacek4yang/net-identity/pull/76)
 to main commit `104a97706be1421574915d921d3696d9870a1095`; its
 [exact-head CI](https://github.com/jacek4yang/net-identity/actions/runs/36809016499) passed.
-The separate release PR aligns the version and reviewer material. Its merged commit
+The missing-session-credential fix was subsequently merged in
+[PR #78](https://github.com/jacek4yang/net-identity/pull/78), including the explicit
+Firefox-protected browser-service boundary. The separate release PR aligns version
+1.1.3, listed distribution and reviewer material. Its merged commit
 must pass every release gate before the immutable v1.1.3 tag is created.
 
 The authenticated main-only [status run](https://github.com/jacek4yang/net-identity/actions/runs/36807778410)
 on 2026-10-01 at 02:51:21 UTC reported the add-on public and version 1.1.3 absent.
-This establishes candidate selection, not submission, signing or publication; recheck
-before use if intervening submissions occur. `release-config.json` remains unlisted.
+That records the original candidate selection. The later authenticated main-only
+[recheck](https://github.com/jacek4yang/net-identity/actions/runs/36814633282)
+on main `89e4c0e2ccc54fe476e5e74e9d5d3943973d4ef2` at 04:20:22 UTC the same day
+again returned add-on public and version 1.1.3 absent. Neither check reserves the version
+or establishes submission, signing or publication; recheck if intervening submissions occur.
+`release-config.json` now selects listed for the intended public 1.1.3 release.
+No submission, signing, tag or publication is implied by this configuration change.
 Neither the older listed release nor any historical signing assets are changed.
 
 Candidate screenshots are prepared from actual clean Firefox UI with fixture-only data.
 An unsigned candidate is acceptable for asset preparation when provenance records that
 fact. Screenshots do not satisfy any signing gate. AMO icon/preview uploads are separate
-listing API mutations, not prerequisites for unlisted signing; do not mix them into the
-credential-isolated submission/finalizer pipeline.
+listing API mutations, separate from version signing; do not mix them into the
+credential-isolated submission/finalizer pipeline. Publish listing copy/media only after
+the exact finalized listed version is public/current and the listing publisher verifies
+its signature/provenance and captured UI payload. Rendering and asynchronous icon/media
+processing still require visual readback.
+
+The ordinary-request missing-credential gate does not cancel all Firefox-protected
+browser-service requests. They can still reach the selected proxy anonymously if it
+accepts that mode. Require upstream rejection of anonymous clients for browser-wide
+account identity; neither the release nor listing must claim a universal kill switch.

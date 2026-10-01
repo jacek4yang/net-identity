@@ -29,18 +29,20 @@ Save persists configuration; Apply changes runtime. Version-1, version-2 and ver
 Apply uses the saved revision without saving unsaved form values. Applied configuration
 is also recorded without credentials in local storage so a full Firefox restart cannot
 activate a newer unapplied Save. Session credentials survive event-page suspension but
-are removed on full exit. A selected proxy stays selected, and external traffic fails,
+are removed on full exit. A selected proxy stays selected, and ordinary extension-observable traffic fails,
 when the proxy is unavailable or its required session credentials are gone. Unsafe or newer
 profile documents are held unchanged. A failed teardown does not release native
 geolocation until Off successfully commits.
 
-These notes describe the 1.1.3 schema-4 release candidate. Its implementation was merged in PR #76; the separate release PR sets version 1.1.3. No tag, submission, signing or publication is implied by these notes. Earlier
+These notes describe the 1.1.3 schema-4 release candidate. Its health/credential implementation was merged in PR #76 and its ordinary-request missing-credential gate in PR #78; the separate release PR sets version 1.1.3 and selects listed distribution. No tag, submission, signing or publication is implied by these notes. Earlier
 versions retain their immutable tagged source archives for historical review.
 
 ## Install channel
 
-Listed releases use AMO for public installation and automatic updates. The candidate
-preserves unlisted signing as described below. Each GitHub Release remains draft until its
+Listed releases use AMO for public installation and automatic updates. The 1.1.3
+candidate selects listed distribution. Public AMO 1.1.0 was independently confirmed
+through the API and rendered listing on 2026-10-01; 1.1.3 is not yet claimed submitted
+or approved. Historical 1.1.1/1.1.2 unlisted distribution remains unchanged. Each GitHub Release remains draft until its
 exact AMO file is public and the Mozilla signature has been verified. Its primary installer is the exact XPI downloaded from
 Mozilla, hash-checked and permanently installed in signature-enforcing normal Firefox.
 No unsigned submission ZIP is presented as a signed installer. Source and provenance
@@ -63,11 +65,13 @@ The committed PNGs are:
 3. [`03-identity-audit.png`](../store-assets/screenshots/03-identity-audit.png)
 4. [`04-local-location-picker.png`](../store-assets/screenshots/04-local-location-picker.png)
 
-[Capture metadata](../store-assets/screenshots/metadata.json) records Firefox 158.0 on
+[Capture metadata](../store-assets/screenshots/metadata.json) records stable Firefox 157.0 on
 Linux, candidate extension version 1.1.3, dark theme, source/image hashes and the
 `Tokyo · Local demo` fixture: loopback proxy, GeoIP disabled, no credentials, synthetic
 coordinates and timezone. The popup is the real 380px UI centered on a plain 1280×800
-canvas; options retain their normal layout. [Asset instructions](../store-assets/README.md)
+canvas; the audit view uses a lossless native-scale crop of the actual identity and
+diagnostics cards with plain matching-background margins, without changing status
+content. Options retain their normal layout. [Asset instructions](../store-assets/README.md)
 explain deterministic icon generation and screenshot reproduction.
 
 ## After a review comment
@@ -124,3 +128,22 @@ explicitly categorizes usernames and passwords as authentication information. Re
 consent may therefore change the installation/update prompt; no silent upgrade is promised.
 This documentation is not a claim of Mozilla approval. Firefox desktop 140.0 is the
 minimum for the built-in consent system; no maximum version or Android support is added.
+
+## Missing-credential fail-closed check
+
+The blocking request listener cancels non-bypassed ordinary extension-observable
+HTTP/HTTPS/WS/WSS and GeoIP traffic when the
+applied proxy requires authentication but its session credential pair is missing. It does
+not rely on the upstream proxy refusing anonymous access: an endpoint accepting both
+modes could otherwise change egress identity without changing its host or port.
+Terminal-null routing still prevents direct/system fallback. A matching active session
+snapshot restores the pair after event-page suspension; after full Firefox exit, the
+user must save the pair and Apply it. Save alone does not change applied credentials.
+Firefox-protected browser-service requests are outside this cancellation boundary.
+Firefox 158 Remote Settings requests could still attempt anonymous access to the same
+selected proxy through `proxy.onRequest`. No Direct fallback is added; a server accepting
+anonymous clients may nevertheless assign them a different identity. Browser-wide account
+identity requires server-side rejection of anonymous access; this is not a universal kill
+switch. The dual-mode fixture records and rejects browser-service attempts locally,
+asserts zero ordinary-fixture CONNECTs/origin hits without credentials, and requires the
+pre-fix negative control to fail. See docs/SECURITY.md for official source references.

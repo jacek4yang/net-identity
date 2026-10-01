@@ -6,7 +6,7 @@
     "sourceDirectory": "dist",
     "signedRelease": false
   },
-  "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:158.0) Gecko/20100101 Firefox/158.0",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0",
   "theme": "dark",
   "sourceHashes": {
     "popup/popup.html": "8db711354bba517af1a97b16b1e65fbbebdf88c11c29c418a0b7322cd58fae5e",
@@ -31,25 +31,25 @@
       "file": "02-profile-management.png",
       "width": 1280,
       "height": 800,
-      "sha256": "bd21836e340da7135389836c2fc6ef2071ea5ff3e224793e1f296558be524b44"
+      "sha256": "abcc89d2d932ccf5e017c247dada9fb10cc7b63fd90b9a702d56311296a53b34"
     },
     {
       "file": "04-local-location-picker.png",
       "width": 1280,
       "height": 800,
-      "sha256": "867e2bd6bc916c3eac2e08feebb8d1f993277fadff3ad4ef4d5e8103726e6e8b"
+      "sha256": "4dc88a376700ddaf85228e9913e10c94bfd968281c4d63e27c050a7d591a7d13"
     },
     {
       "file": "01-active-profile.png",
       "width": 1280,
       "height": 800,
-      "sha256": "777fd20db83346a23830a3b1921291f4930849d892957f1ee1705c337c9a93fb"
+      "sha256": "3bb8bab88bce1c495efc569bc14148944c3d39b095a14ff54f288c5e98781677"
     },
     {
       "file": "03-identity-audit.png",
       "width": 1280,
       "height": 800,
-      "sha256": "6fd71ed115e03193ca45c369164c94fe8c828bfbf16aa7e7f5217e8e6d5199f0"
+      "sha256": "b91fbfc95b5f33694fa77e07f0e3562553d7c545ff5844c9fc7653e9fb76df73"
     }
   ]
 }

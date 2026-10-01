@@ -24,7 +24,11 @@ unchanged and held inactive, rather than silently dropping a profile or its prox
 If a selected proxy fails, ordinary external traffic fails rather than switching to
 Firefox's direct or system route. The selected profile stays selected and can recover
 without a route switch. After a full Firefox exit, session-only usernames and passwords are lost;
-traffic remains restricted to the selected proxy until credentials are supplied again.
+if the applied profile requires authentication, non-bypassed ordinary webpage and
+extension-observable GeoIP requests are blocked until you save replacement credentials and Apply them. The request gate prevents those ordinary requests from
+trying that endpoint anonymously, even if the proxy would accept it: anonymous access
+could produce a different egress identity. Profiles intentionally configured without
+authentication and explicit bypasses keep their existing behavior.
 
 **Proxy transport security.** Session-only storage does not encrypt the connection to a proxy.
 SOCKS5 username/password authentication is plaintext on that connection
@@ -46,7 +50,7 @@ Pages receive the location and timezone of the active profile through compatibil
 - Save stores edits; Apply activates the saved configuration and leaves unsaved form edits alone. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. Leaving both username and password blank keeps existing session credentials; entering either replaces the pair, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
 
-These notes describe the 1.1.3 schema-4 release candidate. Version 1.1.3 was verified absent on AMO on 2026-10-01 before selection; this document does not imply submission, signing or publication. Earlier AMO submissions retain the privacy behavior documented in their immutable tagged source archives. The coordinate picker remains entirely local, Direct is virtual, and the committed applied route is stored separately from saved edits without usernames or passwords.
+These notes describe the 1.1.3 schema-4 candidate intended for listed AMO distribution. The authenticated status check on 2026-10-01 at 02:51:21 UTC found 1.1.3 absent before selection. A later authenticated recheck on the same day at 04:20:22 UTC again found 1.1.3 absent; see the dated workflow links in docs/RELEASING.md. Recheck if intervening submissions occur. This document does not imply submission, signing or publication. Earlier AMO submissions retain the privacy behavior documented in their immutable tagged source archives. The coordinate picker remains entirely local, Direct is virtual, and the committed applied route is stored separately from saved edits without usernames or passwords.
 
 ## Passive health observations
 
@@ -68,3 +72,14 @@ recipient, telemetry or browser API permission is introduced. Firefox may show c
 required-data consent on installation or update. These built-in controls require desktop
 Firefox 140 or later. [Mozilla's data taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
 explains the categories.
+
+## Protected Firefox requests
+
+Firefox does not let extensions cancel every browser-service request. In Firefox 158,
+protected Remote Settings traffic could still reach the same selected proxy anonymously
+when the session credential pair was missing. This is not a switch to Direct, but a
+proxy that accepts anonymous clients may assign a different egress identity. Ordinary
+permitted webpage traffic and observable GeoIP requests remain covered by the missing-
+credential gate. For account identity across all browser traffic, configure the proxy
+server to reject anonymous access. The extension is not a browser-wide kill switch and
+does not change OS firewalls or Firefox security settings.
