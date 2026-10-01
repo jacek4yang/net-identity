@@ -31,6 +31,11 @@ const REQUIRED_ENTRIES = [
   "options/options.html",
   "options/options.js",
   "options/options.css",
+  "options/maplibre.css",
+  "options/maplibre.js",
+  "options/maplibre-worker.js",
+  "licenses/maplibre-LICENSE.txt",
+  "licenses/maplibre-dependencies.txt",
   "icons/icon-16.png",
   "icons/icon-32.png",
   "icons/icon-64.png",
@@ -41,6 +46,8 @@ const REQUIRED_ENTRIES = [
 
 /** Paths that must never ship. */
 const FORBIDDEN_PATTERNS = [
+  // Test TLS trust material must never become a shipped extension asset.
+  /\.(?:pem|key|crt|cer|p12|pfx|csr|srl)$/i,
   /(^|\/)store-assets\//,
   /(^|\/)docs\//,
   /\.svg$/,

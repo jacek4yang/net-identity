@@ -8,7 +8,7 @@ The extension id is `net-identity@jacek4yang.github.io` and does not change betw
 - `webRequest` and `webRequestBlocking`: HTTP/HTTPS proxy passwords and fail-closed routing. The extension answers a challenge only when Firefox reports a proxy challenge whose host and port both match the active proxy, and only once per request. SOCKS passwords use `ProxyInfo` and are not sent through `onAuthRequired`. During startup, the blocking request listener cancels external requests if a committed proxy route cannot be reconstructed safely.
 - `privacy`: read and set `webRTCIPHandlingPolicy`, then `clear()` on deactivation so Firefox restores the previous value. If another extension or policy controls the setting, this extension does not overwrite it.
 - `storage`: profiles in `storage.local` (never proxy usernames or passwords) and session-only secrets in `storage.session`.
-- Data collection: required `locationInfo` for the egress lookup and `authenticationInfo` for existing credentials sent to the selected proxy. Optional `personallyIdentifyingInfo` before a browser-routing profile may send the user's own public IP. See `docs/PRIVACY.md`.
+- Data collection: required `locationInfo` for the egress lookup and, in the unreleased map implementation, the explicitly viewed OpenFreeMap area; `authenticationInfo` covers existing credentials sent to the selected proxy. Optional `personallyIdentifyingInfo` before a browser-routing profile may send the user's own public IP. See `docs/PRIVACY.md`.
 
 ## Page behaviour
 
@@ -16,11 +16,48 @@ Content scripts run in every frame, including `about:blank`. The MAIN-world scri
 
 A sandboxed frame Firefox refuses to inject can still see the computer's timezone and location. That is a platform limit.
 
-## Map
+## Map (unreleased source change after 1.1.3)
 
-The options map is a bundled local coordinate grid. No external tile provider is enabled,
-no images are fetched, and no remote executable code is loaded. Coordinate entry, marker
-drag, selection, panning and zoom work offline. See `docs/TILE-POLICY.md` for the decision.
+The published 1.1.3 package remains the offline-only grid. The new implementation adds
+an explicit **Load online map** action using locally bundled MapLibre GL JS and worker;
+OpenFreeMap supplies only data from `https://tiles.openfreemap.org`. No network request
+is made just by installing the extension or opening the editor. No remote JavaScript,
+RTL plugin or native GeolocateControl is enabled. Coordinate entry and existing gestures
+remain available when WebGL or the network fails.
+
+Online map requests disclose the viewed area and visible egress IP to OpenFreeMap/CDN.
+Direct/Off requires optional `personallyIdentifyingInfo`; proxied requests retain the
+selected proxy and missing-credential/terminal-null protections. Provider bypasses refuse
+map loading. A typed, bounded background broker rejects redirects and unapproved resources,
+omits credentials/cookies/referrers, and cancels stale-generation loads. Closing/switching
+the editor, route changes, permission revocation and background restart require a fresh
+map enable action. The renderer and third-party notices are packaged locally; attribution
+links OpenMapTiles and OpenStreetMap. See `docs/TILE-POLICY.md` and `docs/PRIVACY.md`.
+
+Renderer dependency: **MapLibre GL JS 6.11.2**, pinned in the lockfile and bundled
+from its local ESM distribution. The earlier unpublished 5.24.0 candidate was rejected
+because it falls within [GHSA-jrc7-96c5-q579](https://github.com/maplibre/maplibre-gl-js/security/advisories/GHSA-jrc7-96c5-q579)
+(affected versions through 6.4.0; fixed from 6.4.1). The patched upstream version is
+used rather than relying solely on disabling its vulnerable attribution entry point.
+
+The upstream worker includes an optional external-plugin script loader. Before
+bundling, the build replaces that **complete loader function** with an explicit
+fail-closed throwing stub. The transformation verifies exact upstream source hashes
+and a single full-function match; unexpected source changes fail the build. This is
+a documented reproducible hardening transform, not a relaxation of CSP or the all-script
+no-eval scan. External worker plugins, including dynamically loaded RTL plugins, are
+unsupported. Core map data rendering does not need that loader.
+
+MapLibre source, worker, CSS and license hashes are verified before packaging, and
+renderer/dependency notices are shipped locally. Fixed attribution links use local
+`textContent`; application code does not use Popup HTML APIs or upstream attribution
+HTML. The new vendor bundle produces **zero vendor lint warnings**: the previous
+three-warning exception was removed entirely. The existing desktop/Android-floor
+warning remains explicitly documented; all other unexpected warnings fail the gate.
+
+Do not apply these new provider disclosures or map screenshots to the immutable 1.1.3
+submission. Update candidate metadata/assets only when the next map release is selected;
+actual test outcomes and the final pinned renderer version must be recorded before submission.
 
 The built-in Direct route exists virtually on fresh install; it does not trigger lookup.
 Direct switches without optional consent and withholds GeoIP until permission is granted.
@@ -34,7 +71,13 @@ when the proxy is unavailable or its required session credentials are gone. Unsa
 profile documents are held unchanged. A failed teardown does not release native
 geolocation until Off successfully commits.
 
-These notes describe the 1.1.3 schema-4 release candidate. Its health/credential implementation was merged in PR #76 and its ordinary-request missing-credential gate in PR #78; the separate release PR sets version 1.1.3 and selects listed distribution. No tag, submission, signing or publication is implied by these notes. Earlier
+## Historical 1.1.3 submission context
+
+The following version-specific notes record the earlier submission. Version 1.1.3
+is now approved and published, as recorded in `docs/RELEASING.md`; its package has no
+MapLibre dependency. New map-release reviewer metadata will be selected separately.
+
+These historical notes described the 1.1.3 schema-4 release candidate. Its health/credential implementation was merged in PR #76 and its ordinary-request missing-credential gate in PR #78; the separate release PR sets version 1.1.3 and selects listed distribution. No tag, submission, signing or publication is implied by these notes. Earlier
 versions retain their immutable tagged source archives for historical review.
 
 ## Install channel

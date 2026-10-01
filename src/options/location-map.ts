@@ -3,7 +3,7 @@
  *
  * The picker is a Web Mercator plane with a local coordinate grid. A tile
  * provider can supply optional image decoration after policy/privacy review.
- * Production performs no map network requests.
+ * Online decoration is explicitly enabled and fetched by a separate background broker.
  */
 
 import { NO_TILES, type TileProvider } from "./tile-provider";
@@ -265,4 +265,9 @@ export function applyResolvedLocation(
     accuracy: seed.accuracy === undefined ? fields.accuracy : String(seed.accuracy),
     timezone: seed.timezone === undefined ? fields.timezone : seed.timezone,
   };
+}
+
+/** Keep the renderer on the exact same Mercator plane as our 256px interaction model. */
+export function mapLibreCamera(viewport: MapViewport): { center: [number, number]; zoom: number } {
+  return { center: [viewport.center.longitude, viewport.center.latitude], zoom: viewport.zoom - 1 };
 }

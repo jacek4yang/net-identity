@@ -1,0 +1,69 @@
+name: Capture real OpenFreeMap listing images
+
+# Optional, manually requested, provider-dependent artwork capture. This does not
+# replace any deterministic PR/release gate, sign a build, or publish to AMO.
+on:
+  workflow_dispatch:
+    inputs:
+      capture_public_map:
+        description: Load real OpenFreeMap data for the synthetic Tokyo listing fixture
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    if: inputs.capture_public_map
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install official Firefox and software WebGL display
+        run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- \
+            | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
+            | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
+          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
+            | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y firefox openssl xvfb libgl1-mesa-dri
+      - run: npm ci
+      - run: npm run build:prod
+      - name: Verify narrow live-capture proxy
+        run: node --test scripts/live-map-proxy.test.mjs
+      - name: Require deterministic real-render gate first
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a node scripts/e2e-map.mjs --firefox /usr/bin/firefox --screenshots artifacts/map-gate
+      - name: Capture actual provider geography using the production UI
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          xvfb-run -a node scripts/e2e-ui.mjs --firefox /usr/bin/firefox \
+            --live-map --screenshots artifacts/listing-map --timeout 180
+          printf '%s\n' "$GITHUB_SHA" > artifacts/listing-map/source-commit.txt
+      - name: Upload candidate images for visual review, not publication
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-real-map-listing
+          path: artifacts/listing-map/*
+          if-no-files-found: error
+      - name: Upload deterministic rendering evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-map-render-gate
+          path: artifacts/map-gate/*
+          if-no-files-found: error

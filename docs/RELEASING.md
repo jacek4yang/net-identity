@@ -15,11 +15,27 @@ and AMO submission are immutable; its tag targets
 
 Before tagging clean, merged main, run `npm ci`, `npm run check`, `npm run package`,
 `npm run e2e:invariants`, `npm run e2e:websocket`, `npm run e2e:proxy-auth`,
-`npm run e2e:ui`, `npm run e2e:fail-closed`, `npm run e2e:restart`,
+`npm run e2e:ui`, `npm run e2e:map-fallback`, `npm run e2e:map`,
+`npm run e2e:fail-closed`, `npm run e2e:restart`,
 `npm run e2e:socks-auth` and `npm run e2e:flap` on the exact commit. The outage, restart, auth-loss and flap checks use Firefox Developer
 Edition for preinstalled unsigned-candidate restart coverage. Wait for both required CI checks. Follow
 [the release checklist](RELEASE-CHECKLIST.md). Create and push the new immutable tag
 only after every pre-submission gate passes. Never move or reuse a rejected tag.
+
+The online-map gates are distinct: `e2e:map-fallback` checks degraded rendering and the
+broker/privacy boundary; `e2e:map` must show actual imagery with a working WebGL display
+(CI uses Xvfb/Mesa). Test-only TLS trust is confined to disposable browser profiles, not
+extension/runtime or user security settings. A successful fallback does not prove real
+map rendering. Before submission, reviewer notes must explain explicit online-map
+activation, OpenFreeMap's viewed-region/IP exposure, routing/consent limits, bundled
+MapLibre code/worker and dependency notices. Preserve the offline coordinate fallback.
+
+For the next map release, 1.1.4 is currently a provisional unused patch: the authenticated
+owner DevHub version list inspected on 2026-10-01 contained listed 1.1.3/1.1.0,
+self-distributed 1.1.2/1.1.1 and disabled 1.0.0, with no 1.1.4 or additional page; remote
+tags also stopped at 1.1.3. Recheck immediately before the separate release PR/submission.
+Do not bump versions in the implementation PR or infer availability from public API 404
+alone. See [the map release readiness checklist](RELEASE-CHECKLIST.md#next-listed-map-release-provisional-114).
 
 ## Phase 1: validate, record, submit
 

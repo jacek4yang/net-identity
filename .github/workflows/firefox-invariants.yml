@@ -35,7 +35,7 @@ jobs:
           printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
             | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
           sudo apt-get update
-          sudo apt-get install -y firefox firefox-devedition openssl
+          sudo apt-get install -y firefox firefox-devedition openssl xvfb libgl1-mesa-dri
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -47,7 +47,7 @@ jobs:
         run: npm ci
 
       - name: Build the extension
-        run: npm run build
+        run: npm run build:prod
 
       # The harnesses print their progress to stderr and exit non-zero when a check
       # fails. Run every one of them even if one fails so a single job log shows the
@@ -73,6 +73,8 @@ jobs:
           run invariants npm run e2e:invariants -- --firefox "$firefox"
           run websocket npm run e2e:websocket -- --firefox "$firefox"
           run ui npm run e2e:ui -- --firefox "$firefox"
+          run map-fallback npm run e2e:map-fallback -- --firefox "$firefox"
+          run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox "$firefox" --screenshots artifacts/map-render
           run proxy-auth npm run e2e:proxy-auth -- --firefox "$firefox"
           run fail-closed npm run e2e:fail-closed -- --firefox /usr/bin/firefox-devedition
           run flap npm run e2e:flap -- --firefox /usr/bin/firefox-devedition
@@ -87,8 +89,18 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: firefox-e2e-logs
-          path: firefox-*.log
+          path: |
+            firefox-*.log
+            artifacts/map-render/*
           if-no-files-found: ignore
+
+      - name: Upload real map rendering evidence
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: firefox-map-render
+          path: artifacts/map-render/*
+          if-no-files-found: error
 
       - name: Verify normal Firefox rejects an unsigned installer
         run: |

@@ -2,6 +2,11 @@
 
 net-identity does not include telemetry, analytics, or remotely loaded program code.
 
+**Release boundary:** the online-map behavior below is an unreleased source change
+after 1.1.3. The immutable 1.1.3 package and its published privacy policy describe
+the earlier offline-only picker. Do not publish this new policy against that old
+package as though it already makes map requests.
+
 ## What is stored on this computer
 
 | Data                                                                                                                      | Where                                       | How long                                      |
@@ -18,7 +23,36 @@ unchanged and held inactive, rather than silently dropping a profile or its prox
 
 **Location lookup.** Activating or refreshing a profile can ask `https://ipwho.is/` where the current connection appears to come from. The request sends no cookies, no referrer, and no explicit proxy credentials. A proxied profile shows that service the proxy's public address. Browser routing shows it your own public address, and only after you allow that collection in Firefox. Installing the extension does not create a profile, so a fresh install makes no such request. Coordinates from this lookup are approximate (about 20 km) and are not presented as GPS.
 
-**Location picker.** The map uses a bundled local coordinate grid. No tile provider is enabled and no map requests leave the options page. Typed coordinates, panning, zoom, selection and marker drag work offline. Neither a Referer override nor a spoofed web origin is used.
+**Location picker.** The picker initially uses a local coordinate grid, with no map
+network request. In the unreleased implementation, choosing **Load online map**
+explicitly enables a MapLibre basemap for that editor session. Its code, stylesheet
+and worker are shipped with the extension; only map data comes from
+`https://tiles.openfreemap.org`. Style, tile metadata, vector/raster tiles, sprites
+and font glyphs are fetched as needed to display the viewed area. Panning and zooming
+can request additional tiles. This is a separate action from GeoIP lookup; disabling
+GeoIP does not cancel an explicitly enabled basemap.
+
+OpenFreeMap and its Cloudflare delivery infrastructure can see the network-visible
+IP, requested map area (encoded in tile coordinates), and normal HTTP metadata.
+The marker coordinates, profile and proxy credentials are not separately uploaded,
+but the viewed area is **not private from the map provider**. Requests omit cookies,
+origin credentials and referrers, reject redirects, and stay within the approved
+provider URL policy. No native device-location API, geocoder, API key or account is
+used. The extension does not spoof a Referer or web origin.
+
+An active proxy remains the route for these requests; failure does not trigger Direct.
+Provider-host bypass rules refuse online-map loading rather than quietly overriding
+the bypass. Under Direct or Off, optional personal-data consent is required before
+loading, and Firefox/system proxy settings may still affect the visible IP. Route
+changes, permission revocation and closing the editor invalidate map sessions.
+Manual coordinate input and the local grid remain usable when the map is disabled,
+unavailable, blocked or cannot render with WebGL.
+
+OpenFreeMap's [privacy policy](https://openfreemap.org/privacy/) describes its own
+logging: ordinary logs exclude IP addresses, anonymized usage metadata may be kept
+indefinitely, and security-incident IP logging may last up to 30 days. Cloudflare may
+process requests under its own policy. See the provider's [terms](https://openfreemap.org/tos/).
+The extension makes no claim that the provider collects nothing.
 
 **Proxy traffic.** Traffic you choose to send through a proxy goes to that proxy. The extension does not add its own analytics to that traffic.
 If a selected proxy fails, ordinary external traffic fails rather than switching to
@@ -43,14 +77,19 @@ Pages receive the location and timezone of the active profile through compatibil
 
 ## Your choices
 
-- Do not activate a profile, and the extension does not contact the location service.
+- Do not activate a profile, and the extension does not contact the GeoIP service.
+- Leave the online map disabled to avoid OpenFreeMap requests. Disable the map or
+  close the profile editor to stop its session; this does not change the active identity.
 - Use a proxy profile when the location lookup should see the proxy's address.
-- Use Custom identity policies for manual coordinates, a timezone override, unavailable geolocation, or disabled GeoIP lookup. Disabled GeoIP makes no provider request.
+- Use Custom identity policies for manual coordinates, a timezone override, unavailable geolocation, or disabled GeoIP lookup. Disabled GeoIP makes no GeoIP provider request; separately enabled map requests are independent.
 - Direct switches routing immediately even without optional consent. It keeps native geolocation blocked until Off; identity is unavailable until a permitted lookup succeeds.
 - Save stores edits; Apply activates the saved configuration and leaves unsaved form edits alone. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. Leaving both username and password blank keeps existing session credentials; entering either replaces the pair, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
 
-These notes describe the 1.1.3 schema-4 candidate intended for listed AMO distribution. The authenticated status check on 2026-10-01 at 02:51:21 UTC found 1.1.3 absent before selection. A later authenticated recheck on the same day at 04:20:22 UTC again found 1.1.3 absent; see the dated workflow links in docs/RELEASING.md. Recheck if intervening submissions occur. This document does not imply submission, signing or publication. Earlier AMO submissions retain the privacy behavior documented in their immutable tagged source archives. The coordinate picker remains entirely local, Direct is virtual, and the committed applied route is stored separately from saved edits without usernames or passwords.
+The committed applied route remains separate from editable saved profiles, with no
+usernames or passwords in durable profile storage. Historical release behavior is
+recorded in immutable tagged source archives and [release history](RELEASING.md).
+New map functionality does not alter those historical packages or submissions.
 
 ## Passive health observations
 
@@ -64,11 +103,13 @@ only to your selected proxy for authentication, never to the GeoIP provider or p
 
 ## Firefox consent
 
-Required `locationInfo` describes approximate egress location lookup. Required
+Required `locationInfo` describes approximate egress location lookup and, for the
+unreleased online-map implementation, the map area requested from OpenFreeMap. Required
 `authenticationInfo` describes the existing credentials sent to the proxy you choose.
-Optional `personallyIdentifyingInfo` still gates a direct lookup that exposes your own
-public IP. The authentication declaration corrects disclosure, not behavior: no extra
-recipient, telemetry or browser API permission is introduced. Firefox may show changed
+Optional `personallyIdentifyingInfo` gates direct GeoIP and online-map requests that
+can expose your own public IP. OpenFreeMap is an additional recipient only when the
+new map is explicitly enabled. The earlier authentication declaration disclosed the
+existing proxy-authentication recipient; it did not itself add a recipient or telemetry. Firefox may show changed
 required-data consent on installation or update. These built-in controls require desktop
 Firefox 140 or later. [Mozilla's data taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
 explains the categories.

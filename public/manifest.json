@@ -56,5 +56,8 @@
       "match_about_blank": true
     }
   ],
-  "homepage_url": "https://github.com/jacek4yang/net-identity"
+  "homepage_url": "https://github.com/jacek4yang/net-identity",
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; worker-src 'self'; object-src 'none'; connect-src 'self' https://ipwho.is https://tiles.openfreemap.org; img-src 'self' data: blob:; style-src 'self'"
+  }
 }
