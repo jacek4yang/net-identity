@@ -29,7 +29,7 @@ Save persists configuration; Apply changes runtime. Version-1, version-2 and ver
 Apply uses the saved revision without saving unsaved form values. Applied configuration
 is also recorded without credentials in local storage so a full Firefox restart cannot
 activate a newer unapplied Save. Session credentials survive event-page suspension but
-are removed on full exit. A selected proxy stays selected, and external traffic fails,
+are removed on full exit. A selected proxy stays selected, and ordinary extension-observable traffic fails,
 when the proxy is unavailable or its required session credentials are gone. Unsafe or newer
 profile documents are held unchanged. A failed teardown does not release native
 geolocation until Off successfully commits.
@@ -124,3 +124,22 @@ explicitly categorizes usernames and passwords as authentication information. Re
 consent may therefore change the installation/update prompt; no silent upgrade is promised.
 This documentation is not a claim of Mozilla approval. Firefox desktop 140.0 is the
 minimum for the built-in consent system; no maximum version or Android support is added.
+
+## Missing-credential fail-closed check
+
+The blocking request listener cancels non-bypassed ordinary extension-observable
+HTTP/HTTPS/WS/WSS and GeoIP traffic when the
+applied proxy requires authentication but its session credential pair is missing. It does
+not rely on the upstream proxy refusing anonymous access: an endpoint accepting both
+modes could otherwise change egress identity without changing its host or port.
+Terminal-null routing still prevents direct/system fallback. A matching active session
+snapshot restores the pair after event-page suspension; after full Firefox exit, the
+user must save the pair and Apply it. Save alone does not change applied credentials.
+Firefox-protected browser-service requests are outside this cancellation boundary.
+Firefox 158 Remote Settings requests could still attempt anonymous access to the same
+selected proxy through `proxy.onRequest`. No Direct fallback is added; a server accepting
+anonymous clients may nevertheless assign them a different identity. Browser-wide account
+identity requires server-side rejection of anonymous access; this is not a universal kill
+switch. The dual-mode fixture records and rejects browser-service attempts locally,
+asserts zero ordinary-fixture CONNECTs/origin hits without credentials, and requires the
+pre-fix negative control to fail. See docs/SECURITY.md for official source references.

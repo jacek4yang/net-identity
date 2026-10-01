@@ -870,6 +870,143 @@ describe("background restart", () => {
     expect(state.activeProfileId).toBe(profile.id);
   });
 
+  it.each(["socks5", "http", "https"] as const)(
+    "blocks missing %s credentials before and after initialization, then unblocks on Apply",
+    async (type) => {
+      const first = createHarness();
+      const profile = makeProfile({
+        id: `required-auth-${type}`,
+        proxy: {
+          type,
+          host: "proxy.invalid",
+          port: 1080,
+          authenticationRequired: true,
+          proxyDNS: type === "socks5",
+          bypassHosts: ["bypass.invalid", "ipwho.is"],
+        },
+        identity: {
+          mode: "manual",
+          geoIpPolicy: "disabled",
+          latitude: 0,
+          longitude: 0,
+          accuracy: 20000,
+          timezone: "UTC",
+        },
+      });
+      const credentials = { username: "session-user", password: "session-password" };
+      await first.saveProfile(profile);
+      await first.credentialStore.set(profile.id, credentials);
+      await first.controller.activate(profile.id);
+      const fresh = createHarness({ localArea: first.localArea });
+      for (const initialized of [false, true]) {
+        if (initialized) {
+          const state = await fresh.controller.initialize();
+          expect(state.runtimeHealth).toBe("credentials_required");
+          expect(state.activeProfileId).toBe(profile.id);
+          expect(state.desiredRoute).toBe("proxy");
+        }
+        for (const scheme of ["http", "https", "ws", "wss"]) {
+          expect(await fresh.controller.shouldBlockRequest(`${scheme}://origin.invalid/`)).toBe(
+            true,
+          );
+          expect(await fresh.controller.shouldBlockRequest(`${scheme}://bypass.invalid/`)).toBe(
+            false,
+          );
+          terminalProxy(
+            await fresh.controller.decideProxyForRequest(`${scheme}://origin.invalid/`),
+          );
+        }
+        // GeoIP remains non-bypassed even when its hostname is in the user's bypass list.
+        expect(await fresh.controller.shouldBlockRequest("https://ipwho.is/")).toBe(true);
+        expect(await fresh.controller.shouldBlockRequest("moz-extension://test/page.html")).toBe(
+          false,
+        );
+        expect(await fresh.controller.shouldBlockRequest("about:blank")).toBe(false);
+      }
+      await fresh.credentialStore.set(profile.id, credentials);
+      // Merely editing saved credentials cannot change the currently applied target.
+      expect(await fresh.controller.shouldBlockRequest("https://origin.invalid/")).toBe(true);
+      const reapplied = await fresh.controller.activate(profile.id);
+      expect(reapplied.runtimeHealth).toBe("healthy");
+      for (const scheme of ["http", "https", "ws", "wss"])
+        expect(await fresh.controller.shouldBlockRequest(`${scheme}://origin.invalid/`)).toBe(
+          false,
+        );
+      expect(fresh.controller.getTarget()?.credentials).toEqual(credentials);
+      expect(fresh.localArea.serialized()).not.toContain(credentials.username);
+      expect(fresh.localArea.serialized()).not.toContain(credentials.password);
+    },
+  );
+
+  it.each([true, false])(
+    "uses applied authentication requirement %s rather than a newer saved edit after session loss",
+    async (authenticationRequired) => {
+      const first = createHarness();
+      const profile = makeProfile({
+        id: "saved-auth-marker",
+        proxy: {
+          type: "socks5",
+          host: "proxy.invalid",
+          port: 1080,
+          authenticationRequired,
+          proxyDNS: true,
+          bypassHosts: [],
+        },
+        identity: {
+          mode: "manual",
+          geoIpPolicy: "disabled",
+          latitude: 0,
+          longitude: 0,
+          accuracy: 20000,
+          timezone: "UTC",
+        },
+      });
+      await first.saveProfile(profile);
+      if (authenticationRequired)
+        await first.credentialStore.set(profile.id, {
+          username: "session-user",
+          password: "session-password",
+        });
+      await first.controller.activate(profile.id);
+      await first.saveProfile({
+        ...profile,
+        revision: 2,
+        proxy: { ...profile.proxy, authenticationRequired: !authenticationRequired },
+      });
+      const fresh = createHarness({ localArea: first.localArea });
+      expect(await fresh.controller.shouldBlockRequest("https://origin.invalid/")).toBe(
+        authenticationRequired,
+      );
+      await fresh.controller.initialize();
+      expect(await fresh.controller.shouldBlockRequest("wss://origin.invalid/")).toBe(
+        authenticationRequired,
+      );
+      expect(fresh.controller.getTarget()?.proxy.authenticationRequired === true).toBe(
+        authenticationRequired,
+      );
+      expect(fresh.controller.getState().appliedRevision).toBe(1);
+    },
+  );
+
+  it("does not block a credential-free proxy when authentication is not required", async () => {
+    const first = createHarness();
+    const profile = makeProfile({
+      id: "anonymous-proxy",
+      proxy: { type: "socks5", host: "proxy.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
+    });
+    await first.saveProfile(profile);
+    await first.controller.activate(profile.id);
+    const fresh = createHarness({ localArea: first.localArea });
+    for (const initialized of [false, true]) {
+      if (initialized) await fresh.controller.initialize();
+      for (const scheme of ["http", "https", "ws", "wss"])
+        expect(await fresh.controller.shouldBlockRequest(`${scheme}://origin.invalid/`)).toBe(
+          false,
+        );
+      expect(fresh.controller.getTarget()?.credentials).toBeNull();
+    }
+  });
+
   it("correlates suspect health, preserves identity and recovers only with sustained success", async () => {
     let now = 0;
     const harness = createHarness({ now: () => now });

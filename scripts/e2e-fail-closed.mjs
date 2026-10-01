@@ -45,7 +45,7 @@ async function freePort() {
   return port;
 }
 
-function socksServer(seen, origin, requireAuth) {
+function socksServer(seen, origin, preferAuth) {
   const sockets = new Set();
   const server = net.createServer((socket) => {
     sockets.add(socket);
@@ -53,19 +53,23 @@ function socksServer(seen, origin, requireAuth) {
     socket.on("error", () => {});
     let buffer = Buffer.alloc(0);
     let phase = 0;
+    let selectedMethod = null;
     socket.on("data", (chunk) => {
       buffer = Buffer.concat([buffer, chunk]);
       if (phase === 0 && buffer.length >= 2 + buffer[1]) {
         const methods = buffer.subarray(2, 2 + buffer[1]);
-        if (requireAuth) seen.push({ handshakeMethods: [...methods] });
+        // A real upstream may permit both authenticated and anonymous egress.
+        // Losing session credentials must not silently select its anonymous mode.
+        const method = preferAuth && methods.includes(2) ? 2 : 0;
+        selectedMethod = methods.includes(method) ? method : 0xff;
+        if (preferAuth) seen.push({ handshakeMethods: [...methods], selectedMethod });
         buffer = buffer.subarray(2 + buffer[1]);
-        const method = requireAuth ? 2 : 0;
         socket.write(Buffer.from([5, methods.includes(method) ? method : 0xff]));
         if (!methods.includes(method)) {
           socket.end();
           return;
         }
-        phase = requireAuth ? 1 : 2;
+        phase = method === 2 ? 1 : 2;
       }
       if (phase === 1) {
         if (buffer.length < 2) return;
@@ -99,7 +103,7 @@ function socksServer(seen, origin, requireAuth) {
           ? [...buffer.subarray(4, 8)].join(".")
           : buffer.subarray(5, 5 + buffer[4]).toString("utf8");
       const port = buffer.readUInt16BE(4 + length);
-      seen.push({ host, port });
+      seen.push({ host, port, ...(preferAuth ? { selectedMethod } : {}) });
       phase = 3;
       // Flap mode uses distinct origin and direct-sentinel ports. In every mode
       // the fixture accepts only its own local destinations.
@@ -133,6 +137,57 @@ function socksServer(seen, origin, requireAuth) {
       await new Promise((resolve) => server.close(resolve));
     },
   };
+}
+
+async function anonymousSocksControl(port, origin) {
+  await new Promise((resolve, reject) => {
+    const socket = net.connect({ host: "127.0.0.1", port });
+    let phase = 0;
+    let buffer = Buffer.alloc(0);
+    const finish = (error) => {
+      socket.destroy();
+      if (error) reject(error);
+      else resolve();
+    };
+    socket.setTimeout(3000, () => finish(new Error("anonymous SOCKS positive control timed out")));
+    socket.on("error", finish);
+    socket.on("connect", () => socket.write(Buffer.from([5, 1, 0])));
+    socket.on("data", (chunk) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      if (phase === 0 && buffer.length >= 2) {
+        if (buffer[0] !== 5 || buffer[1] !== 0) {
+          finish(new Error("fixture did not accept anonymous SOCKS"));
+          return;
+        }
+        buffer = buffer.subarray(2);
+        const host = Buffer.from(origin.address);
+        const destinationPort = Buffer.alloc(2);
+        destinationPort.writeUInt16BE(origin.port);
+        socket.write(
+          Buffer.concat([Buffer.from([5, 1, 0, 3, host.length]), host, destinationPort]),
+        );
+        phase = 1;
+      }
+      if (phase === 1 && buffer.length >= 10) {
+        if (buffer[1] !== 0) {
+          finish(new Error("anonymous SOCKS CONNECT was rejected"));
+          return;
+        }
+        buffer = buffer.subarray(10);
+        socket.write(
+          `GET /anonymous-positive-control HTTP/1.1\r\nHost: ${origin.address}\r\nConnection: close\r\n\r\n`,
+        );
+        phase = 2;
+      }
+      if (phase === 2 && buffer.includes("\r\n\r\n")) {
+        finish(
+          buffer.toString().startsWith("HTTP/1.1 200")
+            ? null
+            : new Error("anonymous origin request failed"),
+        );
+      }
+    });
+  });
 }
 
 const locateExtension = `
@@ -618,7 +673,21 @@ async function main() {
   let socks = socksServer(seen, origin, values.auth);
   const socksPort = await listen(socks.server);
   let browser = null;
+  let credentialLossSeen = null;
+  const isFixtureConnection = (entry) =>
+    entry.host === origin.address || entry.host === "ni-fail-closed.invalid";
+  const credentiallessFixtureConnections = () =>
+    seen.slice(credentialLossSeen ?? seen.length).filter(isFixtureConnection);
   try {
+    if (values.auth) {
+      await anonymousSocksControl(socksPort, origin);
+      if (
+        !seen.some((entry) => entry.selectedMethod === 0 && entry.host === origin.address) ||
+        directHits.at(-1) !== "/anonymous-positive-control"
+      )
+        throw new Error("anonymous upstream positive control did not reach origin");
+      log("Positive control: dual-mode upstream accepts anonymous SOCKS and reaches origin");
+    }
     browser = await startFirefox(profileDir, await freePort(), `http://127.0.0.1:${pagePort}/`);
     // Ignore host-machine proxy environment during the positive control. The
     // recording Firefox fallback is configured explicitly below and retained
@@ -813,17 +882,28 @@ async function main() {
           throw new Error("Save changed the active proxy before Apply");
         log("Saved Direct configuration without applying it; Proxy A remains active");
       }
-      log("Restarting Firefox with SOCKS unavailable");
+      log(
+        values.auth
+          ? "Restarting Firefox with dual-mode SOCKS available and session credentials lost"
+          : "Restarting Firefox with SOCKS unavailable",
+      );
       await stopFirefox(browser);
       browser = null;
       const startupOriginHits = directHits.length;
+      if (values.auth) {
+        socks = socksServer(seen, origin, true);
+        await listen(socks.server, socksPort);
+        credentialLossSeen = seen.length;
+      }
       browser = await startFirefox(
         profileDir,
         await freePort(),
         `http://${origin.address}:${origin.port}/startup`,
       );
       if (directHits.length !== startupOriginHits)
-        throw new Error("startup navigation reached the origin directly");
+        throw new Error(
+          `startup navigation reached origin despite required route: ${JSON.stringify({ hits: directHits.slice(startupOriginHits), socks: credentialLossSeen === null ? [] : seen.slice(credentialLossSeen) })}`,
+        );
       log("Firefox restarted; probing cold traffic");
       const before = directHits.length;
       const cold = await checkOutageTraffic(browser, origin, "cold", directHits);
@@ -841,7 +921,11 @@ async function main() {
       const restored = await message(browser, { type: "state:get" });
       if (restored?.state?.activeProfileId !== profile.id)
         throw new Error("restart deselected Proxy A");
-      if (values.auth && restored.state.runtimeHealth !== "credentials_required")
+      if (
+        values.auth &&
+        (restored.state.runtimeHealth !== "credentials_required" ||
+          restored.state.proxy.hasCredentials !== false)
+      )
         throw new Error(
           `missing SOCKS credentials were not reported: ${JSON.stringify(restored.state.runtimeHealth)}`,
         );
@@ -850,16 +934,40 @@ async function main() {
         profile.id,
         values.auth ? "Credentials required" : "Proxy connection uncertain",
       );
-      log(`restart with SOCKS down: direct-origin leak count ${directHits.length - before}`);
+      if (values.auth && credentiallessFixtureConnections().length !== 0)
+        throw new Error(
+          `credentialless cold startup reached fixture via dual-mode SOCKS: ${JSON.stringify(credentiallessFixtureConnections())}`,
+        );
+      if (values.auth) {
+        // Firefox excludes protected/system traffic from webRequest blocking even
+        // when proxy.onRequest routes it. Every non-fixture CONNECT is rejected
+        // locally above; do not mistake unrelated handshakes for page traffic or
+        // claim the extension can cancel privileged Firefox service requests.
+        const excluded = seen
+          .slice(credentialLossSeen)
+          .filter((entry) => entry.host && !isFixtureConnection(entry)).length;
+        log(
+          `Protected/background boundary: ${excluded} out-of-fixture SOCKS CONNECT attempts rejected locally`,
+        );
+      }
+      log(
+        `restart: direct-origin leak count ${directHits.length - before}; ${values.auth ? "credentialless fixture SOCKS CONNECT count 0" : "SOCKS unavailable"}`,
+      );
     }
-    socks = socksServer(seen, origin, values.auth);
-    await listen(socks.server, socksPort);
+    if (!socks.server.listening) {
+      socks = socksServer(seen, origin, values.auth);
+      await listen(socks.server, socksPort);
+    }
     if (values.auth && values.restart) {
       const beforeAuthFailure = directHits.length;
       const denied = await checkTraffic(browser, origin, "missing-auth");
-      if (denied.http?.ok || directHits.length !== beforeAuthFailure)
+      if (
+        ["http", "https", "ws", "wss", "dns"].some((scheme) => denied[scheme]?.ok) ||
+        directHits.length !== beforeAuthFailure ||
+        credentiallessFixtureConnections().length !== 0
+      )
         throw new Error(
-          `missing SOCKS credentials leaked traffic: ${JSON.stringify({ denied, directHits })}`,
+          `missing SOCKS credentials leaked traffic: ${JSON.stringify({ denied, directHits, fixtureConnections: credentiallessFixtureConnections() })}`,
         );
       const resaved = await message(browser, {
         type: "profiles:save",
@@ -890,6 +998,18 @@ async function main() {
     )
       throw new Error(
         `recovered request did not traverse only Proxy A: ${JSON.stringify({ seen: seen.slice(beforeRecoveredSocks), hits: directHits.slice(beforeRecoveredHits) })}`,
+      );
+    if (
+      values.auth &&
+      (!seen
+        .slice(beforeRecoveredSocks)
+        .some((entry) => isFixtureConnection(entry) && entry.selectedMethod === 2) ||
+        seen
+          .slice(beforeRecoveredSocks)
+          .some((entry) => isFixtureConnection(entry) && entry.selectedMethod === 0))
+    )
+      throw new Error(
+        "credential re-entry did not restore exclusively authenticated SOCKS traffic",
       );
     for (let confirmation = 0; confirmation < 3; confirmation++) {
       await new Promise((resolve) => setTimeout(resolve, 550));

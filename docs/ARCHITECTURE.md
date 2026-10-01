@@ -296,3 +296,33 @@ fields preserve the pair, either entered field replaces it, and Clear removes th
 pair and marker. Save leaves the active target unchanged until Apply. Duplicates contain
 no credential values. v3 applied snapshots survive migration independently of newer saved
 edits, and matching legacy session snapshots preserve their active credentials.
+
+## Required-credential request gate
+
+`shouldBlockRequest()` also cancels extension-observable ordinary proxy-bound requests when the applied
+`authenticationRequired` flag is true and the active session credential pair is absent.
+The decision respects explicit bypasses and uses applied configuration, not newer saved
+edits. This gate is required even if `[selectedProxy, null]` is returned: terminal null
+prevents fallback to another route, but an endpoint accepting anonymous connections
+could otherwise provide a different identity through the same host and port.
+
+Matching session snapshots restore credentials after event-page suspension. Full browser
+restart preserves the durable applied flag but loses the pair, so those requests remain
+blocked. Saving replacement credentials alone leaves the applied route blocked; Apply
+activates the saved pair. Clearing saved credentials leaves the current applied pair
+unchanged until Apply. An explicit Apply of a configuration without the authentication
+requirement is a user route decision, not an automatic recovery action.
+
+The request gate cannot cancel protected Firefox system-principal traffic. On Firefox
+158, Remote Settings requests still reached the selected SOCKS endpoint through
+`proxy.onRequest` after losing credentials, even though ordinary webpage and observable
+GeoIP requests were canceled. If the server permits anonymous access, those protected
+requests can use a different account identity at that same endpoint. No Direct fallback
+is added. Browser-wide account identity therefore requires the proxy server to reject
+anonymous authentication. This WebExtension does not alter OS/network security settings.
+
+The dual-mode test fixture records and rejects browser-service attempts locally and
+asserts zero ordinary-fixture CONNECTs/origin hits while credentials are missing. Global
+zero-handshake counts would hide this platform limit and are not an acceptance criterion.
+See [the security boundary](SECURITY.md#missing-required-credentials-and-the-firefox-cancellation-boundary)
+and Mozilla's linked documentation for the distinction.
