@@ -271,9 +271,17 @@ map fieldset. It recorded 109 map RPCs (99 glyphs), peak 8, zero failures and 20
 transferred bytes; nine runtime hashes matched the production package. This capture was
 from the implementation's 1.1.3 candidate and is not the final versioned 1.1.4 imagery.
 
-Final versioned-candidate validation, provider-dependent asset capture and review remain
-required. The manual capture workflow is merged, but actual-provider screenshots must
-be recaptured from the updated published 1.1.4 candidate branch and verified before
-being claimed as release assets. Keep the existing listed submission/finalizer and
-immutable historical 1.1.3 release/publication evidence. Manual AMO previews still
-require reviewed operator reconciliation, never automatic adoption.
+The updated 1.1.4 candidate `d28d356746bd7cc62e3477d5d3c2167eea04f919` passed
+[CI 36856519447](https://github.com/jacek4yang/net-identity/actions/runs/36856519447).
+Its subsequent [versioned live capture](https://github.com/jacek4yang/net-identity/actions/runs/36856670754)
+also passed, with independently reviewed real Tokyo geography/CJK labels, local SVG icon,
+complete fieldset and attribution. All four images are 1280×800, and nine captured
+UI/renderer hashes match the production package. It recorded 109 requests, 99 glyph
+requests, peak 8, zero failures and 20,564,081 bytes. Raw metadata and source commit are
+preserved alongside [the capture review](../store-assets/screenshots/capture-review.json).
+
+The capture uses an unsigned temporary add-on; it is not signing or AMO-publication
+proof. Final asset integration must pass the release PR's checks, followed by exact
+merged-main gates before an immutable tag. Keep the existing listed submission/finalizer
+and historical 1.1.3 release/publication evidence. Manual AMO previews still require
+reviewed operator reconciliation, never automatic adoption.

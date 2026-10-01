@@ -435,4 +435,6 @@ install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/d
 
 [Four real Firefox UI captures](store-assets/README.md#screenshots) accompany the
 candidate. They use a labeled local demonstration profile with GeoIP disabled and no
-credentials. They are unsigned-candidate UI evidence, not signing or listing approval.
+credentials. The map capture shows actual OpenFreeMap geography and visible attribution;
+[its review](store-assets/screenshots/capture-review.json) verifies the production source
+hashes and pixels. These remain unsigned-candidate UI evidence, not signing or listing approval.

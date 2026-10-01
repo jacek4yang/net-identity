@@ -1,5 +1,5 @@
 {
-  "extensionVersion": "1.1.3",
+  "extensionVersion": "1.1.4",
   "provenance": {
     "build": "unsigned local candidate",
     "installation": "temporary add-on installed by web-ext in disposable Firefox profile",
@@ -9,12 +9,34 @@
   "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0",
   "theme": "dark",
   "sourceHashes": {
-    "popup/popup.html": "8db711354bba517af1a97b16b1e65fbbebdf88c11c29c418a0b7322cd58fae5e",
-    "popup/popup.css": "4e2407664eadb85437142f8b695b71e9f10d8d6f90caf1aa6fcffc3d3bfa0cb8",
+    "popup/popup.html": "3af22533e93630e56d20ab1ea3a13536aa43aa6e45ca336e9bd99a0657cae231",
+    "popup/popup.css": "d5c8e8a032c3cc09d76e220482f5d507d659be7f2acf942a5dc9b1912bf50ced",
     "popup/popup.js": "836ade9a9ba4b2eb7cc429c2eb6543ddbe1adcd796fd22d4d9fc4621b9d80527",
-    "options/options.html": "9740dcea5fe4e1fc783cf087b7b227460bcb7c1793165b17d17bbcca09463441",
-    "options/options.css": "a2e8acb287d37c6f5781e83be2d82447b69aec0878d3fe4fecde0ac909708574",
-    "options/options.js": "110286f39fb2408cc0b00ccb6eae496daa526214edc8b1842c453716467f0fda"
+    "options/options.html": "0605f5d96c06de536d11740b2b18f16a928eb685e58f1cfe7be36be1129a4c8c",
+    "options/options.css": "e84dc923a75840624e818966d108b3d455494c32796e0b275ff830dfdbde48f6",
+    "options/options.js": "785c4075ff7cede2548fc89c2dd0bfb6da1baafac29ebbb8145bca0abf6a9278",
+    "options/maplibre.js": "65791996ffa5b6c3f7ed5011c14796630cabf3c1c8a73ef75a1d57db63226fa2",
+    "options/maplibre-worker.js": "c596c7da21c783a819801868b30e47196285f35d76f8cb66acff191f6522f4d4",
+    "options/maplibre.css": "d8617d8421930e3fc6185365400e788c374c1a5d9fbe87999998c0bc14a202d3"
+  },
+  "mapCapture": {
+    "provider": "OpenFreeMap",
+    "style": "https://tiles.openfreemap.org/styles/liberty",
+    "data": "live public provider data, not synthetic map geometry",
+    "ready": true,
+    "attribution": ["OpenFreeMap", "© OpenMapTiles", "Data from OpenStreetMap"],
+    "requiresVisualReview": true,
+    "requestEvidence": {
+      "active": 0,
+      "peak": 8,
+      "total": 109,
+      "glyphRequests": 99,
+      "failures": 0,
+      "glyphFailures": 0,
+      "totalBytes": 20564081,
+      "glyphBytes": 19617835,
+      "observerErrors": 0
+    }
   },
   "fixture": {
     "profile": "Tokyo · Local demo",
@@ -31,25 +53,25 @@
       "file": "02-profile-management.png",
       "width": 1280,
       "height": 800,
-      "sha256": "abcc89d2d932ccf5e017c247dada9fb10cc7b63fd90b9a702d56311296a53b34"
+      "sha256": "4de80bd399cd4d898890ed723fd7768701bd11ab1f80bb9ccd4834199c67c8c3"
     },
     {
       "file": "04-local-location-picker.png",
       "width": 1280,
       "height": 800,
-      "sha256": "4dc88a376700ddaf85228e9913e10c94bfd968281c4d63e27c050a7d591a7d13"
+      "sha256": "9b63d5fb08cd4bfb6b949aad459b1b1fe7d963cc2c064169aeff81e4c16ef239"
     },
     {
       "file": "01-active-profile.png",
       "width": 1280,
       "height": 800,
-      "sha256": "3bb8bab88bce1c495efc569bc14148944c3d39b095a14ff54f288c5e98781677"
+      "sha256": "64a79a55a0e2009df138627f5ad1e42f14878d2c35805e5a93646b3834d18693"
     },
     {
       "file": "03-identity-audit.png",
       "width": 1280,
       "height": 800,
-      "sha256": "b91fbfc95b5f33694fa77e07f0e3562553d7c545ff5844c9fc7653e9fb76df73"
+      "sha256": "2f66f6feafc51385ae651fa1575531c865783b5bbfec25e8dfa8b512fb2714b8"
     }
   ]
 }

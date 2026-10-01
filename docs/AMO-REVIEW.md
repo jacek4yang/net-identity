@@ -118,16 +118,17 @@ The committed PNGs are:
 3. [`03-identity-audit.png`](../store-assets/screenshots/03-identity-audit.png)
 4. [`04-local-location-picker.png`](../store-assets/screenshots/04-local-location-picker.png)
 
-The existing historical [capture metadata](../store-assets/screenshots/metadata.json) records stable Firefox 157.0 on
-Linux, candidate extension version 1.1.3, dark theme, source/image hashes and the
-`Tokyo · Local demo` fixture: loopback proxy, GeoIP disabled, no credentials, synthetic
-coordinates and timezone. The popup is the real 380px UI centered on a plain 1280×800
-canvas; the audit view uses a lossless native-scale crop of the actual identity and
-diagnostics cards with plain matching-background margins, without changing status
-content. Options retain their normal layout. [Asset instructions](../store-assets/README.md)
-explain deterministic icon generation and screenshot reproduction. New 1.1.4 captures
-must wait for the mandatory real-render gate and merged manual capture workflow, then
-run against the versioned candidate. They are not completed by this release preparation.
+[Capture metadata](../store-assets/screenshots/metadata.json) records stable Firefox
+157.0 on Linux, unsigned candidate 1.1.4, dark theme and the synthetic `Tokyo · Local demo`
+profile (loopback endpoint, disabled GeoIP and no credentials). The final
+[capture run](https://github.com/jacek4yang/net-identity/actions/runs/36856670754) used
+production source `d28d356746bd7cc62e3477d5d3c2167eea04f919` and actual OpenFreeMap
+geography. Four 1280×800 images and nine UI/renderer hashes match the production package.
+[Visual review](../store-assets/screenshots/capture-review.json) confirms readable Tokyo
+CJK labels, local SVG power icon, complete map fieldset, attribution and privacy-safe
+fixture content. The raw capture review-required flag is preserved; adjacent review
+records completion. No signed-release or listing-publication claim follows from capture.
+Historical 1.1.3 images remain in that immutable tag and its publication record.
 
 ## After a review comment
 

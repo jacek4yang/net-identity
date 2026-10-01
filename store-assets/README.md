@@ -20,12 +20,16 @@ dimensions, alpha, and equality with listing artwork.
 
 ## Screenshots
 
-**1.1.4 preparation:** the currently committed PNGs and capture metadata below still
-record the historical 1.1.3 offline-picker capture. Updated online-map listing copy is
-prepared separately; it must not be published against the old package. New candidate
-screenshots remain pending the merged manual capture workflow on the published versioned
-1.1.4 branch, pixel review and production source/hash verification. Do not relabel the
-old imagery as an online-map capture. The dated 1.1.3 publication record is immutable.
+**1.1.4 candidate capture:** [run 36856670754](https://github.com/jacek4yang/net-identity/actions/runs/36856670754)
+captured these four PNGs from production source commit
+`d28d356746bd7cc62e3477d5d3c2167eea04f919` after the mandatory deterministic
+render gate passed. The map contains actual OpenFreeMap geography, including Tokyo CJK
+labels and visible attribution. All image hashes and nine captured UI/renderer hashes
+matched the versioned production package; [capture-review.json](screenshots/capture-review.json)
+records independent visual acceptance. The raw metadata's `requiresVisualReview` flag
+is retained as captured; the adjacent review records its completion. This is unsigned
+candidate evidence, not Mozilla approval, signed installation or AMO publication.
+The historical 1.1.3 tagged images and dated publication record remain unchanged.
 
 These are real extension pages from the unsigned local candidate in `dist/`,
 rendered in Firefox using the existing Marionette UI harness. `web-ext` installs
@@ -44,18 +48,20 @@ The disposable fixture uses the visibly labeled `Tokyo · Local demo` profile,
 loopback host `127.0.0.1:9999`, synthetic coordinates `35.68, 139.76`, 20km
 accuracy, and `Asia/Tokyo`. GeoIP is disabled. No remote proxy, public IP lookup,
 real user data, passwords, usernames, browsing history, or authenticated session
-is used. The audit honestly shows what this unverified manual fixture can and
+is used. The live-map capture explicitly contacts OpenFreeMap through a narrow local
+provider-only capture proxy; provider imagery is real while profile data is synthetic. The audit honestly shows what this unverified manual fixture can and
 cannot establish; it does not claim successful network egress verification.
 
-### Historical 1.1.3 upload order and captions
+### Candidate upload order and captions
 
 1. `screenshots/01-active-profile.png` — Switch profiles and review the current identity in one compact popup
 2. `screenshots/02-profile-management.png` — Manage proxy profiles and save identity settings before applying them
 3. `screenshots/03-identity-audit.png` — Inspect routing, WebRTC policy and identity checks, including unverified states
-4. `screenshots/04-local-location-picker.png` — Choose manual coordinates on an offline grid with no map-tile requests
+4. `screenshots/04-local-location-picker.png` — Choose manual coordinates on an optional OpenFreeMap basemap, with visible attribution
 
-Those captions record the published 1.1.3 labels. The prepared 1.1.4 labels in
-`listing-en-US.json` require the new verified captures before use. The images themselves contain only
+The captions match the prepared 1.1.4 copy in `listing-en-US.json`. Publish only after
+the exact listed release is approved and finalized, with operator reconciliation of
+existing manually uploaded preview IDs. The images themselves contain only
 extension UI. Upload artwork through the listing editor after human review;
 these files are deliberately separate from the signing and release pipeline.
 They are not extension runtime assets and must not be copied into the XPI.
