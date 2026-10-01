@@ -74,6 +74,7 @@ import {
 } from "./active-target";
 import type { CredentialStore } from "./credentials";
 import {
+  decideProxy,
   decideFailClosedProxy,
   decideProxyAuth,
   parseRequestUrl,
@@ -274,7 +275,15 @@ export class ActivationController {
     if (parseRequestUrl(url) === null) return false;
     await this.ensureRoutingIntentLoaded();
     return (
-      this.routingIntent === "blocked" || (this.routingIntent === "proxy" && this.target === null)
+      this.routingIntent === "blocked" ||
+      (this.routingIntent === "proxy" && this.target === null) ||
+      // An endpoint may accept both authenticated and anonymous traffic with
+      // different account/egress identities. Missing session credentials must
+      // cancel the request, not silently negotiate an anonymous connection.
+      // Reuse the routing decision to preserve explicit bypasses and internal URLs.
+      (this.target?.proxy.authenticationRequired === true &&
+        this.target.credentials === null &&
+        decideProxy(this.target, url).type !== "direct")
     );
   }
 

@@ -389,3 +389,23 @@ sent to the user-selected proxy, alongside required `locationInfo`; optional
 `personallyIdentifyingInfo` remains the gate for direct GeoIP lookup. This declaration
 correction adds no new collection or API capability. Required-data consent can change
 install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).
+
+## Missing required session credentials
+
+Treat `appliedProxy.authenticationRequired && activeCredentials === null` as a hard
+`onBeforeRequest` cancellation condition for non-bypassed ordinary extension-observable
+webpage and GeoIP traffic. A terminal
+proxy list alone is insufficient: the selected endpoint might accept anonymous access
+with a different identity. Do not rely on upstream auth rejection or a warning badge.
+Use the applied flag, preserve explicit bypasses, and restore only matching applied
+session snapshots. Full exit loses the pair but not the durable requirement. Save does
+not unblock/change the active route; Apply commits the replacement pair. Keep the
+anonymous-capable SOCKS regression so future changes cannot weaken this boundary.
+
+Do not expand this guarantee to Firefox-protected system-principal requests: they may
+reach the same selected proxy through `proxy.onRequest` without being cancellable by
+webRequest. Firefox 158 Remote Settings exposed this boundary. Browser-wide account
+identity requires server-side rejection of anonymous access. Keep browser-service
+attempts recorded/rejected in the local fixture; assert zero ordinary-fixture CONNECTs
+and origin hits, not zero global handshakes. Preserve the pre-fix negative control.
+Do not add Direct fallback, OS/native changes or perfect-kill-switch claims.

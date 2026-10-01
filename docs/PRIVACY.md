@@ -24,7 +24,11 @@ unchanged and held inactive, rather than silently dropping a profile or its prox
 If a selected proxy fails, ordinary external traffic fails rather than switching to
 Firefox's direct or system route. The selected profile stays selected and can recover
 without a route switch. After a full Firefox exit, session-only usernames and passwords are lost;
-traffic remains restricted to the selected proxy until credentials are supplied again.
+if the applied profile requires authentication, non-bypassed ordinary webpage and
+extension-observable GeoIP requests are blocked until you save replacement credentials and Apply them. The request gate prevents those ordinary requests from
+trying that endpoint anonymously, even if the proxy would accept it: anonymous access
+could produce a different egress identity. Profiles intentionally configured without
+authentication and explicit bypasses keep their existing behavior.
 
 **Proxy transport security.** Session-only storage does not encrypt the connection to a proxy.
 SOCKS5 username/password authentication is plaintext on that connection
@@ -68,3 +72,14 @@ recipient, telemetry or browser API permission is introduced. Firefox may show c
 required-data consent on installation or update. These built-in controls require desktop
 Firefox 140 or later. [Mozilla's data taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
 explains the categories.
+
+## Protected Firefox requests
+
+Firefox does not let extensions cancel every browser-service request. In Firefox 158,
+protected Remote Settings traffic could still reach the same selected proxy anonymously
+when the session credential pair was missing. This is not a switch to Direct, but a
+proxy that accepts anonymous clients may assign a different egress identity. Ordinary
+permitted webpage traffic and observable GeoIP requests remain covered by the missing-
+credential gate. For account identity across all browser traffic, configure the proxy
+server to reject anonymous access. The extension is not a browser-wide kill switch and
+does not change OS firewalls or Firefox security settings.

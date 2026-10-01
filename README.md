@@ -356,6 +356,15 @@ misconfigured manifest cannot produce a silently broken extension.
 
 ## Known limitations
 
+**Firefox-protected browser traffic:** the missing-credential gate cancels ordinary
+extension-observable webpage and GeoIP requests, but Firefox does not allow extensions
+to cancel all browser-service requests. On Firefox 158, protected Remote Settings traffic
+could still attempt anonymous access to the same selected proxy after credentials were
+lost. This does not add Direct fallback; a server accepting anonymous access can still
+assign a different egress identity. For the same account identity across all browser
+traffic, the proxy server must reject anonymous clients. This extension is not a
+browser-wide kill switch. See [the documented boundary](docs/SECURITY.md#missing-required-credentials-and-the-firefox-cancellation-boundary).
+
 - Firefox desktop only, 140+.
 - A sandboxed frame that Firefox will not inject a content script into can still see
   the host timezone and geolocation.
