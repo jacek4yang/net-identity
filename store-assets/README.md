@@ -20,20 +20,16 @@ dimensions, alpha, and equality with listing artwork.
 
 ## Screenshots
 
-**1.1.5 capture pending:** the existing images below are preserved 1.1.4 candidate evidence.
-A fresh versioned capture and runtime-hash verification are required before publishing
-these assets for 1.1.5.
-
-**Historical 1.1.4 candidate capture:** [run 36856670754](https://github.com/jacek4yang/net-identity/actions/runs/36856670754)
+**Verified 1.1.5 candidate capture:** [run 36863012728](https://github.com/jacek4yang/net-identity/actions/runs/36863012728)
 captured these four PNGs from production source commit
-`d28d356746bd7cc62e3477d5d3c2167eea04f919` after the mandatory deterministic
+`e5bb71c3fbcd777755a00a231d6e0da54ec2892d` after the mandatory deterministic
 render gate passed. The map contains actual OpenFreeMap geography, including Tokyo CJK
 labels and visible attribution. All image hashes and nine captured UI/renderer hashes
 matched the versioned production package; [capture-review.json](screenshots/capture-review.json)
 records independent visual acceptance. The raw metadata's `requiresVisualReview` flag
 is retained as captured; the adjacent review records its completion. This is unsigned
 candidate evidence, not Mozilla approval, signed installation or AMO publication.
-The historical 1.1.3 tagged images and dated publication record remain unchanged.
+The historical [1.1.4 capture review](https://github.com/jacek4yang/net-identity/blob/4d99c9a0eeeb3217ae9c8fd32dbcbdd428dc1370/store-assets/screenshots/capture-review.json), immutable tags and 1.1.3 dated publication record remain unchanged.
 
 These are real extension pages from the unsigned local candidate in `dist/`,
 rendered in Firefox using the existing Marionette UI harness. `web-ext` installs

@@ -436,7 +436,7 @@ install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/d
 ### Store asset provenance
 
 [Four real Firefox UI captures](store-assets/README.md#screenshots) accompany the
-earlier 1.1.4 candidate; fresh 1.1.5 capture is pending. They use a labeled local demonstration profile with GeoIP disabled and no
+verified 1.1.5 candidate capture. They use a labeled local demonstration profile with GeoIP disabled and no
 credentials. The map capture shows actual OpenFreeMap geography and visible attribution;
 [its review](store-assets/screenshots/capture-review.json) verifies the production source
 hashes and pixels. These remain unsigned-candidate UI evidence, not signing or listing approval.

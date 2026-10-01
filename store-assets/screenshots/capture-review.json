@@ -1,12 +1,12 @@
 {
-  "extensionVersion": "1.1.4",
-  "sourceCommit": "d28d356746bd7cc62e3477d5d3c2167eea04f919",
+  "extensionVersion": "1.1.5",
+  "sourceCommit": "e5bb71c3fbcd777755a00a231d6e0da54ec2892d",
   "capture": {
-    "runUrl": "https://github.com/jacek4yang/net-identity/actions/runs/36856670754",
+    "runUrl": "https://github.com/jacek4yang/net-identity/actions/runs/36863012728",
     "conclusion": "success",
-    "artifactId": 11159098416,
+    "artifactId": 11163131466,
     "artifactName": "candidate-real-map-listing",
-    "artifactSha256": "9a99c175d3729155fec2741f1c470af5dd8c51ad65013c0c07136f32444c8a53"
+    "artifactSha256": "a8d97d1da00ce7c7fae360d6c72136a3402e6dda8c94406e179f2f8f8954bda3"
   },
   "provenance": {
     "build": "unsigned local candidate",
@@ -22,7 +22,7 @@
     "allImageDimensions": "1280x800",
     "allImageHashesVerified": true,
     "capturedUiAndRendererSourceHashesVerified": 9,
-    "comparedAgainst": ["local production dist", "matching entries in net-identity-1.1.4.zip"]
+    "comparedAgainst": ["local production dist", "matching entries in net-identity-1.1.5.zip"]
   },
   "visualReview": {
     "reviewedOn": "2026-10-01",

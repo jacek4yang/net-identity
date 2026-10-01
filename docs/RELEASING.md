@@ -311,7 +311,13 @@ unchanged. It does not bypass a pending Mozilla review and introduces no recover
 workflow, metadata override, new credential scope or signing exception. The existing
 listed submission and finalizer remain authoritative.
 
-Versioned 1.1.5 capture is still pending. Existing 1.1.4 screenshots retain their honest
-provenance until fresh capture is verified. Full candidate checks/package, exact-runtime
-comparison and required CI must pass before release merge; exact-main release gates
+The fresh [1.1.5 capture](https://github.com/jacek4yang/net-identity/actions/runs/36863012728)
+passed on source `e5bb71c3fbcd777755a00a231d6e0da54ec2892d`. Its artifact digest,
+four 1280×800 image hashes and nine UI/renderer hashes match the versioned production
+package. Independent visual review confirms readable CJK labels, real geography,
+complete fieldset, attribution and synthetic-only identity data. Aggregate evidence
+records peak 8 RPCs, 99 glyph requests and zero failures. The
+[capture review](../store-assets/screenshots/capture-review.json) retains unsigned
+temporary-install provenance; historical 1.1.4 evidence remains linked above.
+Full candidate checks/package and required CI must pass before release merge; exact-main release gates
 and a new immutable tag follow. No AMO submission or approval is implied by preparation.

@@ -1,5 +1,5 @@
 {
-  "extensionVersion": "1.1.4",
+  "extensionVersion": "1.1.5",
   "provenance": {
     "build": "unsigned local candidate",
     "installation": "temporary add-on installed by web-ext in disposable Firefox profile",

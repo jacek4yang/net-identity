@@ -8,8 +8,8 @@ The immutable v1.1.4 submission attempt failed before an AMO version or review e
 Its reviewer notes exceeded the official 3,000-character model limit; the hidden API
 response was not retained, so the exact server rejection was not observed. This release
 shortens notes and adds a pre-submission metadata guard without changing runtime behavior.
-The v1.1.4 tag and draft evidence remain intact. Fresh versioned 1.1.5 capture is pending;
-the currently committed screenshots below remain labeled 1.1.4 evidence.
+The v1.1.4 tag and draft evidence remain intact. Fresh versioned 1.1.5 capture passed
+artifact, runtime-hash and independent visual verification; evidence is linked below.
 
 ## Permissions
 
@@ -128,10 +128,10 @@ The committed PNGs are:
 4. [`04-local-location-picker.png`](../store-assets/screenshots/04-local-location-picker.png)
 
 [Capture metadata](../store-assets/screenshots/metadata.json) records stable Firefox
-157.0 on Linux, unsigned candidate 1.1.4, dark theme and the synthetic `Tokyo · Local demo`
+157.0 on Linux, unsigned candidate 1.1.5, dark theme and the synthetic `Tokyo · Local demo`
 profile (loopback endpoint, disabled GeoIP and no credentials). The final
-[capture run](https://github.com/jacek4yang/net-identity/actions/runs/36856670754) used
-production source `d28d356746bd7cc62e3477d5d3c2167eea04f919` and actual OpenFreeMap
+[capture run](https://github.com/jacek4yang/net-identity/actions/runs/36863012728) used
+production source `e5bb71c3fbcd777755a00a231d6e0da54ec2892d` and actual OpenFreeMap
 geography. Four 1280×800 images and nine UI/renderer hashes match the production package.
 [Visual review](../store-assets/screenshots/capture-review.json) confirms readable Tokyo
 CJK labels, local SVG power icon, complete map fieldset, attribution and privacy-safe
