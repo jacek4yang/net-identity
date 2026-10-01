@@ -1,6 +1,6 @@
 /** Deterministic OpenFreeMap HTTPS fixture. No upstream connection is ever opened. */
 import { execFileSync } from "node:child_process";
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -219,12 +219,13 @@ export const GLYPH_PBF = bytes(
 /** Private, child-only Linux font configuration: explicitly no CJK font coverage. */
 export async function isolateLatinFonts(directory) {
   if (process.platform !== "linux") throw new Error("--no-local-cjk requires Linux fontconfig");
-  const fonts = path.join(directory, "latin-fonts"),
+  // Firefox's content font sandbox can read installed system fonts but not an
+  // arbitrary copied TTF inside our profile root. This directory contains only
+  // the distro's Latin DejaVu faces; no default/CJK directories are included.
+  const fonts = "/usr/share/fonts/truetype/dejavu",
     cache = path.join(directory, "font-cache"),
     config = path.join(directory, "fonts.conf");
-  await mkdir(fonts);
   await mkdir(cache);
-  await copyFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", path.join(fonts, "Latin.ttf"));
   const escape = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
   await writeFile(
     config,

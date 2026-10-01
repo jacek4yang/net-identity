@@ -642,12 +642,33 @@ async function main() {
       );
     }
     check(resource.ok, "Background gateway fetches exact provider data through the active route");
+    for (const [id, url] of [
+      ["raw-space", `${PROVIDER}/fonts/Fixture Sans/25856-26111.pbf`],
+      ["encoded-space", `${PROVIDER}${GLYPH_PATH}`],
+      ["canonical-host-port", `https://TILES.OPENFREEMAP.ORG:443${GLYPH_PATH}`],
+    ]) {
+      const beforeGlyph = fixture.requests.length;
+      const glyph = await call({
+        type: "map:fetch",
+        sessionId: session.sessionId,
+        requestId: `glyph-${id}`,
+        url,
+      });
+      check(
+        glyph.ok &&
+          fixture.requests.length === beforeGlyph + 1 &&
+          fixture.requests[beforeGlyph].path === GLYPH_PATH,
+        `The ${id} glyph URL reaches only its canonical allowlisted provider resource`,
+      );
+    }
     const beforeRejected = fixture.requests.length;
     for (const url of [
       "https://example.com/tile.pbf",
       `${PROVIDER}/not-a-map`,
       `${PROVIDER}/styles/liberty?token=secret`,
       "https://user:password@tiles.openfreemap.org/styles/liberty",
+      `${PROVIDER}/fonts/Fixture%2fSans/25856-26111.pbf`,
+      `${PROVIDER}/fonts/Fixture%5cSans/25856-26111.pbf`,
       "http://tiles.openfreemap.org/styles/liberty",
     ]) {
       const denied = await call({
@@ -785,6 +806,11 @@ async function main() {
         await mkdir(out, { recursive: true });
         const screenshot = await client.send("WebDriver:TakeScreenshot", { full: false });
         await writeFile(path.join(out, "map-failure.png"), Buffer.from(screenshot.value, "base64"));
+        const ui = await client.send("WebDriver:ExecuteScript", {
+          script:
+            "return {status:document.getElementById('map-online-status')?.textContent,online:document.getElementById('location-map-surface')?.dataset.online,canvases:document.querySelectorAll('#location-map-tiles canvas').length,csp:window.__mapCsp||[]};",
+          args: [],
+        });
         await client.send("Marionette:SetContext", { value: "chrome" });
         const diagnostics = await client.send("WebDriver:ExecuteScript", {
           script:
@@ -794,7 +820,21 @@ async function main() {
         await writeFile(
           path.join(out, "failure.json"),
           redactExtensionOrigin(
-            JSON.stringify({ error: String(error), console: diagnostics.value }, null, 2),
+            JSON.stringify(
+              {
+                error: String(error),
+                console: diagnostics.value,
+                ui: ui.value,
+                requests: fixture?.requests.map((entry) => ({
+                  path: entry.path,
+                  status: entry.status ?? 200,
+                  closed: entry.closed,
+                })),
+                connects: fixture?.connects,
+              },
+              null,
+              2,
+            ),
           ),
         );
       } catch (captureError) {

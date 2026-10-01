@@ -182,6 +182,10 @@ export class MapResourceBroker {
   ): Promise<MapResponse> {
     const session = this.sessions.get(request.sessionId);
     if (session === undefined || !isMapResourceUrl(request.url)) return failure(EXPIRED);
+    // Match the exact URL serialization Firefox uses for webRequest correlation.
+    // Validate before normalization; spaces in font stacks are legitimate, while
+    // credentials, encoded separators and unrelated resources remain forbidden.
+    const url = new URL(request.url).href;
     const error = this.routeError(session.generation);
     if (error !== null) return failure(error);
     const pendingCount = [...this.sessions.values()].reduce(
@@ -191,7 +195,7 @@ export class MapResourceBroker {
     if (pendingCount >= 64 || session.pending.size >= 32 || session.pending.has(request.requestId))
       return failure("Too many map requests. Reload the online map.", "unavailable");
     const abort = new AbortController();
-    session.pending.set(request.requestId, { url: request.url, abort });
+    session.pending.set(request.requestId, { url, abort });
     const timeout = setTimeout(() => abort.abort(), 20_000);
     let acquired = false;
     let buffered = 0;
@@ -205,7 +209,7 @@ export class MapResourceBroker {
       acquired = await this.acquire(abort);
       if (!acquired || abort.signal.aborted || this.routeError(session.generation) !== null)
         return failure(EXPIRED);
-      const response = await this.deps.fetch(request.url, {
+      const response = await this.deps.fetch(url, {
         method: "GET",
         credentials: "omit",
         referrerPolicy: "no-referrer",

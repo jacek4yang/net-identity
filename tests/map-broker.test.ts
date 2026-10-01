@@ -92,6 +92,47 @@ describe("map data broker", () => {
     expect((await h.broker.handle({ type: "map:open", generation: 1 }, "owner")).ok).toBe(false);
     expect(h.fetcher).not.toHaveBeenCalled();
   });
+  it("canonicalizes validated glyph URLs once for fetch and exact network correlation", async () => {
+    const canonical = "https://tiles.openfreemap.org/fonts/Fixture%20Sans/25856-26111.pbf";
+    for (const url of [
+      "https://tiles.openfreemap.org/fonts/Fixture Sans/25856-26111.pbf",
+      canonical,
+      "https://TILES.OPENFREEMAP.ORG:443/fonts/Fixture Sans/25856-26111.pbf",
+    ]) {
+      const h = harness();
+      const response = createDeferred<Response>();
+      h.fetcher.mockReturnValue(response.promise);
+      const id = sessionId(await h.broker.handle({ type: "map:open", generation: 1 }, "owner"));
+      const pending = h.broker.handle({ ...fetchRequest(id), url }, "owner");
+      try {
+        await waitUntil(() => h.fetcher.mock.calls.length === 1);
+        expect(h.fetcher).toHaveBeenCalledWith(
+          canonical,
+          expect.objectContaining({ credentials: "omit" }),
+        );
+        expect(h.broker.allowsNetwork(canonical)).toBe(true);
+        expect(h.broker.allowsNetwork(canonical.replace("25856-26111", "0-255"))).toBe(false);
+      } finally {
+        response.resolve(new Response("glyph"));
+        await pending;
+      }
+      expect(h.broker.allowsNetwork(canonical)).toBe(false);
+    }
+  });
+  it("rejects credential and encoded-separator variants before canonicalization or dispatch", async () => {
+    const h = harness();
+    const id = sessionId(await h.broker.handle({ type: "map:open", generation: 1 }, "owner"));
+    for (const url of [
+      "https://user:pass@tiles.openfreemap.org/fonts/Fixture Sans/0-255.pbf",
+      "https://tiles.openfreemap.org/fonts/Fixture%2fSans/0-255.pbf",
+      "https://tiles.openfreemap.org/fonts/Fixture%5cSans/0-255.pbf",
+      "https://tiles.openfreemap.org/fonts/Fixture%00Sans/0-255.pbf",
+    ]) {
+      expect((await h.broker.handle({ ...fetchRequest(id), url }, "owner")).ok).toBe(false);
+      expect(h.broker.allowsNetwork(url)).toBe(false);
+    }
+    expect(h.fetcher).not.toHaveBeenCalled();
+  });
   it("refuses proxy bypass, missing credentials, blocked/cold routes and obsolete generations", async () => {
     for (const reason of ["bypass", "credentials", "blocked", "cold", "generation"]) {
       const h = harness();
