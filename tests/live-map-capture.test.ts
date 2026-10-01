@@ -39,6 +39,10 @@ describe("optional real-provider listing capture", () => {
     const guide = readFileSync("store-assets/REAL-MAP-CAPTURE.md", "utf8");
     expect(guide).toContain("requires visual review");
     expect(guide).toContain("network-visible IP");
+    const capture = readFileSync("scripts/e2e-ui.mjs", "utf8");
+    expect(capture.indexOf("Live map became incomplete during capture")).toBeGreaterThan(
+      capture.indexOf("mapRequestEvidence = await readMapRequestEvidence(true)"),
+    );
   });
 
   it("passes the network-free proxy rejection and lifecycle regressions", () => {

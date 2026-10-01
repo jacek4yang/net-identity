@@ -195,6 +195,14 @@ keeps already rendered geography with an explicit incomplete-map warning and man
 Reload action. It never silently declares an incomplete map healthy or retries via a
 different route. See `docs/TILE-POLICY.md` and the broker tests.
 
+`map-request-queue.ts` limits renderer fanout before runtime messages: 8 active RPCs,
+256 waiting control records and a 60-second queue-inclusive deadline, without changing
+the background broker's limits. CJK labels use provider glyphs rather than OS fonts;
+glyph-range bursts are queued without response-byte caching or replay. Cancellation
+settles the caller promptly but holds the active slot until the RPC itself settles.
+Protocol failures set a sticky failure state, including errors MapLibre could otherwise
+hide with a local-glyph fallback. Removing the map invalidates its queue before cleanup.
+
 ## Setting changes after activation
 
 `browser.proxy.settings.onChange` and `privacy.network.webRTCIPHandlingPolicy.onChange`

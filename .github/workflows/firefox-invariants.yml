@@ -35,7 +35,7 @@ jobs:
           printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
             | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
           sudo apt-get update
-          sudo apt-get install -y firefox firefox-devedition openssl xvfb libgl1-mesa-dri
+          sudo apt-get install -y firefox firefox-devedition openssl xvfb libgl1-mesa-dri fontconfig fonts-dejavu-core
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -74,7 +74,7 @@ jobs:
           run websocket npm run e2e:websocket -- --firefox "$firefox"
           run ui npm run e2e:ui -- --firefox "$firefox"
           run map-fallback npm run e2e:map-fallback -- --firefox "$firefox"
-          run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox "$firefox" --screenshots artifacts/map-render
+          run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox "$firefox" --no-local-cjk --screenshots artifacts/map-render
           run proxy-auth npm run e2e:proxy-auth -- --firefox "$firefox"
           run fail-closed npm run e2e:fail-closed -- --firefox /usr/bin/firefox-devedition
           run flap npm run e2e:flap -- --firefox /usr/bin/firefox-devedition

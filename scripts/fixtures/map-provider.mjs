@@ -1,6 +1,6 @@
 /** Deterministic OpenFreeMap HTTPS fixture. No upstream connection is ever opened. */
 import { execFileSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -8,10 +8,12 @@ import path from "node:path";
 import { deflateSync, inflateSync } from "node:zlib";
 
 export const PROVIDER = "https://tiles.openfreemap.org";
+export const GLYPH_PATH = "/fonts/Fixture%20Sans/25856-26111.pbf";
 export const FIXTURE_STYLE = {
   version: 8,
   name: "Deterministic geography fixture",
   sprite: `${PROVIDER}/sprites/ofm_f384/ofm`,
+  glyphs: `${PROVIDER}/fonts/{fontstack}/{range}.pbf`,
   sources: {
     relief: {
       type: "raster",
@@ -69,6 +71,19 @@ export const FIXTURE_STYLE = {
       source: "openmaptiles",
       "source-layer": "city",
       layout: { "icon-image": "city", "icon-allow-overlap": true },
+    },
+    {
+      id: "cjk-label",
+      type: "symbol",
+      source: "openmaptiles",
+      "source-layer": "label",
+      layout: {
+        "text-field": "日",
+        "text-font": ["Fixture Sans"],
+        "text-size": 72,
+        "text-allow-overlap": true,
+      },
+      paint: { "text-color": "#cc22ee" },
     },
   ],
 };
@@ -151,7 +166,133 @@ export const VECTOR_TILE = Buffer.concat([
     ]),
   ),
   layer("city", feature(1, [[2300, 2400]])),
+  layer("label", feature(1, [[2800, 1900]])),
 ]);
+
+// Original synthetic 日 glyph: five rectangular strokes, not copied font data.
+// The official MapLibre parse_glyph_pbf.ts schema expects a 3px bitmap border;
+// TinySDF encodes distance with radius=8, cutoff=.25. We evaluate the distance
+// directly for these five rectangles, so no OS font, canvas, or new dependency
+// is involved in generating the provider PBF. The two holes distinguish a real
+// glyph from a missing-font/tofu rectangle in the Firefox screenshot assertion.
+const glyphStrokes = [
+  [0, 0, 3, 22],
+  [15, 0, 18, 22],
+  [0, 0, 18, 3],
+  [0, 9, 18, 12],
+  [0, 19, 18, 22],
+];
+export const GLYPH_BITMAP = Buffer.from(
+  Array.from({ length: 24 * 28 }, (_, i) => {
+    const x = (i % 24) - 3 + 0.5,
+      y = Math.floor(i / 24) - 3 + 0.5;
+    const distance = Math.min(
+      ...glyphStrokes.map(([left, top, right, bottom]) => {
+        const dx = Math.max(left - x, 0, x - right),
+          dy = Math.max(top - y, 0, y - bottom);
+        return dx || dy ? Math.hypot(dx, dy) : -Math.min(x - left, right - x, y - top, bottom - y);
+      }),
+    );
+    return Math.max(0, Math.min(255, Math.round(255 * (0.75 - distance / 8))));
+  }),
+);
+export const GLYPH_PBF = bytes(
+  1,
+  Buffer.concat([
+    bytes(1, "Fixture Sans"),
+    bytes(2, "25856-26111"),
+    bytes(
+      3,
+      Buffer.concat([
+        field(1, 0x65e5),
+        bytes(2, GLYPH_BITMAP),
+        field(3, 18),
+        field(4, 22),
+        field(5, zigzag(3)),
+        field(6, zigzag(21)),
+        field(7, 24),
+      ]),
+    ),
+  ]),
+);
+
+/** Private, child-only Linux font configuration: explicitly no CJK font coverage. */
+export async function isolateLatinFonts(directory) {
+  if (process.platform !== "linux") throw new Error("--no-local-cjk requires Linux fontconfig");
+  const fonts = path.join(directory, "latin-fonts"),
+    cache = path.join(directory, "font-cache"),
+    config = path.join(directory, "fonts.conf");
+  await mkdir(fonts);
+  await mkdir(cache);
+  await copyFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", path.join(fonts, "Latin.ttf"));
+  const escape = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+  await writeFile(
+    config,
+    `<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd"><fontconfig><dir>${escape(fonts)}</dir><cachedir>${escape(cache)}</cachedir></fontconfig>`,
+  );
+  const env = { FONTCONFIG_FILE: config, FONTCONFIG_PATH: directory };
+  const list = (charset) =>
+    execFileSync("fc-list", [`:charset=${charset}`, "-f", "%{file}\\n"], {
+      env: { ...process.env, ...env },
+      encoding: "utf8",
+    }).trim();
+  if (!list("0041") || list("65e5"))
+    throw new Error("Isolated fontconfig must have Latin A and no CJK U+65E5 coverage");
+  return { env, evidence: { isolated: true, latinCoverage: true, cjkCoverage: false } };
+}
+
+/** Quantify the custom magenta glyph's actual ink and two holes, not tofu. */
+export function inspectGlyphPixels({ width, height, channels, pixels }) {
+  const ink = (x, y) =>
+    [204, 34, 238].every((v, c) => Math.abs(pixels[(y * width + x) * channels + c] - v) <= 8);
+  let count = 0,
+    left = width,
+    top = height,
+    right = -1,
+    bottom = -1;
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++)
+      if (ink(x, y)) {
+        count++;
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+  const w = right - left + 1,
+    h = bottom - top + 1;
+  const patch = (rx, ry) => {
+    if (!count) return 0;
+    let hits = 0;
+    const x = Math.round(left + (w - 1) * rx),
+      y = Math.round(top + (h - 1) * ry);
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) if (ink(x + dx, y + dy)) hits++;
+    return hits / 9;
+  };
+  const strokes = [
+    patch(0.07, 0.26),
+    patch(0.93, 0.7),
+    patch(0.5, 0.05),
+    patch(0.5, 0.48),
+    patch(0.5, 0.95),
+  ];
+  const holes = [patch(0.5, 0.26), patch(0.5, 0.7)];
+  return {
+    count,
+    bounds: { left, top, width: w, height: h },
+    strokes,
+    holes,
+    rendered:
+      count > 600 &&
+      w > 35 &&
+      w < 75 &&
+      h > 45 &&
+      h < 90 &&
+      strokes.every((v) => v > 0.8) &&
+      holes.every((v) => v === 0),
+  };
+}
 
 function crc32(data) {
   let crc = 0xffffffff;
@@ -349,6 +490,9 @@ export async function createMapFixture(directory) {
         } else if (request.url.startsWith("/styles/")) {
           body = JSON.stringify(FIXTURE_STYLE);
           type = "application/json";
+        } else if (request.url === GLYPH_PATH) {
+          body = GLYPH_PBF;
+          type = "application/x-protobuf";
         } else if (request.url.endsWith(".pbf")) {
           body = VECTOR_TILE;
           type = "application/x-protobuf";

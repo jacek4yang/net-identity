@@ -217,7 +217,8 @@ body {
 }
 
 .route-off .power-icon {
-  font-size: 13px;
+  width: 14px;
+  height: 14px;
 }
 
 .route-body {
