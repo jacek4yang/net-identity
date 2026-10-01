@@ -17,7 +17,7 @@ artifact, runtime-hash and independent visual verification; evidence is linked b
 - `webRequest` and `webRequestBlocking`: HTTP/HTTPS proxy passwords and fail-closed routing. The extension answers a challenge only when Firefox reports a proxy challenge whose host and port both match the active proxy, and only once per request. SOCKS passwords use `ProxyInfo` and are not sent through `onAuthRequired`. During startup, the blocking request listener cancels external requests if a committed proxy route cannot be reconstructed safely.
 - `privacy`: read and set `webRTCIPHandlingPolicy`, then `clear()` on deactivation so Firefox restores the previous value. If another extension or policy controls the setting, this extension does not overwrite it.
 - `storage`: profiles in `storage.local` (never proxy usernames or passwords) and session-only secrets in `storage.session`.
-- Data collection: required `locationInfo` for the egress lookup and, in the unreleased map implementation, the explicitly viewed OpenFreeMap area; `authenticationInfo` covers existing credentials sent to the selected proxy. Optional `personallyIdentifyingInfo` before a browser-routing profile may send the user's own public IP. See `docs/PRIVACY.md`.
+- Data collection: required `locationInfo` for the egress lookup and, in version 1.1.5, the explicitly viewed OpenFreeMap area; `authenticationInfo` covers existing credentials sent to the selected proxy. Optional `personallyIdentifyingInfo` before a browser-routing profile may send the user's own public IP. See `docs/PRIVACY.md`.
 
 ## Page behaviour
 
@@ -25,9 +25,9 @@ Content scripts run in every frame, including `about:blank`. The MAIN-world scri
 
 A sandboxed frame Firefox refuses to inject can still see the computer's timezone and location. That is a platform limit.
 
-## Map (1.1.5 candidate, unreleased source change after 1.1.3)
+## Map (approved listed 1.1.5)
 
-The published 1.1.3 package remains the offline-only grid. The new implementation adds
+The historical 1.1.3 package remains the offline-only grid. Approved 1.1.5 adds
 an explicit **Load online map** action using locally bundled MapLibre GL JS and worker;
 OpenFreeMap supplies only data from `https://tiles.openfreemap.org`. No network request
 is made just by installing the extension or opening the editor. No remote JavaScript,
@@ -100,9 +100,9 @@ versions retain their immutable tagged source archives for historical review.
 
 ## Install channel
 
-Listed releases use AMO for public installation and automatic updates. The provisional
-1.1.5 map candidate selects listed distribution; this does not imply submission, review
-approval or signing. Public 1.1.3 remains the released offline-picker version. Historical
+Listed releases use AMO for public installation and automatic updates. Version 1.1.5
+is approved and signed; its exact AMO XPI passed permanent signature-enforcing Firefox
+installation before GitHub publication. See the dated proof in `docs/RELEASING.md`. Historical
 listed 1.1.0/1.1.3 and unlisted 1.1.1/1.1.2 assets/submissions remain unchanged. Each
 GitHub Release stays draft until its exact AMO file is public and the Mozilla signature
 has been verified. Its primary installer is the exact XPI downloaded from Mozilla,

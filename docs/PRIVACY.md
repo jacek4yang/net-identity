@@ -2,10 +2,9 @@
 
 net-identity does not include telemetry, analytics, or remotely loaded program code.
 
-**Release boundary:** the online-map behavior below is an unreleased source change
-selected for the provisional 1.1.5 listed candidate after 1.1.3. The immutable 1.1.3 package and its published privacy policy describe
-the earlier offline-only picker. Do not publish this new policy against that old
-package as though it already makes map requests.
+**Release boundary:** this policy describes approved listed version **1.1.5**, including
+its opt-in OpenFreeMap map. The immutable 1.1.3 package and its historical policy describe
+the earlier offline-only picker. See [release verification](RELEASING.md#published-115-2026-10-01).
 
 ## What is stored on this computer
 
@@ -24,7 +23,7 @@ unchanged and held inactive, rather than silently dropping a profile or its prox
 **Location lookup.** Activating or refreshing a profile can ask `https://ipwho.is/` where the current connection appears to come from. The request sends no cookies, no referrer, and no explicit proxy credentials. A proxied profile shows that service the proxy's public address. Browser routing shows it your own public address, and only after you allow that collection in Firefox. Installing the extension does not create a profile, so a fresh install makes no such request. Coordinates from this lookup are approximate (about 20 km) and are not presented as GPS.
 
 **Location picker.** The picker initially uses a local coordinate grid, with no map
-network request. In the unreleased implementation, choosing **Load online map**
+network request. Choosing **Load online map**
 explicitly enables a MapLibre basemap for that editor session. Its code, stylesheet
 and worker are shipped with the extension; only map data comes from
 `https://tiles.openfreemap.org`. Style, tile metadata, vector/raster tiles, sprites
@@ -104,7 +103,7 @@ only to your selected proxy for authentication, never to the GeoIP provider or p
 ## Firefox consent
 
 Required `locationInfo` describes approximate egress location lookup and, for the
-unreleased online-map implementation, the map area requested from OpenFreeMap. Required
+online-map feature, the map area requested from OpenFreeMap. Required
 `authenticationInfo` describes the existing credentials sent to the proxy you choose.
 Optional `personallyIdentifyingInfo` gates direct GeoIP and online-map requests that
 can expose your own public IP. OpenFreeMap is an additional recipient only when the

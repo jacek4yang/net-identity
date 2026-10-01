@@ -53,7 +53,7 @@ again. Recovery uses the same proxy endpoint.
 On failure the job uploads `firefox-*.log`. The logs contain loopback ports and the
 bundled test proxy's throwaway `user:pass`; no repository secret is used by this job.
 
-The unreleased map implementation adds two required checks to the same job:
+The map implementation released in 1.1.5 includes two required checks in the same job:
 
 - `e2e:map-fallback` disables WebGL and checks the editable local-grid fallback,
   explicit map consent and the bounded background gateway's routing/privacy rules.

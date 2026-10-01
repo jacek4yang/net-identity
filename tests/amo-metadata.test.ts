@@ -42,7 +42,7 @@ describe("AMO reviewer package", () => {
     expect(privacy).toContain("no map\nnetwork request");
     expect(privacy).toContain("not private from the map provider");
     expect(privacy).toContain("optional personal-data consent");
-    expect(privacy).toContain("unreleased source change");
+    expect(privacy).toContain("approved listed version **1.1.5**");
     expect(privacy).not.toContain("standard extension Referer");
     expect(privacy).toMatch(/storage\.session|session storage/);
     expect(privacy).toMatch(/does not include telemetry/i);

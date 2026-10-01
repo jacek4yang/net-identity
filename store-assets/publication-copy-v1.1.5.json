@@ -1,0 +1,36 @@
+{
+  "observedAtUtc": "2026-10-01T13:27:49Z",
+  "publicVersion": "1.1.5",
+  "descriptionSource": "https://addons.mozilla.org/api/v5/addons/addon/net-identity/",
+  "privacySource": "https://addons.mozilla.org/en-US/firefox/addon/net-identity/privacy/",
+  "privacySourceNote": "Public add-on API exposes has_privacy_policy but not policy text; text verified from public privacy page.",
+  "fields": {
+    "description": {
+      "normalizedTextMatchesSourceAndMarkdown": true,
+      "emphasisCodeAndListStructureMatches": true,
+      "explicitLinkDestinationsMatch": true,
+      "additionalAutoLinks": ["http://ipwho.is"],
+      "linkDestinations": ["http://ipwho.is"],
+      "normalizedTextSha256": "7854afb4e93f94c3fd6020d3bd2f72d0d7188afa35016c6422c09a2d66430ac6"
+    },
+    "privacy_policy": {
+      "normalizedTextMatchesSourceAndMarkdown": true,
+      "emphasisCodeAndListStructureMatches": true,
+      "explicitLinkDestinationsMatch": true,
+      "additionalAutoLinks": [],
+      "linkDestinations": [
+        "https://openfreemap.org/privacy/",
+        "https://openfreemap.org/tos/",
+        "https://www.rfc-editor.org/rfc/rfc1929.html#section-3",
+        "https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/"
+      ],
+      "normalizedTextSha256": "bbbbda84a6e58f76320ad4012fc7dec8262bce54fd74a79957c7ea4c31bac223"
+    }
+  },
+  "previewIds": [416773, 416774, 416775, 416776],
+  "previewStatus": "Existing previews unchanged; replacement and pixel review pending separate authorization and upload.",
+  "evidenceKind": "Public readback after manual browser editing; not a trusted automated-publisher receipt",
+  "trustedPublisherReceipt": false,
+  "allMediaUpdated": false,
+  "sourceListingCopySha256": "2ff1ed0b95b9ca55f3500d0c3a0999f4b17f5efd48a1326b48cf3a378a4d7b7d"
+}

@@ -70,7 +70,7 @@ but protected browser requests require server-side rejection of anonymous access
 
 8. **No telemetry exists.** There is no analytics, no crash reporting and no update
    ping. Extension-initiated external requests are the disclosed GeoIP lookup and,
-   in the unreleased map implementation, explicitly enabled OpenFreeMap data loads.
+   in version 1.1.5, explicitly enabled OpenFreeMap data loads.
    Installing or opening the options page does not enable either service.
 
 9. **No remote JavaScript is loaded.** Everything executable ships in the package; there is no
@@ -83,7 +83,7 @@ but protected browser requests require server-side rejection of anonymous access
     external-plugin loader replacement are checked separately. No vendor-lint warning
     exception is permitted; see `docs/AMO-REVIEW.md`.
 
-## Online-map security boundary (unreleased after 1.1.3)
+## Online-map security boundary (released in 1.1.5)
 
 MapLibre main code, CSS and worker are local package assets. Only approved HTTPS data
 paths under `tiles.openfreemap.org` can reach the network through the typed background
@@ -189,7 +189,7 @@ Reasoning, so a reviewer can verify it:
   `permissions.request({ data_collection: ["personallyIdentifyingInfo"] })` succeeds.
 - A fresh install does not create or activate a profile, so it does not contact the
   provider.
-- The location picker begins offline. The unreleased online-map action discloses
+- The location picker begins offline. The online-map action discloses
   OpenFreeMap as an additional recipient of network-visible IP and viewed map area.
   Required `locationInfo` covers that area; Direct/Off requires the existing optional
   personal-data grant. Provider bypasses refuse loading, not silently reroute it.
