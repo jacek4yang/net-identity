@@ -22,6 +22,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { nativeGraphicsDiagnostic } from "./fixtures/graphics-diagnostics.mjs";
 import { connectMarionette } from "./release-marionette.mjs";
 import {
   createMapFixture,
@@ -50,19 +51,21 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const ELEMENT = "element-6066-11e4-a52e-4f735466cecf";
 
 // Buffer whole lines so an extension origin split across stream chunks is never
-// forwarded unredacted. Browser logs contain only the synthetic test profile.
+// forwarded unredacted. Only native graphics messages survive the verbose filter.
 function redactStream(stream) {
   let pending = "";
   stream.on("data", (chunk) => {
     pending += String(chunk);
     let end;
     while ((end = pending.indexOf("\n")) !== -1) {
-      process.stderr.write(redactExtensionOrigin(pending.slice(0, end + 1)));
+      const diagnostic = nativeGraphicsDiagnostic(pending.slice(0, end));
+      if (diagnostic !== null) log(`Native graphics: ${diagnostic}`);
       pending = pending.slice(end + 1);
     }
   });
   stream.on("end", () => {
-    if (pending) process.stderr.write(redactExtensionOrigin(pending));
+    const diagnostic = nativeGraphicsDiagnostic(pending);
+    if (diagnostic !== null) log(`Native graphics: ${diagnostic}`);
   });
 }
 
@@ -89,7 +92,16 @@ async function stopFirefox(child) {
   await stopped;
 }
 
+const graphicsEnvironment = {
+  softwareRendering: process.env.LIBGL_ALWAYS_SOFTWARE === "1",
+  llvmpipeThreads: /^[0-9]{1,3}$/.test(process.env.LP_NUM_THREADS ?? "")
+    ? Number(process.env.LP_NUM_THREADS)
+    : "default",
+  displayPresent: Boolean(process.env.DISPLAY),
+};
+
 async function main() {
+  log(`Graphics fixture configuration: ${JSON.stringify(graphicsEnvironment)}`);
   if (
     !values.firefox ||
     !existsSync(values.firefox) ||
@@ -146,6 +158,7 @@ async function main() {
       [
         path.join(root, "node_modules/web-ext/bin/web-ext.js"),
         "run",
+        "--verbose",
         "--source-dir",
         path.join(root, "dist"),
         "--firefox-profile",
@@ -406,6 +419,13 @@ async function main() {
         [],
         20000,
       );
+      const initialGraphics = await execute(`
+        const canvas=document.querySelector('#location-map-tiles canvas');
+        const gl=canvas?.getContext('webgl2');
+        return {contextLost:gl?.isContextLost(),version:gl?.getParameter(gl.VERSION),
+          renderer:gl?.getParameter(gl.RENDERER)};
+      `);
+      log(`Initial production canvas: ${JSON.stringify(initialGraphics)}`);
       await pause(800);
       const element = (
         await client.send("WebDriver:FindElement", {
@@ -478,6 +498,8 @@ async function main() {
                 userAgent: await execute("return navigator.userAgent;"),
                 fixture: "exact production OpenFreeMap origin via loopback CONNECT proxy",
                 productionBundle,
+                graphicsEnvironment,
+                initialGraphics,
                 sourceMapsPresent,
                 sourceHashes,
                 colors,
@@ -837,6 +859,7 @@ async function main() {
             JSON.stringify(
               {
                 error: String(error),
+                graphicsEnvironment,
                 console: diagnostics.value,
                 ui: ui.value,
                 requests: fixture?.requests.map((entry) => ({

@@ -85,13 +85,17 @@ function exactTag(tag) {
 function output(name, value) {
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
 }
-function readPending(tag, commit) {
+function readPending(tag, commit, expectedChannel = channel) {
   const hasState = lookup(tag)?.assets.some((asset) => asset.name === "submission-state.json");
   download(tag, hasState ? "submission-state.json" : "release-metadata.json");
   const submission = parseSubmission(
     hasState ? json("submission-state.json") : json("release-metadata.json").submission,
   );
-  if (submission.tag !== tag || submission.commit !== commit || submission.channel !== channel)
+  if (
+    submission.tag !== tag ||
+    submission.commit !== commit ||
+    submission.channel !== expectedChannel
+  )
     throw new Error("Draft/tag provenance mismatch");
   return submission;
 }
@@ -160,24 +164,35 @@ async function main() {
       .sort((a, b) => a.tag_name.localeCompare(b.tag_name, "en", { numeric: true }));
     if (requested && candidates.length !== 1)
       throw new Error("Requested release record does not exist");
-    const eligible = candidates.filter((candidate) => {
-      if (!process.env.SELECT_CHANNEL) return true;
+    const taggedChannel = (candidate) => {
       const config = spawnSync("git", ["show", `${candidate.tag_name}:release-config.json`], {
         encoding: "utf8",
       });
       if (config.status !== 0 && candidate.tag_name !== "v1.1.0")
         throw new Error("Missing tagged channel configuration");
-      return (
-        releaseChannel(config.status === 0 ? JSON.parse(config.stdout) : null) ===
-        process.env.SELECT_CHANNEL
-      );
-    });
-    const tag = eligible[0]?.tag_name ?? "";
-    if (tag) {
-      const commit = git("rev-parse", `${tag}^{commit}`);
+      return releaseChannel(config.status === 0 ? JSON.parse(config.stdout) : null);
+    };
+    const eligible = candidates.filter(
+      (candidate) =>
+        !process.env.SELECT_CHANNEL || taggedChannel(candidate) === process.env.SELECT_CHANNEL,
+    );
+    let tag = "";
+    for (const candidate of eligible) {
+      const commit = git("rev-parse", `${candidate.tag_name}^{commit}`);
       git("merge-base", "--is-ancestor", commit, "origin/main");
       verifyHistoricalTags();
+      if (
+        !requested &&
+        !readPending(candidate.tag_name, commit, taggedChannel(candidate)).accepted
+      ) {
+        console.error(
+          `Skipping ${candidate.tag_name}: submission is not recorded as accepted; phase 1 reconciliation required`,
+        );
+        continue;
+      }
+      tag = candidate.tag_name;
       output("commit", commit);
+      break;
     }
     output("tag", tag);
     console.error(tag ? `Selected ${tag}` : "No pending release");

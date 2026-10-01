@@ -65,7 +65,13 @@ withdraw, delete or modify the earlier submission to bypass review.
 
 `.github/workflows/amo-finalize.yml` runs hourly and supports manual dispatch on main.
 Successful submission dispatches finalization immediately; hourly checks handle later signing.
-An empty tag selects the oldest pending draft independently in each channel, so a pending
+An empty tag selects the oldest draft with validated, accepted submission provenance
+independently in each channel. Automatic selection skips an `accepted: false` record
+only after its tag, commit and channel match; it logs that phase-one reconciliation is
+required. This flag does not prove AMO rejection or absence: an interrupted submission
+can also leave it false. The draft and immutable tag are not changed. Malformed or
+mismatched provenance still stops selection, and an explicit tag retains strict
+verification. Accepted pending-review or verification-error drafts are not skipped, so a pending
 listed review cannot delay an approved unlisted release. It verifies that the selected semantic tag
 is above v1.0.0 and belongs to main, then checks out that immutable commit in `release-tag/`. Trusted main supplies the
 finalization tools while all tag/package/provenance checks use the exact tagged working
