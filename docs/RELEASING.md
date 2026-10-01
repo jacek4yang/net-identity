@@ -147,26 +147,61 @@ gate includes the SOCKS outage, event-page restart, full-restart, authenticated 
 HTTP/HTTPS/WS/WSS, DNS, and zero direct-origin leak checks. At the time of that release, v1.1.0 was listed/unreviewed. Historical tags, releases
 and AMO submissions remain unchanged; see the dated status below.
 
-## Current status and 1.1.3 release candidate (2026-10-01)
+## Published 1.1.3 (2026-10-01)
+
+[Release PR #77](https://github.com/jacek4yang/net-identity/pull/77) merged to main
+`dbb9b6791fd56700017e97d6c7d3fd9d89abf62d`; immutable tag `v1.1.3` points to that
+commit. [Tag release gates and submission](https://github.com/jacek4yang/net-identity/actions/runs/36816346305)
+passed. AMO accepted the exact listed version at 04:45:25 UTC and approved it at
+04:51:07 UTC (version ID `6530342`, public file `5074485`). The initial finalizer
+correctly waited for review. A later [finalizer run](https://github.com/jacek4yang/net-identity/actions/runs/36820625476)
+verified the Mozilla bytes and permanent installation in Firefox 157 with signature
+enforcement, then published the [GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.3)
+at 05:37:42 UTC.
+
+The primary `net-identity-1.1.3-firefox-signed.xpi` is 78,152 bytes, with SHA-256
+`26738474bf3e80ca327b4aaae9ca88c9ea17cc8c3beefcc7f9052cba0fc50831`, matching AMO.
+The release includes source, checksums and `release-metadata.json`; its proof records
+`signedState: 2`, `signatureRequired: true`, `temporarilyInstalled: false`, and no
+custom update URL. All six captured UI source hashes match the finalized payload.
+
+The [public AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/)
+was updated through the authenticated browser editor at 05:47–05:49 UTC: custom icon,
+four captions/screenshots, description and privacy policy. Public API and rendered-page
+checks confirmed the changes; downloaded media matched the committed assets pixel for
+pixel. [The public verification record](../store-assets/publication-v1.1.3.json)
+contains preview IDs, ordering, captions and source/download hashes.
+
+This was a manual browser publication, not a listing-workflow run. No trusted workflow
+receipt was created. The automatic publisher must continue to reject these existing
+previews until a separate reviewed operator reconciliation establishes their provenance;
+this public evidence file does not authorize automatic adoption or replay. The browser
+editor accepted Markdown, while the reviewed repository copy is HTML and the public API
+returns rendered HTML. Semantic text was verified, including a corrected whitespace typo
+in “missing-credential”; raw serialization equality is not claimed. EULA remained null.
+
+## Historical 1.1.3 candidate selection (2026-10-01, before publication)
+
+The following records the candidate-stage evidence available before the release above.
 
 The public [v1.1.0 GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0)
 now records listed distribution and the canonical
 [AMO URL](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
 The public API and rendered listing were independently verified on 2026-10-01:
-the add-on is enabled/public and its current listed version is 1.1.0. The API was
+the add-on was enabled/public and its then-current listed version was 1.1.0. The API was
 rechecked at 04:13 UTC. This supersedes earlier notes that relied only on GitHub
 release provenance; historical pending-review observations remain dated history.
 
-Version 1.1.3 is the selected schema-4 release candidate, with session-only usernames
+At that stage, version 1.1.3 was the selected schema-4 release candidate, with session-only usernames
 and passwords, passive SOCKS health, bounded cooldown and repeated-flap coverage.
 The implementation was squash-merged in [PR #76](https://github.com/jacek4yang/net-identity/pull/76)
 to main commit `104a97706be1421574915d921d3696d9870a1095`; its
 [exact-head CI](https://github.com/jacek4yang/net-identity/actions/runs/36809016499) passed.
 The missing-session-credential fix was subsequently merged in
 [PR #78](https://github.com/jacek4yang/net-identity/pull/78), including the explicit
-Firefox-protected browser-service boundary. The separate release PR aligns version
+Firefox-protected browser-service boundary. The separate release PR was prepared to align version
 1.1.3, listed distribution and reviewer material. Its merged commit
-must pass every release gate before the immutable v1.1.3 tag is created.
+was required to pass every release gate before the immutable v1.1.3 tag is created.
 
 The authenticated main-only [status run](https://github.com/jacek4yang/net-identity/actions/runs/36807778410)
 on 2026-10-01 at 02:51:21 UTC reported the add-on public and version 1.1.3 absent.
@@ -175,7 +210,7 @@ That records the original candidate selection. The later authenticated main-only
 on main `89e4c0e2ccc54fe476e5e74e9d5d3943973d4ef2` at 04:20:22 UTC the same day
 again returned add-on public and version 1.1.3 absent. Neither check reserves the version
 or establishes submission, signing or publication; recheck if intervening submissions occur.
-`release-config.json` now selects listed for the intended public 1.1.3 release.
+The candidate `release-config.json` selected listed for the intended public 1.1.3 release.
 No submission, signing, tag or publication is implied by this configuration change.
 Neither the older listed release nor any historical signing assets are changed.
 

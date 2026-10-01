@@ -124,14 +124,12 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 For normal Firefox, install from the public
 [AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
-The listing and public API were independently checked on 2026-10-01; the current
-listed version is 1.1.0. Its signed installer and provenance are also available in the
-[v1.1.0 GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0).
-
-Version 1.1.3 is being prepared for listed distribution and the default AMO update
-channel. It is a candidate, not a claim of submission, signing or publication.
-The release remains draft until Mozilla approves the exact listed version and the
-finalizer verifies its bytes and permanent installation in normal Firefox.
+Version **1.1.3** is public on AMO and uses Firefox's default AMO update channel.
+Its [signed installer, source, checksums and provenance](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.3)
+were published on 2026-10-01 after Mozilla approval and permanent signed-install
+verification in normal Firefox 157. The public listing's icon, four screenshots,
+description and privacy policy were independently verified the same day; see
+[publication evidence](store-assets/publication-v1.1.3.json).
 
 Versions 1.1.1 and 1.1.2 remain historical unlisted self-distribution releases; their
 submissions and assets are unchanged. For a verified signed GitHub installer, download
@@ -406,7 +404,7 @@ Firefox session. Enter both again when replacing an authenticated pair.
 
 ### Authentication data consent
 
-The schema-4 candidate declares `authenticationInfo` for existing usernames/passwords
+Version 1.1.3 declares `authenticationInfo` for existing usernames/passwords
 sent to the user-selected proxy, alongside required `locationInfo`; optional
 `personallyIdentifyingInfo` remains the gate for direct GeoIP lookup. This declaration
 correction adds no new collection or API capability. Required-data consent can change

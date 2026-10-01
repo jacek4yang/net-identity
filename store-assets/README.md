@@ -42,14 +42,10 @@ cannot establish; it does not claim successful network egress verification.
 
 ### Upload order and captions
 
-1. `screenshots/01-active-profile.png` — Switch routes and review the active
-   profile's current identity
-2. `screenshots/02-profile-management.png` — Manage saved proxy profiles and
-   their independent identity settings
-3. `screenshots/03-identity-audit.png` — Inspect routing, WebRTC policy, and
-   identity consistency diagnostics
-4. `screenshots/04-local-location-picker.png` — Set manual coordinates with the
-   bundled local grid, without requesting map tiles
+1. `screenshots/01-active-profile.png` — Switch profiles and review the current identity in one compact popup
+2. `screenshots/02-profile-management.png` — Manage proxy profiles and save identity settings before applying them
+3. `screenshots/03-identity-audit.png` — Inspect routing, WebRTC policy and identity checks, including unverified states
+4. `screenshots/04-local-location-picker.png` — Choose manual coordinates on an offline grid with no map-tile requests
 
 Use those captions as AMO screenshot labels. The images themselves contain only
 extension UI. Upload artwork through the listing editor after human review;
@@ -82,3 +78,20 @@ The reviewed English copy is in `listing-en-US.json`. The separate main-only
 listing workflow waits for the exact listed version and finalized signed GitHub
 Release before writing public AMO metadata or uploading media. It is dry-run by
 default and uses resumable receipts; see [AMO listing publication](../docs/AMO-LISTING.md).
+
+## Public listing verification (2026-10-01)
+
+The icon and all four screenshots were published through the AMO browser editor after
+1.1.3 was approved and its signed GitHub release finalized. Public preview IDs are
+`416773`, `416774`, `416775`, `416776`, in the order above. All four downloaded full-size
+1280 × 800 screenshots and the 128px icon are pixel-identical to the assets committed
+with v1.1.3; AMO re-encoded their PNG bytes. The original unsigned-candidate capture
+provenance remains unchanged.
+
+[publication-v1.1.3.json](publication-v1.1.3.json) records public URLs, captions and
+source/download hashes. Public description and privacy policy matched the reviewed copy
+semantically after the browser editor's Markdown-to-HTML rendering and the documented
+“missing-credential” whitespace correction. This is public verification evidence, **not**
+a trusted listing-workflow receipt. The publisher must stop on these existing manually
+uploaded previews until reviewed operator reconciliation; do not fabricate or auto-adopt
+a receipt from this file. No listing-workflow execution was used for this publication.
