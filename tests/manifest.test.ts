@@ -154,8 +154,11 @@ describe("manifest", () => {
     }
   });
 
-  it("does not relax the content security policy", () => {
-    expect(manifest.content_security_policy).toBeUndefined();
+  it("keeps code and workers local and restricts external connections to reviewed data providers", () => {
+    expect(manifest.content_security_policy).toEqual({
+      extension_pages:
+        "default-src 'self'; script-src 'self'; worker-src 'self'; object-src 'none'; connect-src 'self' https://ipwho.is https://tiles.openfreemap.org; img-src 'self' data: blob:; style-src 'self'",
+    });
   });
 });
 
@@ -166,8 +169,8 @@ describe("package metadata", () => {
     expect(packageJson.type).toBe("module");
   });
 
-  it("ships no runtime dependencies", () => {
-    expect(packageJson).not.toHaveProperty("dependencies");
+  it("pins the sole locally bundled runtime dependency approved for online maps", () => {
+    expect(packageJson.dependencies).toEqual({ "maplibre-gl": "6.11.2" });
     expect(packageJson).not.toHaveProperty("optionalDependencies");
   });
 

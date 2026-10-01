@@ -49,6 +49,25 @@ again. Recovery uses the same proxy endpoint.
 On failure the job uploads `firefox-*.log`. The logs contain loopback ports and the
 bundled test proxy's throwaway `user:pass`; no repository secret is used by this job.
 
+The unreleased map implementation adds two required checks to the same job:
+
+- `e2e:map-fallback` disables WebGL and checks the editable local-grid fallback,
+  explicit map consent and the bounded background gateway's routing/privacy rules.
+- `e2e:map` runs with Xvfb and Mesa software rendering. It loads real deterministic
+  vector/raster data through the packaged MapLibre worker, checks canvas pixels and
+  CSP, exercises repeated editor interactions and partial-load recovery, and saves
+  screenshots. Missing WebGL or blank geography fails; a fallback is not a render pass.
+
+Both use an authenticated loopback CONNECT proxy serving the exact production
+`tiles.openfreemap.org` HTTPS origin. The harness generates a temporary test CA and
+trusts it only in its explicit disposable Firefox profile; `acceptInsecureCerts`
+stays false. Public OpenFreeMap is never contacted. Profile, certificates, private
+keys and child processes are cleaned up on success or failure, and certificates/keys
+are forbidden in the packaged extension. This isolated test trust does not alter the
+system trust store or a user's Firefox profile. Logs redact transient extension UUIDs.
+CI uploads `firefox-map-render` screenshot evidence on success and includes map
+screenshots with its failure logs. This describes the gate, not a recorded pass.
+
 ## Required branch protection
 
 Verified through the GitHub API on 2026-09-27: `main` requires both `quality` and
@@ -74,6 +93,8 @@ npm run e2e:invariants -- --firefox "<path to Firefox>"
 npm run e2e:websocket -- --firefox "<path to Firefox>"
 npm run e2e:proxy-auth -- --firefox "<path to Firefox>"
 npm run e2e:ui -- --firefox "<path to Firefox>"
+npm run e2e:map-fallback -- --firefox "<path to Firefox>"
+env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox "<path to Firefox>" --screenshots artifacts/map-render
 npm run e2e:fail-closed -- --firefox "<path to Firefox Developer Edition>"
 npm run e2e:restart -- --firefox "<path to Firefox Developer Edition>"
 npm run e2e:socks-auth -- --firefox "<path to Firefox Developer Edition>"

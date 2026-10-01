@@ -384,6 +384,7 @@ textarea {
 
 .location-map-tiles {
   inset: 0;
+  pointer-events: none;
 }
 
 .location-map-tiles img {
@@ -668,4 +669,15 @@ button.danger:hover:not(:disabled) {
 
 [hidden] {
   display: none !important;
+}
+
+.map-privacy {
+  margin: 0;
+  font-size: 11.5px;
+}
+#map-online-status {
+  margin: 0;
+}
+.location-map-tiles .maplibregl-canvas {
+  position: absolute;
 }

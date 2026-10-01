@@ -66,6 +66,7 @@ const result = await webext.cmd.lint(
 );
 
 const errors = result.errors ?? [];
+
 const warnings = result.warnings ?? [];
 const notices = result.notices ?? [];
 

@@ -61,8 +61,22 @@ a signed build, a real proxy or a second Firefox version.
       selection. Type coordinates and confirm the marker and viewport update.
 - [ ] Save without changing runtime, then Apply the saved revision. A page's geolocation matches the selected point and the page
       timezone matches the chosen zone.
-- [ ] Use offline mode (there is no external tile provider) and repeat the click and the typed
-      coordinates. Both still update the fields and can be saved.
+- [ ] Before **Load online map**, confirm the local grid and typed coordinates work
+      without map requests. Enable the map explicitly and confirm real streets/labels,
+      visible OpenFreeMap/OpenMapTiles/OpenStreetMap attribution, and coordinate selection.
+- [ ] Disable the online map or simulate provider/WebGL failure. The local grid and typed
+      coordinates remain usable, selected coordinates survive, and no success claim is
+      shown for missing imagery. GeoIP and basemap enablement are separate controls.
+- [ ] Verify map requests omit cookies/referrer/explicit proxy credentials and use only
+      validated OpenFreeMap HTTPS resources. Selected proxy routing is retained; missing
+      required credentials or a provider-host bypass prevents loading. Direct/Off map
+      loading requires optional personal-data consent. Do not equate this with control of
+      every Firefox-protected browser-service request.
+- [ ] Apply/Off, permission revocation, editor closure and background restart invalidate
+      map authorization; no online map session silently resumes from durable storage.
+- [ ] Run `e2e:map-fallback` and the actual WebGL `e2e:map` rendering gate. The latter
+      needs a display/Mesa context (CI uses Xvfb); a no-WebGL fallback pass cannot satisfy
+      the imagery gate. Test trust roots are confined to disposable harness profiles.
 
 ## 6. Upgrade and persistence
 
@@ -123,7 +137,7 @@ channel, then update README in a separate documentation PR if needed.
 - [ ] Authenticated AMO state confirms the next patch version is unused before the
       separate version PR. Do not infer availability from Git tags alone
 
-## 1.1.3 listed-release plan
+## Historical 1.1.3 listed-release plan
 
 - [ ] Confirm package, lockfile and manifest remain 1.1.3 and the tagged release-config
       selects listed; do not alter historical 1.1.1/1.1.2 submissions or assets
@@ -140,3 +154,25 @@ channel, then update README in a separate documentation PR if needed.
       listing publisher dry-run, review its plan and publish only the reviewed copy/media
 - [ ] Visually inspect the public listing and rendered media; report moderation/cache
       delay honestly and do not equate accepted uploads with public visibility
+
+## Next listed map release: provisional 1.1.4
+
+- [ ] Merge the reviewed map implementation only after `quality` and `firefox / invariants`
+      pass on its exact head, including both map gates and existing network regression suites
+- [ ] Recheck version availability before the separate release PR. On 2026-10-01, the
+      authenticated owner DevHub showed approved listed 1.1.3/1.1.0, approved self-distributed
+      1.1.2/1.1.1 and disabled 1.0.0, with no 1.1.4 or pagination. Tags also stopped at
+      1.1.3. This observation does not reserve 1.1.4 or prove a later submission absent
+- [ ] In that separate release PR, align package, lockfile and manifest to the next
+      confirmed-unused version, retain `listed`, and update reviewer metadata/privacy/listing
+      copy for opt-in OpenFreeMap traffic, viewed-region/IP disclosure and packaged MapLibre
+- [ ] Include readable tagged source, pinned MapLibre version, bundled worker and dependency
+      notices; preserve data-only remote resources and disabled external worker plugins
+- [ ] Regenerate any changed store screenshots from actual UI with honest provenance.
+      Preserve v1.1.3 publication evidence and do not treat manually uploaded AMO preview IDs
+      as a trusted listing-workflow receipt or automatically overwrite/adopt them
+- [ ] After merging the release PR, rerun quality/package, all ten deterministic Firefox
+      suites and required CI on the exact clean main commit; create a new immutable tag only
+      after these gates pass. Do not change v1.1.3 or any historical submission/assets
+- [ ] Use the existing listed submission/finalizer, then verify permanent signed installation
+      and public AMO/GitHub release evidence. Update current-release docs only after publication

@@ -23,6 +23,9 @@ import { createDefaultGeoIpProvider } from "../geo/ipwhois";
 import { createProfileStore } from "../profile/store";
 import { createActiveTargetStore } from "./active-target";
 import { createCredentialStore } from "./credentials";
+import { MapResourceBroker } from "./map-broker";
+import { MAP_ORIGIN, parseMapRequest } from "../shared/map-provider";
+import { isPlainObject } from "../shared/result";
 import { ActivationController } from "./identity";
 import { createMessageHandler, type SenderInfo } from "./messages";
 import { createAuthAttemptTracker, readFirefoxProxySettings } from "./proxy";
@@ -129,6 +132,7 @@ async function probeContent(_generation: number): Promise<ContentProbeResult> {
 }
 
 const controller = new ActivationController({
+  beforeRouteChange: () => mapBroker?.invalidate(),
   profiles: profileStore,
   credentials: credentialStore,
   targets: targetStore,
@@ -150,6 +154,22 @@ const controller = new ActivationController({
   },
   now,
 });
+
+const mapBroker = new MapResourceBroker({
+  state: () => controller.getState(),
+  generation: () => controller.getGeneration(),
+  target: () => controller.getTarget(),
+  collection: async () => {
+    const grants = await browser.permissions.getAll();
+    return {
+      apiAvailable: Array.isArray(grants.data_collection),
+      optionalGranted: grants.data_collection ?? [],
+    };
+  },
+  fetch: (input, init) => fetch(input, init),
+  newId: () => crypto.randomUUID(),
+});
+browser.permissions.onRemoved.addListener(() => mapBroker?.invalidate());
 
 subscribeToSettingChanges();
 
@@ -200,7 +220,17 @@ browser.proxy.onRequest.addListener(
 // ProxyInfo has no "block" value. Cancel requests whose durable route cannot
 // be reconstructed; a proxy.onRequest error must never become a direct request.
 browser.webRequest.onBeforeRequest.addListener(
-  async (details) => ({ cancel: await controller.shouldBlockRequest(details.url) }),
+  async (details) => {
+    if (await controller.shouldBlockRequest(details.url)) return { cancel: true };
+    // proxy.onRequest (including its cooldown) runs before webRequest. Recheck
+    // the ephemeral generation after that decision, never permit stale map work.
+    const ownRequest = [details.originUrl, details.documentUrl].some(
+      (url) => url?.startsWith(browser.runtime.getURL("")) === true,
+    );
+    if (ownRequest && details.url.startsWith(`${MAP_ORIGIN}/`))
+      return { cancel: mapBroker?.allowsNetwork(details.url) !== true };
+    return { cancel: false };
+  },
   { urls: ["<all_urls>"] },
   ["blocking"],
 );
@@ -265,6 +295,20 @@ const handleMessage = createMessageHandler({
 });
 
 browser.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (
+    isPlainObject(message) &&
+    typeof message.type === "string" &&
+    message.type.startsWith("map:")
+  ) {
+    if (
+      sender.id !== browser.runtime.id ||
+      sender.url !== browser.runtime.getURL("options/options.html")
+    )
+      return undefined;
+    const parsed = parseMapRequest(message);
+    if (!parsed.ok) return Promise.resolve({ ok: false, error: "Invalid map request." });
+    return mapBroker?.handle(parsed.value, String(sender.tab?.id ?? "options"));
+  }
   const info: SenderInfo = {
     id: sender.id,
     fromContentScript: sender.tab !== undefined,
@@ -279,8 +323,13 @@ browser.runtime.onStartup.addListener(() => {
   startup = controller.initialize();
 });
 
+browser.tabs.onUpdated.addListener((tabId, change) => {
+  if (change.url !== undefined) mapBroker.closeOwner(String(tabId));
+});
+
 browser.tabs.onRemoved.addListener((tabId) => {
   controller.forgetContentTab(tabId);
+  mapBroker?.closeOwner(String(tabId));
 });
 
 // The startup promise also keeps state:get from reporting Off during restoration.

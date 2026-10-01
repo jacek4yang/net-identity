@@ -17,6 +17,16 @@ describe("real-Firefox release gate", () => {
     expect(firefox).toContain("run socks-auth npm run e2e:socks-auth");
   });
 
+  it("requires actual MapLibre WebGL rendering separately from the fallback", () => {
+    expect(firefox).toContain("openssl xvfb libgl1-mesa-dri");
+    expect(firefox).toContain("run map-fallback npm run e2e:map-fallback");
+    expect(firefox).toContain(
+      "run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map",
+    );
+    expect(firefox).toContain("--screenshots artifacts/map-render");
+    expect(firefox).toContain("artifacts/map-render/*");
+  });
+
   it("runs authenticated proxy validation with a local offline fixture", () => {
     expect(firefox).toContain("run proxy-auth npm run e2e:proxy-auth");
     expect(readFileSync("scripts/e2e-proxy-auth.mjs", "utf8")).toContain('"--offline"');

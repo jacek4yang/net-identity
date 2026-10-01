@@ -1,6 +1,11 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="connect-src 'none'; worker-src 'self'; script-src 'self'; object-src 'none'"
+    />
+    <link rel="stylesheet" href="maplibre.css" />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Net Identity — Profiles</title>
@@ -217,7 +222,7 @@
                 class="location-map-surface"
                 id="location-map-surface"
                 role="application"
-                aria-label="Location coordinate grid; arrow keys pan, marker arrow keys move selection"
+                aria-label="Location picker; arrow keys pan, marker arrow keys move selection"
                 tabindex="0"
               >
                 <div class="location-map-tiles" id="location-map-tiles"></div>
@@ -238,7 +243,23 @@
                   Map imagery unavailable — coordinates still work.
                 </div>
               </div>
+              <p class="hint map-privacy">
+                Load online map sends your connection’s public IP and viewed map area to
+                <a href="https://openfreemap.org/privacy/" target="_blank" rel="noopener noreferrer"
+                  >OpenFreeMap</a
+                >, which may use Cloudflare and keep incident IP logs for up to 30 days. Requests
+                use the currently applied route, not unsaved proxy edits. Direct or Off also
+                requires Firefox’s optional public-IP permission. No map requests are made until you
+                load it.
+                <a href="https://openfreemap.org/tos/" target="_blank" rel="noopener noreferrer"
+                  >Provider terms</a
+                >
+              </p>
               <div class="map-toolbar">
+                <button id="load-online-map" type="button" class="btn-sm">Load online map</button>
+                <button id="unload-online-map" type="button" class="btn-sm" hidden>
+                  Unload online map
+                </button>
                 <button id="use-geoip-location" type="button" class="btn-sm">
                   Use GeoIP location
                 </button>
@@ -246,6 +267,9 @@
                   >In manual mode, drag map to pan, click map to place marker, or drag marker.</span
                 >
               </div>
+              <p id="map-online-status" class="hint" role="status">
+                Online map off. Coordinates work offline.
+              </p>
             </div>
 
             <div id="manual-fields">
@@ -353,9 +377,9 @@
       <p>
         Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that
         provider the proxy address. A direct profile shows it your own public IP, and only after you
-        allow that collection. The location picker uses a local coordinate grid with no map imagery
-        or external tile requests. Coordinates and all map interactions work offline. No telemetry
-        and no remotely loaded code.
+        allow that collection. The location picker starts offline. Loading the online map shares
+        your connection’s public IP and viewed area with OpenFreeMap after explicit consent.
+        Coordinates and all map interactions work offline. No telemetry and no remotely loaded code.
       </p>
       <p>
         Page-level geolocation and timezone changes are compatibility shims. They are observable by

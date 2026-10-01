@@ -175,11 +175,25 @@ from replacing the original lookup result. Resize uses CSS pixels, independent o
 Coordinates accept the full geographic range; only the viewport projection clamps at
 the Mercator latitude limit. No imagery is required for any interaction.
 
-`tile-provider.ts` ships `NO_TILES`, a local grid with visible attribution. No map
-requests leave the page, no external scripts/styles are loaded, and no Referer is
-spoofed. A future image provider must pass policy/privacy review. The image renderer
-has bounded negative caching with exponential backoff (30 seconds to 5 minutes), and
-requests only visible tiles. See `docs/TILE-POLICY.md`.
+The released 1.1.3 picker uses `NO_TILES` and a local grid. The unreleased MapLibre
+integration preserves that model and gesture surface; MapLibre supplies a non-interactive
+geographic basemap beneath it, with synchronized center/zoom and locally bundled CSS
+and worker. Native coordinate entry and offline grid behavior remain independent of
+WebGL and network availability. Attribution remains visible with the imagery.
+
+An explicit editor-session action requests map authorization. The options page uses
+MapLibre's custom protocol to obtain approved map data through `map-broker.ts`;
+`map-provider.ts` validates provider resource URLs, and `online-map.ts` redirects
+MapLibre resource requests through its custom protocol using `transformRequest`. No remote
+code or plugin loader is used. The broker owns bounded, cancellable HTTPS GETs, while
+existing proxy decisions and the map-specific request gate enforce the active generation.
+Profile activation/deactivation invalidates the broker before route changes can race
+UI delivery. No map session is reconstructed from durable storage. Direct-IP consent
+is separate from map display intent. Initial rendering, policy/session or WebGL failures
+return to the grid. After a completed load, an isolated network-only tile/glyph failure
+keeps already rendered geography with an explicit incomplete-map warning and manual
+Reload action. It never silently declares an incomplete map healthy or retries via a
+different route. See `docs/TILE-POLICY.md` and the broker tests.
 
 ## Setting changes after activation
 

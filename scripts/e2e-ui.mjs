@@ -14,11 +14,13 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { createLiveMapProxy } from "./live-map-proxy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WINDOWS_DEVELOPER_EDITION = "C:\\Program Files\\Firefox Developer Edition\\firefox.exe";
@@ -29,6 +31,7 @@ const { values } = parseArgs({
     firefox: { type: "string" },
     timeout: { type: "string", default: "90" },
     screenshots: { type: "string" },
+    "live-map": { type: "boolean", default: false },
   },
 });
 
@@ -36,8 +39,24 @@ const firefoxPath =
   values.firefox ?? (existsSync(WINDOWS_DEVELOPER_EDITION) ? WINDOWS_DEVELOPER_EDITION : undefined);
 const timeoutMs = Number(values.timeout) * 1000;
 
+const redact = (value) =>
+  String(value).replace(/moz-extension:\/\/[a-z0-9-]+/gi, "moz-extension://<extension>");
 function log(message) {
-  console.error(`[e2e:ui] ${message}`);
+  console.error(`[e2e:ui] ${redact(message)}`);
+}
+function redactStream(stream) {
+  let pending = "";
+  stream.on("data", (chunk) => {
+    pending += String(chunk);
+    let end;
+    while ((end = pending.indexOf("\n")) !== -1) {
+      process.stderr.write(redact(pending.slice(0, end + 1)));
+      pending = pending.slice(end + 1);
+    }
+  });
+  stream.on("end", () => {
+    if (pending) process.stderr.write(redact(pending));
+  });
 }
 
 function freePort() {
@@ -137,13 +156,89 @@ async function connectMarionette(port, deadline) {
   throw new Error(last);
 }
 
-function killProcess(child) {
-  if (child.pid === undefined) return;
+async function stopFirefox(child) {
+  if (!child?.pid) return;
+  const stopped =
+    child.exitCode !== null || child.signalCode !== null
+      ? Promise.resolve()
+      : new Promise((resolve) => child.once("close", resolve));
   if (process.platform === "win32") {
-    spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
-  } else {
-    child.kill("SIGTERM");
+    if (child.exitCode === null && child.signalCode === null) {
+      const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+        stdio: "ignore",
+      });
+      await new Promise((resolve) => {
+        killer.once("error", resolve);
+        killer.once("exit", resolve);
+      });
+    }
+    await stopped;
+    return;
   }
+  const signal = (name) => {
+    try {
+      process.kill(-child.pid, name);
+    } catch (error) {
+      if (error?.code !== "ESRCH") throw error;
+    }
+  };
+  const groupExists = () => {
+    try {
+      process.kill(-child.pid, 0);
+      return true;
+    } catch (error) {
+      if (error?.code === "ESRCH") return false;
+      throw error;
+    }
+  };
+  const groupStopped = async () => {
+    if (!groupExists()) return true;
+    // A container's PID 1 can delay reaping already-exited grandchildren. A
+    // zombie is not a live process, but never infer this merely from parent exit.
+    if (process.platform !== "linux" || (child.exitCode === null && child.signalCode === null))
+      return false;
+    try {
+      let members = 0;
+      for (const pid of await readdir("/proc")) {
+        if (!/^\d+$/.test(pid)) continue;
+        let stat;
+        try {
+          stat = await readFile(`/proc/${pid}/stat`, "utf8");
+        } catch (error) {
+          if (["ENOENT", "ESRCH"].includes(error?.code)) continue;
+          return false;
+        }
+        const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+        if (Number(fields[2]) !== child.pid) continue;
+        members++;
+        if (!["Z", "X"].includes(fields[0])) return false;
+      }
+      if (members > 0) {
+        log("Owned Firefox group has only exited zombies; no live descendants remain.");
+        return true;
+      }
+      return !groupExists();
+    } catch {
+      return false;
+    }
+  };
+  const waitForGroup = async (milliseconds) => {
+    const deadline = Date.now() + milliseconds;
+    while (Date.now() < deadline) {
+      if (await groupStopped()) return true;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return groupStopped();
+  };
+  signal("SIGTERM");
+  if (!(await waitForGroup(5000))) {
+    signal("SIGKILL");
+    if (!(await waitForGroup(5000)))
+      throw new Error("Owned Firefox process group did not disappear after SIGKILL");
+  }
+  // Do not stop supervising descendants just because web-ext already closed.
+  // The group is gone before its streams/profile/fixture are released.
+  await stopped;
 }
 
 const LOCATE = `
@@ -156,6 +251,16 @@ const LOCATE = `
 `;
 
 async function main() {
+  if (values["live-map"] && (!values.screenshots || !process.env.DISPLAY)) {
+    throw new Error(
+      "--live-map requires --screenshots and a WebGL display (for example xvfb-run); no fallback export is permitted.",
+    );
+  }
+  if (values["live-map"] && existsSync(path.resolve(values.screenshots))) {
+    throw new Error(
+      "Live captures require a new output directory; never overwrite released assets before review.",
+    );
+  }
   if (!existsSync(path.join(root, "dist", "manifest.json"))) {
     log("FAIL: dist/ is missing. Run npm run build first.");
     process.exit(1);
@@ -165,46 +270,105 @@ async function main() {
     process.exit(2);
   }
 
-  const marionettePort = await freePort();
-  const cli = path.join(root, "node_modules", "web-ext", "bin", "web-ext.js");
-  const firefox = spawn(
-    process.execPath,
-    [
-      cli,
-      "run",
-      "--source-dir",
-      path.join(root, "dist"),
-      "--no-input",
-      "--no-reload",
-      `--pref=marionette.port=${marionettePort}`,
-      ...(values.screenshots ? ["--pref=ui.systemUsesDarkTheme=1"] : []),
-      "--arg=--marionette",
-      "--arg=-remote-allow-system-access",
-      "--arg=-headless",
-      "--firefox",
-      firefoxPath,
-    ],
-    { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
-  );
-
-  firefox.stderr.on("data", (chunk) => process.stderr.write(chunk));
-  firefox.stdout.on("data", (chunk) => process.stderr.write(chunk));
-  const deadline = Date.now() + timeoutMs;
   const failures = [];
-  let client = null;
-
+  let client = null,
+    liveMap = null,
+    firefox = null,
+    directory = null;
   const check = (ok, label) => {
     log(`${ok ? "PASS" : "FAIL"}  ${label}`);
     if (!ok) failures.push(label);
   };
-
   try {
+    let liveEnv = {};
+    let profileArgs = [];
+    if (values["live-map"]) {
+      const output = path.resolve(values.screenshots);
+      await mkdir(path.dirname(output), { recursive: true });
+      // Atomic reservation: no concurrent export may overwrite this directory.
+      await mkdir(output);
+      directory = await mkdtemp(path.join(tmpdir(), "ni-live-map-"));
+      for (const child of [
+        "home",
+        "tmp",
+        "profile",
+        "config",
+        "cache",
+        "data",
+        "state",
+        "runtime",
+      ]) {
+        await mkdir(path.join(directory, child), { mode: 0o700 });
+      }
+      liveEnv = {
+        HOME: path.join(directory, "home"),
+        TMPDIR: path.join(directory, "tmp"),
+        TMP: path.join(directory, "tmp"),
+        TEMP: path.join(directory, "tmp"),
+        XDG_CONFIG_HOME: path.join(directory, "config"),
+        XDG_CACHE_HOME: path.join(directory, "cache"),
+        XDG_DATA_HOME: path.join(directory, "data"),
+        XDG_STATE_HOME: path.join(directory, "state"),
+        XDG_RUNTIME_DIR: path.join(directory, "runtime"),
+        MOZ_HEADLESS: "",
+      };
+      profileArgs = [
+        "--firefox-profile",
+        path.join(directory, "profile"),
+        "--keep-profile-changes",
+      ];
+      liveMap = await createLiveMapProxy(9999);
+    }
+    const marionettePort = await freePort();
+    const cli = path.join(root, "node_modules", "web-ext", "bin", "web-ext.js");
+    firefox = spawn(
+      process.execPath,
+      [
+        cli,
+        "run",
+        "--source-dir",
+        path.join(root, "dist"),
+        ...profileArgs,
+        "--no-input",
+        "--no-reload",
+        `--pref=marionette.port=${marionettePort}`,
+        ...(values.screenshots ? ["--pref=ui.systemUsesDarkTheme=1"] : []),
+        "--arg=--marionette",
+        "--arg=-remote-allow-system-access",
+        ...(liveMap
+          ? [
+              "--pref=webgl.force-enabled=true",
+              "--pref=gfx.webrender.software=true",
+              "--pref=network.proxy.type=1",
+              "--pref=network.proxy.http=127.0.0.1",
+              `--pref=network.proxy.http_port=${liveMap.port}`,
+              "--pref=network.proxy.ssl=127.0.0.1",
+              `--pref=network.proxy.ssl_port=${liveMap.port}`,
+              "--pref=network.proxy.no_proxies_on=localhost,127.0.0.1",
+              "--pref=network.trr.mode=5",
+            ]
+          : ["--arg=-headless"]),
+        "--firefox",
+        firefoxPath,
+      ],
+      {
+        cwd: root,
+        env: { ...process.env, ...liveEnv },
+        detached: process.platform !== "win32",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+
+    redactStream(firefox.stderr);
+    redactStream(firefox.stdout);
+    firefox.on("error", (error) => log(`Firefox launch failed: ${error}`));
+    const deadline = Date.now() + timeoutMs;
     client = await connectMarionette(marionettePort, deadline);
     await client.send("WebDriver:NewSession", {
       capabilities: {
         alwaysMatch: {
           browserName: "firefox",
-          acceptInsecureCerts: true,
+          acceptInsecureCerts: liveMap === null,
           unhandledPromptBehavior: "dismiss",
         },
       },
@@ -239,8 +403,8 @@ async function main() {
           args: [message],
         })
       )?.value;
-    async function waitFor(script) {
-      for (let i = 0; i < 100; i++) {
+    async function waitFor(script, attempts = 100) {
+      for (let i = 0; i < attempts; i++) {
         if (await execute(script)) return;
         await new Promise((r) => setTimeout(r, 50));
       }
@@ -296,7 +460,7 @@ async function main() {
     // synthetic local proxy coordinates are entered; GeoIP is explicitly off.
     if (values.screenshots) {
       const directory = path.resolve(values.screenshots);
-      await mkdir(directory, { recursive: true });
+      if (!liveMap) await mkdir(directory, { recursive: true });
       const images = [];
       const capture = async (name, selector, offset = 24, frameIdentityAudit = false) => {
         if (selector)
@@ -368,7 +532,7 @@ async function main() {
       await fill({
         "field-name": "Tokyo · Local demo",
         "field-proxy-host": "127.0.0.1",
-        "field-proxy-port": "9999",
+        "field-proxy-port": String(liveMap?.port ?? 9999),
       });
       await click("#field-mode-manual");
       await fill({
@@ -387,7 +551,38 @@ async function main() {
         'return document.getElementById("options-status").textContent.includes("Asia/Tokyo");',
       );
       await capture("02-profile-management.png");
-      await capture("04-local-location-picker.png", ".identity-mode-group", 48);
+      if (liveMap) {
+        await click("#load-online-map");
+        await waitFor(
+          `return document.getElementById("location-map-surface").dataset.online === "ready";`,
+          2400,
+        );
+        await waitFor(`const canvas = document.querySelector("#location-map-tiles canvas");
+          return !!canvas && canvas.width > 0 && canvas.height > 0;`);
+        const attribution = await execute(
+          `return [...document.querySelectorAll(".location-map-attribution a")].map(a => ({label:a.textContent, href:a.href}));`,
+        );
+        for (const expected of [
+          "https://openfreemap.org/",
+          "https://openmaptiles.org/",
+          "https://www.openstreetmap.org/copyright",
+        ]) {
+          if (!attribution.some((link) => link.href === expected))
+            throw new Error("Required map attribution missing");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (
+          !(await execute(
+            'return document.getElementById("location-map-surface").dataset.online === "ready";',
+          ))
+        )
+          throw new Error("Live map became partial or unavailable; no final screenshot exported");
+        if (liveMap.counts().accepted === 0)
+          throw new Error("No actual provider connection occurred");
+        await capture("04-local-location-picker.png", "#location-map", 24);
+      } else {
+        await capture("04-local-location-picker.png", ".identity-mode-group", 48);
+      }
       await client.send("WebDriver:Navigate", { url: popupUrl });
       await waitFor(
         'return document.getElementById("identity-timezone").textContent === "Asia/Tokyo";',
@@ -410,34 +605,59 @@ async function main() {
             .digest("hex");
         }
       }
+      if (liveMap) {
+        for (const file of [
+          "options/maplibre.js",
+          "options/maplibre-worker.js",
+          "options/maplibre.css",
+        ]) {
+          sourceHashes[file] = createHash("sha256")
+            .update(await readFile(path.join(root, "dist", file)))
+            .digest("hex");
+        }
+      }
       await writeFile(
         path.join(directory, "metadata.json"),
-        JSON.stringify(
-          {
-            extensionVersion: manifest.version,
-            provenance: {
-              build: "unsigned local candidate",
-              installation: "temporary add-on installed by web-ext in disposable Firefox profile",
-              sourceDirectory: "dist",
-              signedRelease: false,
+        redact(
+          JSON.stringify(
+            {
+              extensionVersion: manifest.version,
+              provenance: {
+                build: "unsigned local candidate",
+                installation: "temporary add-on installed by web-ext in disposable Firefox profile",
+                sourceDirectory: "dist",
+                signedRelease: false,
+              },
+              userAgent,
+              theme: "dark",
+              sourceHashes,
+              ...(liveMap
+                ? {
+                    mapCapture: {
+                      provider: "OpenFreeMap",
+                      style: "https://tiles.openfreemap.org/styles/liberty",
+                      data: "live public provider data, not synthetic map geometry",
+                      ready: true,
+                      attribution: ["OpenFreeMap", "© OpenMapTiles", "Data from OpenStreetMap"],
+                      requiresVisualReview: true,
+                    },
+                  }
+                : {}),
+              fixture: {
+                profile: "Tokyo · Local demo",
+                proxy: `127.0.0.1:${liveMap?.port ?? 9999}`,
+                geoip: "disabled",
+                credentials: false,
+                latitude: 35.68,
+                longitude: 139.76,
+                accuracy: 20000,
+                timezone: "Asia/Tokyo",
+              },
+              images,
             },
-            userAgent,
-            theme: "dark",
-            sourceHashes,
-            fixture: {
-              profile: "Tokyo · Local demo",
-              proxy: "127.0.0.1:9999",
-              geoip: "disabled",
-              credentials: false,
-              latitude: 35.68,
-              longitude: 139.76,
-              accuracy: 20000,
-              timezone: "Asia/Tokyo",
-            },
-            images,
-          },
-          null,
-          2,
+            null,
+            2,
+          ),
         ) + "\n",
       );
       await call({ type: "profiles:deactivate" });
@@ -832,7 +1052,21 @@ async function main() {
     );
   } finally {
     if (client !== null) client.close();
-    killProcess(firefox);
+    let stopped = false;
+    try {
+      await stopFirefox(firefox);
+      stopped = true;
+    } finally {
+      try {
+        if (liveMap) await liveMap.close();
+      } finally {
+        if (directory && stopped) await rm(directory, { recursive: true, force: true });
+        else if (directory)
+          log(
+            "Owned disposable profile retained because process termination could not be verified.",
+          );
+      }
+    }
   }
 
   if (failures.length > 0) {

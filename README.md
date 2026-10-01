@@ -11,7 +11,11 @@ content scripts) precisely because those APIs allow a correct implementation.
 - Licence: MIT
 - Minimum Firefox: **140.0** (desktop)
 - Node.js for development: **>= 22** (required by `web-ext` 10)
-- No runtime dependencies, no telemetry, no remote code
+- Locally bundled MapLibre renderer; no telemetry or remote executable code
+
+**Unreleased source change:** online OpenFreeMap basemaps are being added after
+1.1.3. The published 1.1.3 package still has the offline coordinate grid. This
+source documentation is not a claim that a newer map-enabled version is on AMO.
 
 ## Why it exists
 
@@ -110,9 +114,15 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 - The timezone and geolocation shims are **compatibility shims, observable by
   sophisticated page scripts**. They are not a claim of fingerprinting invisibility, and
   controlled geolocation reports a synthetic permission status.
-- The options location picker is a local coordinate grid with **no tile requests**.
-  Pan, zoom, click selection, marker drag and typed coordinates work offline.
-  See [the tile policy decision](docs/TILE-POLICY.md). No telemetry, analytics or remote code.
+- The options location picker starts with a local grid and makes **no automatic map
+  requests**. The unreleased **Load online map** action adds OpenFreeMap geographic
+  imagery beneath the existing selection controls. MapLibre code, CSS and its worker
+  are bundled locally. Manual coordinate entry and the grid remain available offline.
+- Online map requests reveal the viewed region and network-visible IP to OpenFreeMap
+  and its delivery infrastructure. Direct/browser routing additionally requires the
+  optional personal-data grant. Proxy failures do not enable a Direct fallback;
+  route changes cancel the map session and require a new explicit enable action.
+  See [tile policy and attribution](docs/TILE-POLICY.md) and [privacy](docs/PRIVACY.md).
 
 ## Requirements
 
@@ -322,6 +332,14 @@ tests/            vitest unit tests (no browser required)
   loop, and a wrong password is challenged only a bounded number of times. No public
   provider or upstream service is contacted.
 - `npm run e2e:ui` – checks the real popup, profile Save/Apply and offline map interactions.
+- `npm run e2e:map-fallback` – checks explicitly disabled WebGL, editable fallback,
+  map-broker consent, route-generation cancellation and blocked unbrokered requests.
+- `LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox /path/to/firefox`
+  – requires real WebGL rendering: local vector geometry, raster/sprite data, packaged
+  worker, CSP, map interactions and screenshot pixel assertions. No silent render skip.
+  Both map modes serve the production provider origin through a local HTTPS fixture;
+  its short-lived CA is trusted only in a disposable test Firefox profile, which is
+  removed afterwards. System and normal-user trust stores are not changed.
 - `npm run e2e:fail-closed` – checks SOCKS outage and event-page recovery with zero direct
   or system-proxy fallback for HTTP, HTTPS, WS, WSS and proxy DNS.
 - `npm run e2e:restart` – checks retained-profile full Firefox restart while SOCKS is down.
@@ -330,10 +348,12 @@ tests/            vitest unit tests (no browser required)
 - `npm run e2e:flap` – checks three SOCKS outage/recovery cycles, burst failures, stable
   identity/generation, no failed-request replay and zero fallback sentinel hits.
 
-CI requires `quality` and `firefox / invariants`. Its eight deterministic loopback browser gates
+CI requires `quality` and `firefox / invariants`. Its ten deterministic loopback browser gates
 cover invariants, WebSockets, proxy authentication, UI, fail-closed outages, full
-restart, credential loss and `e2e:flap` (three SOCKS outage/recovery cycles).
-They do not contact the public GeoIP provider. Only `npm run e2e`, the optional public
+restart, credential loss, `e2e:flap` (three SOCKS outage/recovery cycles), online-map
+rendering and map fallback/privacy. The map feature is unreleased until these new gates
+actually pass on the candidate; adding the harness is not a test result.
+They do not require public GeoIP or map providers. Only `npm run e2e`, the optional public
 provider smoke test, stays outside CI. See [CI details](docs/CI.md).
 
 Manual proxy verification (including `407` authentication) uses the bundled test proxy:

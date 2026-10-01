@@ -69,14 +69,36 @@ but protected browser requests require server-side rejection of anonymous access
    characters and length-capped before it reaches the UI.
 
 8. **No telemetry exists.** There is no analytics, no crash reporting and no update
-   ping. The only outbound request is the GeoIP lookup described above.
+   ping. Extension-initiated external requests are the disclosed GeoIP lookup and,
+   in the unreleased map implementation, explicitly enabled OpenFreeMap data loads.
+   Installing or opening the options page does not enable either service.
 
-9. **No remote JavaScript is loaded.** Everything ships in the package; there is no
-   `import()` of a remote URL and no `content_security_policy` relaxation.
+9. **No remote JavaScript is loaded.** Everything executable ships in the package; there is no
+   `import()` of a remote URL. Script and worker sources remain self-only. Online-map
+   data destinations are explicitly allowlisted without relaxing script execution.
 
 10. **No `eval` or dynamic code execution.**
-    `scripts/build.mjs` fails the build if `eval(` or `new Function(` appears in the
-    background bundle.
+    `scripts/build.mjs` scans every shipped script, including the options vendor and
+    worker, and rejects dynamic execution. Pinned upstream source hashes and the exact
+    external-plugin loader replacement are checked separately. No vendor-lint warning
+    exception is permitted; see `docs/AMO-REVIEW.md`.
+
+## Online-map security boundary (unreleased after 1.1.3)
+
+MapLibre main code, CSS and worker are local package assets. Only approved HTTPS data
+paths under `tiles.openfreemap.org` can reach the network through the typed background
+broker. A page cannot supply arbitrary URLs, HTTP methods, headers or proxy credentials.
+The map protocol carries public map data, never authentication state. The provider is
+not exempted from existing fail-closed or missing-proxy-credential gates.
+
+Map authorization is ephemeral and bound to the trusted options editor and current
+routing generation. Route changes invalidate authorization synchronously rather than
+waiting for a UI broadcast. Pending fetches are aborted, and the request gate rejects
+stale generations after asynchronous checks. Optional permission is rechecked; revocation
+or background restart does not silently re-enable the map. Limits on sessions, concurrent
+loads, response sizes and deadlines prevent unbounded resource retention. Failed loads
+do not replay application requests or modify identity. See implementation tests for
+exact bounds and races; these guarantees require the map feature's final release gates.
 
 ## Additional protections
 
@@ -164,10 +186,12 @@ Reasoning, so a reviewer can verify it:
   `permissions.request({ data_collection: ["personallyIdentifyingInfo"] })` succeeds.
 - A fresh install does not create or activate a profile, so it does not contact the
   provider.
-- The options location picker is a local coordinate grid. It sends no tile requests,
-  location data, credentials or headers to any map host. There is no Referer workaround.
-  The image-provider contract is disabled in production; new hosts require policy and
-  privacy review before activation (`docs/TILE-POLICY.md`).
+- The location picker begins offline. The unreleased online-map action discloses
+  OpenFreeMap as an additional recipient of network-visible IP and viewed map area.
+  Required `locationInfo` covers that area; Direct/Off requires the existing optional
+  personal-data grant. Provider bypasses refuse loading, not silently reroute it.
+  No proxy credentials, cookies, referrer, native geolocation or remotely executed
+  code are supplied to the map service. See `docs/TILE-POLICY.md`.
 - `tests/manifest.test.ts` asserts that the declaration exists, uses only documented
   categories and is not `["none"]` while an automatic provider exists.
 
@@ -269,6 +293,24 @@ routing does not introduce Direct fallback, but cannot enforce authentication fo
 protected requests. To maintain account identity across all browser traffic, the proxy
 server must reject anonymous access. No OS firewall, native helper or browser security
 setting is changed by this extension.
+
+Firefox also owns existing connections and its proxy-authentication caches. Applying
+a routing policy does not promise to terminate or reconstruct every existing tunnel,
+or to perform fresh transport authentication when credentials change at the same proxy
+endpoint. Servers should reject anonymous proxy access. The map broker's cancellation
+and generation checks protect its own pending requests; they do not claim control over
+all Firefox connection lifecycles. The deterministic map fixture closes its bootstrap
+tunnels before measuring the extension's authenticated route, so that test does not
+establish account isolation for connections created before Apply.
+
+For HTTP/HTTPS proxies, account identity also requires the server to demand
+authentication. In a separate ordinary map-request diagnostic, Firefox opened a fresh
+CONNECT without preemptive credentials when the fixture accepted anonymous access and
+did not issue a 407 challenge. Configured session credentials and a preemptive header
+therefore do not prove account authentication at an anonymous-capable endpoint. The
+strict authenticated fixture rejects missing/wrong credentials and passes with the
+selected pair. This boundary is not limited to protected browser-service requests and
+does not imply a Direct fallback: the request still uses the selected proxy endpoint.
 
 [MDN documents protected system requests](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onAuthRequired#proxy_authorization).
 Gecko's [ChannelWrapper](https://raw.githubusercontent.com/mozilla-firefox/firefox/main/toolkit/components/extensions/webrequest/ChannelWrapper.cpp)

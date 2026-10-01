@@ -32,7 +32,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "e2e:flap": "node scripts/e2e-fail-closed.mjs --flap"
+    "e2e:flap": "node scripts/e2e-fail-closed.mjs --flap",
+    "e2e:map": "node scripts/e2e-map.mjs",
+    "e2e:map-fallback": "node scripts/e2e-map.mjs --no-webgl"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -47,5 +49,8 @@
     "typescript-eslint": "^8.70.1",
     "vitest": "^5.0.2",
     "web-ext": "^10.7.0"
+  },
+  "dependencies": {
+    "maplibre-gl": "6.11.2"
   }
 }

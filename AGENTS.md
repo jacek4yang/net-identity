@@ -18,11 +18,11 @@ resolves the identity from the _observed_ egress IP, and broadcasts it to pages.
   `webextension-polyfill`. Use the native `browser.*` APIs.
 - **Manifest V3 with a Firefox event page**: `"background": { "scripts": [...], "type": "module" }`.
   Never `background.service_worker`, never MV2.
-- **No runtime dependencies.** Dev tooling only (see `package.json`).
+- **One reviewed runtime dependency:** pinned `maplibre-gl@6.11.2`, explicitly requested for the real map picker. Its ESM code, CSS, worker and licence notices ship locally. The build verifies upstream source hashes and replaces the complete optional external worker-plugin loader with a denying stub; no runtime code is fetched or evaluated. Do not remove this guard or regress to versions affected by GHSA-jrc7-96c5-q579 (through 6.4.0). No other runtime dependencies without review.
 - **No frameworks.** UI is plain HTML/CSS/TypeScript, no React/Vue/Svelte/Redux, no
   WXT/Plasmo/Webpack/Babel.
 - **No remote code, no telemetry, no `eval`/`new Function`.** The build script fails
-  if `eval`/`new Function` appears in the background bundle.
+  if `eval`/`new Function` appears in any shipped script, including the options vendor and worker.
 - Minimum Firefox is **140.0**. `world: "MAIN"` exists from 128, but 140 is the
   desktop floor for Firefox's built-in data-collection consent. One consent system,
   not a custom fallback for older Firefox. Do not add a `strict_max_version`.
@@ -44,24 +44,24 @@ content/bridge.js (isolated)  ◀──tabs.sendMessage──┤
 content/page-shim.js (MAIN world)          proxy.onRequest / webRTCIPHandlingPolicy
 ```
 
-| Path                              | Responsibility                                                                                          |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `src/background/index.ts`         | **The only file that touches `browser.*` in the background.** Wiring + listeners.                       |
-| `src/background/identity.ts`      | `ActivationController`: the activation lifecycle, generation tokens, audit composition.                 |
-| `src/background/proxy.ts`         | Pure proxy engine: `ProxyInfo` mapping, bypass matching, auth decisions, Firefox proxy-settings reader. |
-| `src/background/credentials.ts`   | Session-only credential store (`storage.session`).                                                      |
-| `src/background/active-target.ts` | Session snapshot of the active target (survives event-page suspension).                                 |
-| `src/background/webrtc.ts`        | `privacy.network.webRTCIPHandlingPolicy` controller (respects `levelOfControl`).                        |
-| `src/background/messages.ts`      | Message router: sender checks, validation, profile CRUD.                                                |
-| `src/content/bridge.ts`           | Isolated-world bridge between the background and the page.                                              |
-| `src/content/page-shim.ts`        | MAIN-world orchestrator (installs shims, applies identity).                                             |
-| `src/content/timezone-shim.ts`    | Date/Intl patching.                                                                                     |
-| `src/content/geolocation-shim.ts` | `navigator.geolocation` patching.                                                                       |
-| `src/profile/`                    | Profile model, validation (the only place profile rules live), storage.                                 |
-| `src/geo/`                        | GeoIP provider interface + the `ipwho.is` implementation.                                               |
-| `src/shared/`                     | Result type, primitives, timezone maths, public identity contract, state types, audit, DOM helpers.     |
-| `src/options/form.ts`             | Pure form → profile mapping (unit tested; keeps the DOM layer thin).                                    |
-| `src/options/location-map.ts`     | Local Web Mercator maths; map-model.ts owns interactions; tile-provider.ts ships no-network grid.       |
+| Path                              | Responsibility                                                                                           |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `src/background/index.ts`         | **The only file that touches `browser.*` in the background.** Wiring + listeners.                        |
+| `src/background/identity.ts`      | `ActivationController`: the activation lifecycle, generation tokens, audit composition.                  |
+| `src/background/proxy.ts`         | Pure proxy engine: `ProxyInfo` mapping, bypass matching, auth decisions, Firefox proxy-settings reader.  |
+| `src/background/credentials.ts`   | Session-only credential store (`storage.session`).                                                       |
+| `src/background/active-target.ts` | Session snapshot of the active target (survives event-page suspension).                                  |
+| `src/background/webrtc.ts`        | `privacy.network.webRTCIPHandlingPolicy` controller (respects `levelOfControl`).                         |
+| `src/background/messages.ts`      | Message router: sender checks, validation, profile CRUD.                                                 |
+| `src/content/bridge.ts`           | Isolated-world bridge between the background and the page.                                               |
+| `src/content/page-shim.ts`        | MAIN-world orchestrator (installs shims, applies identity).                                              |
+| `src/content/timezone-shim.ts`    | Date/Intl patching.                                                                                      |
+| `src/content/geolocation-shim.ts` | `navigator.geolocation` patching.                                                                        |
+| `src/profile/`                    | Profile model, validation (the only place profile rules live), storage.                                  |
+| `src/geo/`                        | GeoIP provider interface + the `ipwho.is` implementation.                                                |
+| `src/shared/`                     | Result type, primitives, timezone maths, public identity contract, state types, audit, DOM helpers.      |
+| `src/options/form.ts`             | Pure form → profile mapping (unit tested; keeps the DOM layer thin).                                     |
+| `src/options/location-map.ts`     | Pure Web Mercator maths; map-model.ts owns interactions. online-map.ts only decorates the shared camera. |
 
 ## 4. Firefox API decisions that must not be "simplified"
 
@@ -189,9 +189,17 @@ step before changing the stored shape.
   `personallyIdentifyingInfo` is granted.
 - Installation does not create or activate a profile, so a fresh install makes no
   GeoIP request.
-- The options location picker uses a bundled local grid and makes no tile requests.
-  `src/options/tile-provider.ts` defines the image-only provider contract. See
-  `docs/TILE-POLICY.md`; review policy and privacy before enabling any network provider.
+- The unreleased options picker starts with a bundled local grid and no map requests.
+  **Load online map** explicitly enables OpenFreeMap data for that editor session.
+  MapLibre code, CSS and the CSP worker are packaged locally. A bounded background
+  broker validates provider URLs, optional direct-IP consent, owner and route generation.
+  Route changes cancel map work before changing routing. Provider-host bypasses refuse
+  loading rather than bypassing the selected proxy. See `docs/TILE-POLICY.md`.
+- The pinned MapLibre vendor and worker remain covered by every no-eval/remote-code
+  build scan and the normal strict extension lint. There is no vendor DOM-warning
+  exemption. Re-review upstream bytes, worker hardening and licences before updating
+  the pin. Keep attribution authored as text; do not enable raw provider HTML or external
+  worker/RTL plugins. See `scripts/vendor/README.md`.
 - **Do not change this to `["none"]`** while any automatic provider exists. If you add
   providers, re-review the declaration, `docs/SECURITY.md`, the README and
   `tests/manifest.test.ts` (which pins this behaviour).

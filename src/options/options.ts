@@ -29,14 +29,15 @@ import {
   applyResolvedLocation,
   seedBlankManualFields,
   viewportPoint,
-  visibleTiles,
   zoomToFitAccuracy,
   type LocationSeed,
   type MapViewport,
 } from "./location-map";
 import { locationTimezoneWarning } from "./identity-warning";
 import { LocationMapModel } from "./map-model";
-import { NO_TILES, TileFailures } from "./tile-provider";
+import { NO_TILES } from "./tile-provider";
+import { createOnlineMap, type OnlineMap } from "./online-map";
+import { parseMapResponse } from "../shared/map-provider";
 import {
   credentialsIntentFrom,
   proxyFieldHints,
@@ -117,7 +118,116 @@ let manualUserEdited = false;
 let resolvedSeed: LocationSeed | null = null;
 
 const map = new LocationMapModel();
-const tileFailures = new TileFailures();
+let onlineMap: OnlineMap | null = null;
+let mapSessionId: string | null = null;
+let onlineGeneration: number | null = null;
+let mapLoadEpoch = 0;
+const mapLoad = requireElement<HTMLButtonElement>("#load-online-map");
+const mapUnload = requireElement<HTMLButtonElement>("#unload-online-map");
+const mapOnlineStatus = requireElement<HTMLElement>("#map-online-status");
+const mapAttribution = requireElement<HTMLElement>(".location-map-attribution");
+
+function stopOnlineMap(message = "Online map off. Coordinates work offline."): void {
+  ++mapLoadEpoch;
+  onlineMap?.remove();
+  onlineMap = null;
+  onlineGeneration = null;
+  if (mapSessionId !== null)
+    void request({ type: "map:close", sessionId: mapSessionId }, parseMapResponse);
+  mapSessionId = null;
+  mapLoad.disabled = false;
+  mapLoad.textContent = "Load online map";
+  mapLoad.hidden = false;
+  mapUnload.hidden = true;
+  mapAttribution.textContent = NO_TILES.attribution;
+  mapOnlineStatus.textContent = message;
+  ui.mapSurface.dataset.online = "off";
+}
+
+async function loadOnlineMap(): Promise<void> {
+  if (mapLoad.disabled || onlineMap !== null || ui.form.hidden) return;
+  const state = runtimeState;
+  if (state === null) return;
+  const epoch = ++mapLoadEpoch;
+  const generation = state.generation;
+  mapLoad.disabled = true;
+  mapOnlineStatus.textContent = "Checking map consent and the applied route…";
+  if (!(await ensureDirectIpConsent(state.appliedRoute === "proxy" ? "proxy" : "direct"))) {
+    if (epoch === mapLoadEpoch)
+      stopOnlineMap("Public-IP permission was not granted. Coordinates still work offline.");
+    return;
+  }
+  if (epoch !== mapLoadEpoch || ui.form.hidden) return;
+  const opened = await request({ type: "map:open", generation }, parseMapResponse);
+  if (epoch !== mapLoadEpoch) {
+    if (opened.ok && opened.value.ok && opened.value.sessionId !== undefined)
+      void request({ type: "map:close", sessionId: opened.value.sessionId }, parseMapResponse);
+    return;
+  }
+  if (!opened.ok || !opened.value.ok || opened.value.sessionId === undefined) {
+    stopOnlineMap(
+      opened.ok && !opened.value.ok
+        ? opened.value.error
+        : "Online map unavailable. Coordinates still work offline.",
+    );
+    return;
+  }
+  mapSessionId = opened.value.sessionId;
+  onlineGeneration = generation;
+  mapOnlineStatus.textContent = "Loading OpenFreeMap through the applied route…";
+  mapLoad.hidden = true;
+  mapUnload.hidden = false;
+  ui.mapSurface.dataset.online = "loading";
+  try {
+    onlineMap = createOnlineMap(
+      ui.mapTiles,
+      mapSessionId,
+      mapViewport(),
+      (fatal) =>
+        queueMicrotask(() => {
+          if (epoch !== mapLoadEpoch) return;
+          if (fatal)
+            stopOnlineMap(
+              "Online map unavailable on this route or WebGL unavailable. Coordinates still work offline.",
+            );
+          else {
+            ui.mapSurface.dataset.online = "partial";
+            mapOnlineStatus.textContent =
+              "Some map data could not load. The displayed map may be incomplete; reload to try again.";
+            mapLoad.textContent = "Reload online map";
+            mapLoad.disabled = false;
+            mapLoad.hidden = false;
+          }
+        }),
+      () => {
+        if (epoch !== mapLoadEpoch) return;
+        ui.mapSurface.dataset.online = "ready";
+        mapOnlineStatus.textContent =
+          "Online map loaded. Panning and zooming send the viewed area to OpenFreeMap.";
+      },
+    );
+    mapAttribution.replaceChildren();
+    for (const [label, href] of [
+      ["OpenFreeMap", "https://openfreemap.org/"],
+      ["© OpenMapTiles", "https://openmaptiles.org/"],
+      ["Data from OpenStreetMap", "https://www.openstreetmap.org/copyright"],
+    ]) {
+      const link = document.createElement("a");
+      link.textContent = label ?? "";
+      link.href = href ?? "";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      mapAttribution.append(link, " ");
+    }
+  } catch {
+    stopOnlineMap("WebGL map unavailable. Coordinates still work offline.");
+  }
+}
+mapLoad.addEventListener("click", () => {
+  if (onlineMap !== null) stopOnlineMap();
+  void loadOnlineMap();
+});
+mapUnload.addEventListener("click", () => stopOnlineMap());
 let capture: { element: HTMLElement; id: number } | null = null;
 let wheelDelta = 0;
 let lastWheelAt = 0;
@@ -237,49 +347,12 @@ function renderLocationMap(): void {
       "Custom overrides are applied as entered; they may differ from the observed network location.";
   }
 
-  // Render tiles
-  const tiles = ui.form.hidden ? [] : visibleTiles(viewport, NO_TILES);
-  requireElement<HTMLElement>(".location-map-attribution").textContent = NO_TILES.attribution;
+  onlineMap?.update(viewport);
   ui.mapNotice.hidden = false;
-  ui.mapNotice.textContent = `Center ${viewport.center.latitude.toFixed(3)}, ${viewport.center.longitude.toFixed(3)} ? Zoom ${viewport.zoom}`;
+  ui.mapNotice.textContent = `Center ${viewport.center.latitude.toFixed(3)}, ${viewport.center.longitude.toFixed(3)} · Zoom ${viewport.zoom}`;
   ui.mapSurface.dataset.zoom = String(viewport.zoom);
   ui.mapSurface.dataset.center = `${viewport.center.latitude},${viewport.center.longitude}`;
   ui.mapSurface.style.backgroundPosition = `${-viewport.center.longitude * 2 ** viewport.zoom}px ${viewport.center.latitude * 2 ** viewport.zoom}px`;
-  const existing = new Map<string, HTMLImageElement>();
-  for (const node of ui.mapTiles.querySelectorAll("img")) {
-    if (!(node instanceof HTMLImageElement)) continue;
-    const url = node.dataset["url"];
-    if (url === undefined) {
-      node.remove();
-      continue;
-    }
-    existing.set(url, node);
-  }
-  const next = new Set(tiles.map((tile) => tile.url));
-  for (const [url, image] of existing) {
-    if (!next.has(url)) image.remove();
-  }
-  for (const tile of tiles) {
-    let image = existing.get(tile.url);
-    if (image === undefined) {
-      if (!tileFailures.allows(tile.url)) continue;
-      const created = document.createElement("img");
-      created.alt = "";
-      created.crossOrigin = "anonymous";
-      created.referrerPolicy = "no-referrer";
-      created.dataset["url"] = tile.url;
-      created.src = tile.url;
-      created.addEventListener("error", () => {
-        tileFailures.fail(tile.url);
-        created.remove();
-      });
-      created.addEventListener("load", () => tileFailures.success(tile.url));
-      ui.mapTiles.append(created);
-      image = created;
-    }
-    image.style.left = `${tile.left}px`;
-    image.style.top = `${tile.top}px`;
-  }
 
   // Position marker and accuracy circle
   if (point === null) {
@@ -413,6 +486,7 @@ function renderProfileList(): void {
 }
 
 function selectProfile(profileId: string | null): void {
+  stopOnlineMap();
   cancelMapInteraction();
   wheelDelta = 0;
   selectedId = profileId;
@@ -467,6 +541,8 @@ function renderSaveStatus(): void {
 }
 
 function renderStatus(state: RuntimeState): void {
+  if (onlineGeneration !== null && onlineGeneration !== state.generation)
+    stopOnlineMap("Route changed. Load the online map again for this route.");
   runtimeState = state;
   activeProfileId = state.activeProfileId;
   renderSaveStatus();
@@ -872,7 +948,10 @@ for (const name of ["pointercancel", "lostpointercapture"] as const)
     if (map.interaction?.id === event.pointerId) cancelMapInteraction();
   });
 window.addEventListener("blur", cancelMapInteraction);
-window.addEventListener("pagehide", cancelMapInteraction);
+window.addEventListener("pagehide", () => {
+  cancelMapInteraction();
+  stopOnlineMap();
+});
 ui.mapSurface.addEventListener(
   "wheel",
   (event) => {

@@ -104,6 +104,8 @@ export interface ActivationDeps {
   probeContent: (generation: number) => Promise<ContentProbeResult>;
   /** Firefox's optional data-collection grants. Fail closed when this throws. */
   readDataCollection: () => Promise<DataCollectionSnapshot>;
+  /** Cancel ancillary map traffic before changing any routing generation. */
+  beforeRouteChange?: () => void;
   now: () => number;
 }
 
@@ -198,6 +200,10 @@ export class ActivationController {
 
   getState(): RuntimeState {
     return this.state;
+  }
+
+  getGeneration(): number {
+    return this.generation;
   }
 
   getTarget(): ActiveProxyTarget | null {
@@ -357,6 +363,7 @@ export class ActivationController {
 
   /** Starts (or restores) the active profile. Never throws. */
   async initialize(): Promise<RuntimeState> {
+    this.deps.beforeRouteChange?.();
     const epoch = this.generation;
     try {
       const stored = await this.deps.profiles.load();
@@ -459,6 +466,7 @@ export class ActivationController {
     profileId: string,
     applied?: { profile: IdentityProfile; credentials: ActiveProxyTarget["credentials"] },
   ): Promise<RuntimeState> {
+    this.deps.beforeRouteChange?.();
     const generation = ++this.generation;
     this.networkHealth.reset(generation);
     this.cooldown.cancel();
@@ -639,6 +647,7 @@ export class ActivationController {
 
   /** Clears routing, relinquishes the WebRTC override and stops spoofing. */
   async deactivate(): Promise<RuntimeState> {
+    this.deps.beforeRouteChange?.();
     this.deactivating = true;
     const generation = ++this.generation;
     this.networkHealth.reset(generation);

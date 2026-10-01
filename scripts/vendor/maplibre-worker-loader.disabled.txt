@@ -1,0 +1,3 @@
+async function loadScript(_url) {
+  throw new Error("External MapLibre worker plugins are disabled in net-identity.");
+}
