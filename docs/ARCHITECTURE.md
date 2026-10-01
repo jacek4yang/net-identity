@@ -175,7 +175,7 @@ from replacing the original lookup result. Resize uses CSS pixels, independent o
 Coordinates accept the full geographic range; only the viewport projection clamps at
 the Mercator latitude limit. No imagery is required for any interaction.
 
-The released 1.1.3 picker uses `NO_TILES` and a local grid. The unreleased MapLibre
+The historical 1.1.3 picker uses `NO_TILES` and a local grid. The released 1.1.5 MapLibre
 integration preserves that model and gesture surface; MapLibre supplies a non-interactive
 geographic basemap beneath it, with synchronized center/zoom and locally bundled CSS
 and worker. Native coordinate entry and offline grid behavior remain independent of

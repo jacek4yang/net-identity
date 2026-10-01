@@ -30,12 +30,10 @@ map rendering. Before submission, reviewer notes must explain explicit online-ma
 activation, OpenFreeMap's viewed-region/IP exposure, routing/consent limits, bundled
 MapLibre code/worker and dependency notices. Preserve the offline coordinate fallback.
 
-The next metadata-fix candidate is 1.1.5. Version 1.1.4 remains an immutable failed
-submission attempt, not an approved release. Remote tags checked on 2026-10-01 at
-12:23 UTC end at v1.1.4. The authenticated owner DevHub list at 12:18 UTC contained
-only 1.1.3, 1.1.2, 1.1.1, 1.1.0 and 1.0.0, with no 1.1.4/1.1.5 or pagination.
-Refresh availability before publication. Do not infer availability from a public API 404 alone. See
-[the release readiness checklist](RELEASE-CHECKLIST.md#next-listed-map-release-provisional-115).
+Version 1.1.5 is the current approved listed release; see [its dated proof](#published-115-2026-10-01).
+Version 1.1.4 remains an immutable failed submission attempt. Historical availability
+checks and candidate preparation are retained below; recheck owner-visible AMO history
+and tags before selecting any future version.
 
 `npm run check:version` also validates reviewer notes against Mozilla's 3,000-character
 limit (Unicode code points), before release submission. Keep short notes pointing to
@@ -293,7 +291,7 @@ merged-main gates before an immutable tag. Keep the existing listed submission/f
 and historical 1.1.3 release/publication evidence. Manual AMO previews still require
 reviewed operator reconciliation, never automatic adoption.
 
-## Failed 1.1.4 submission and 1.1.5 metadata correction (2026-10-01)
+## Historical failed 1.1.4 submission and 1.1.5 preparation (2026-10-01)
 
 Immutable tag `v1.1.4` targets `4d99c9a0eeeb3217ae9c8fd32dbcbdd428dc1370`.
 [Release run 36860205203](https://github.com/jacek4yang/net-identity/actions/runs/36860205203)
@@ -321,3 +319,54 @@ records peak 8 RPCs, 99 glyph requests and zero failures. The
 temporary-install provenance; historical 1.1.4 evidence remains linked above.
 Full candidate checks/package and required CI must pass before release merge; exact-main release gates
 and a new immutable tag follow. No AMO submission or approval is implied by preparation.
+
+## Published 1.1.5 (2026-10-01)
+
+[Implementation PR #81](https://github.com/jacek4yang/net-identity/pull/81) added the
+MapLibre/OpenFreeMap picker, and [PR #83](https://github.com/jacek4yang/net-identity/pull/83)
+completed CJK glyphs, bounded renderer fanout and UI polish. The metadata-fix
+[release PR #84](https://github.com/jacek4yang/net-identity/pull/84) merged to
+`9526d1f787ad847784e61b8b2cd87ecbeedfbdb1`; immutable tag `v1.1.5` points to that commit.
+Exact-main [CI 36865661893](https://github.com/jacek4yang/net-identity/actions/runs/36865661893)
+passed quality and all ten Firefox suites, including three immediate Reload cycles.
+Fresh local checks passed 583 tests, production packaging, nine Firefox suites and
+unsigned-installer rejection. The final signed payload matches the reviewed candidate;
+all nine screenshot UI/renderer hashes match it.
+
+[Tag release 36866359604](https://github.com/jacek4yang/net-identity/actions/runs/36866359604)
+accepted listed 1.1.5 at 13:10:55 UTC. Initial finalization correctly stopped for
+unreviewed status. Mozilla approved version **6531573**, file **5075716**, at
+**13:16:07 UTC**. [Finalizer 36868075266](https://github.com/jacek4yang/net-identity/actions/runs/36868075266)
+verified exact AMO bytes and permanently installed the XPI in normal Firefox 157.0
+with `signedState: 2`, `signatureRequired: true`, `temporarilyInstalled: false`
+and no custom update URL. It published the [GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.5)
+at **13:23:12 UTC**.
+
+The unchanged signed XPI is **533,790 bytes**, SHA-256
+`2db507ebfc7af778f0c5118a88db1ca153aeb6ffbe5f73c3b5ec4494b4d71c29`.
+The readable tagged source archive has SHA-256
+`a0b8807a70ccff51d8bbc4f70e7781aef94aa00d6113c5ba549f77f8fd15edc1`.
+Public release metadata and checksums accompany both. Independent public AMO and GitHub
+readback confirmed the identifiers/hashes and signature proof. Payload comparison allows
+only the documented final manifest newline normalization; all other entries are byte-identical.
+Historical tags, rejected-attempt evidence and public 1.1.3 assets remain unchanged.
+
+### Public listing copy and media verified
+
+Public 1.1.5 description and privacy text were updated manually through the browser
+editor and independently verified at 13:27:49 UTC against the reviewed source.
+[The copy-only readback](../store-assets/publication-copy-v1.1.5.json) records semantic
+text/structure/link checks and explicitly is not a trusted automated-publisher receipt.
+Browser Markdown rendering and API-oriented source HTML remain separate formats.
+
+After owner confirmation, the browser editor replaced the four historical previews
+at 13:56 UTC. Independent public readback at 13:57:55 verified new IDs **416928–416931**,
+correct ordering/captions, all four full-size images pixel-identical to their verified
+source captures, and the public icon matching the uploaded artwork after resizing.
+[The final manual-publication record](../store-assets/publication-v1.1.5.json) stores
+public URLs, source/download hashes, pixel comparisons and visual review. The earlier
+copy-only receipt retains its dated pre-replacement observation.
+
+These are public verification records, not trusted automated-publisher transactions.
+The publisher must not automatically adopt these manually uploaded previews or fabricate
+its journal from them. Historical release assets remain unchanged.

@@ -93,7 +93,7 @@ listing workflow waits for the exact listed version and finalized signed GitHub
 Release before writing public AMO metadata or uploading media. It is dry-run by
 default and uses resumable receipts; see [AMO listing publication](../docs/AMO-LISTING.md).
 
-## Public listing verification (2026-10-01)
+## Historical 1.1.3 public listing verification (2026-10-01)
 
 The icon and all four screenshots were published through the AMO browser editor after
 1.1.3 was approved and its signed GitHub release finalized. Public preview IDs are
@@ -109,3 +109,29 @@ semantically after the browser editor's Markdown-to-HTML rendering and the docum
 a trusted listing-workflow receipt. The publisher must stop on these existing manually
 uploaded previews until reviewed operator reconciliation; do not fabricate or auto-adopt
 a receipt from this file. No listing-workflow execution was used for this publication.
+
+## 1.1.5 public copy and media (2026-10-01)
+
+Version 1.1.5 is approved, signed and public. Its description and privacy policy were
+updated through the authenticated browser editor and independently read back at
+13:27:49 UTC. [The manual copy-verification record](publication-copy-v1.1.5.json)
+confirms normalized text, emphasis, code/list structure and all four explicit privacy
+links match the reviewed source. The browser editor accepted Markdown and rendered
+HTML; `listing-en-US.json` remains correctly quoted HTML for the separate API publisher.
+AMO additionally auto-linked bare `ipwho.is` to `http://ipwho.is`; this is a presentation
+change, not a new extension network endpoint.
+
+After owner confirmation, the four historical previews were replaced at 13:56 UTC.
+[The final independent public readback](publication-v1.1.5.json), observed at 13:57:55 UTC,
+records new IDs **416928, 416929, 416930, 416931**, positions 0–3 and the exact captions
+above. All four downloaded 1280×800 images are pixel-identical to the verified source
+captures; AMO re-encoded PNG bytes. The public 64px icon exactly matches the uploaded
+128px artwork after LANCZOS resizing. It is not claimed byte-identical to a different
+native 64px icon. Public browser inspection also confirmed readable map imagery,
+CJK labels, full fieldset and attribution.
+
+The earlier [copy-only record](publication-copy-v1.1.5.json) preserves the 13:27 observation
+before media replacement; its then-pending status is historical. Neither record is a
+trusted automated-publisher journal. The publisher must continue to stop on these
+manually uploaded unknown preview IDs and require reviewed reconciliation. No automatic
+receipt adoption is authorized, and no listing workflow was used for this publication.

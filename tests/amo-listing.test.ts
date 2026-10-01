@@ -134,6 +134,12 @@ describe("listing policy", () => {
       JSON.parse(readFileSync("store-assets/listing-en-US.json", "utf8")),
     );
     expect(actual.summary["en-US"].length).toBeLessThanOrEqual(250);
+    for (const html of [actual.description["en-US"], actual.privacy_policy["en-US"]]) {
+      expect(html).not.toContain('\\"');
+      const hrefs = [...html.matchAll(/href="([^"]+)"/g)];
+      expect(hrefs.length).toBe((html.match(/href=/g) ?? []).length);
+      for (const match of hrefs) expect(new URL(match[1] ?? "").protocol).toBe("https:");
+    }
     expect(actual.description["en-US"]).toContain("not a browser-wide");
     expect(actual.privacy_policy["en-US"]).toContain("Protected Firefox requests");
     expect(withEnglish({ "en-US": "old", "zh-CN": "保留" }, "new")).toEqual({

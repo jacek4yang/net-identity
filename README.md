@@ -13,11 +13,10 @@ content scripts) precisely because those APIs allow a correct implementation.
 - Node.js for development: **>= 22** (required by `web-ext` 10)
 - Locally bundled MapLibre renderer; no telemetry or remote executable code
 
-**1.1.5 release candidate (unreleased source change):** online OpenFreeMap basemaps
-are being prepared after 1.1.3. The published 1.1.3 package still has the offline coordinate grid. This
-source documentation is not a claim that a newer map-enabled version is on AMO. The
-1.1.4 submission attempt failed before an AMO version existed; 1.1.5 corrects oversized
-reviewer metadata without changing runtime behavior. See [release history](docs/RELEASING.md).
+**1.1.5 is released:** opt-in OpenFreeMap basemaps are available with locally bundled
+MapLibre, readable CJK labels and an offline coordinate fallback. Mozilla approved the
+listed version on 2026-10-01; its unchanged signed XPI passed permanent installation in
+normal Firefox. The failed 1.1.4 attempt remains immutable. See [release history](docs/RELEASING.md).
 
 ## Why it exists
 
@@ -117,7 +116,7 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
   sophisticated page scripts**. They are not a claim of fingerprinting invisibility, and
   controlled geolocation reports a synthetic permission status.
 - The options location picker starts with a local grid and makes **no automatic map
-  requests**. The unreleased **Load online map** action adds OpenFreeMap geographic
+  requests**. The **Load online map** action adds OpenFreeMap geographic
   imagery beneath the existing selection controls. MapLibre code, CSS and its worker
   are bundled locally. Manual coordinate entry and the grid remain available offline.
 - Online map requests reveal the viewed region and network-visible IP to OpenFreeMap
@@ -136,12 +135,13 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 For normal Firefox, install from the public
 [AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
-Version **1.1.3** is public on AMO and uses Firefox's default AMO update channel.
-Its [signed installer, source, checksums and provenance](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.3)
+Version **1.1.5** is public on AMO and uses Firefox's default AMO update channel.
+Its [signed installer, source, checksums and provenance](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.5)
 were published on 2026-10-01 after Mozilla approval and permanent signed-install
-verification in normal Firefox 157. The public listing's icon, four screenshots,
-description and privacy policy were independently verified the same day; see
-[publication evidence](store-assets/publication-v1.1.3.json).
+verification in normal Firefox 157. The public description and privacy policy were
+updated along with all four screenshots. [Independent public verification](store-assets/publication-v1.1.5.json)
+confirmed the copy, captions, image order and pixel-identical full-size screenshots.
+Historical 1.1.3 listing evidence is preserved in [its dated record](store-assets/publication-v1.1.3.json).
 
 Versions 1.1.1 and 1.1.2 remain historical unlisted self-distribution releases; their
 submissions and assets are unchanged. For a verified signed GitHub installer, download
@@ -354,8 +354,8 @@ tests/            vitest unit tests (no browser required)
 CI requires `quality` and `firefox / invariants`. Its ten deterministic loopback browser gates
 cover invariants, WebSockets, proxy authentication, UI, fail-closed outages, full
 restart, credential loss, `e2e:flap` (three SOCKS outage/recovery cycles), online-map
-rendering and map fallback/privacy. The map feature is unreleased until these new gates
-actually pass on the candidate; adding the harness is not a test result.
+rendering and map fallback/privacy. Version 1.1.5 passed these gates on its exact merged
+commit, including three immediate map Reload cycles; adding a harness alone is not a test result.
 They do not require public GeoIP or map providers. Only `npm run e2e`, the optional public
 provider smoke test, stays outside CI. See [CI details](docs/CI.md).
 

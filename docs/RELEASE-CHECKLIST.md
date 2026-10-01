@@ -155,14 +155,13 @@ channel, then update README in a separate documentation PR if needed.
 - [ ] Visually inspect the public listing and rendered media; report moderation/cache
       delay honestly and do not equate accepted uploads with public visibility
 
-## Next listed map release: provisional 1.1.5
+## Future listed map releases
 
 - [ ] Merge the reviewed map implementation only after `quality` and `firefox / invariants`
       pass on its exact head, including both map gates and existing network regression suites
-- [ ] Recheck owner-visible AMO version availability before publication. Tags checked on
-      2026-10-01 at 12:23 UTC stop at v1.1.4; that immutable attempt failed before an AMO
-      version existed. Owner DevHub at 12:18 UTC showed no 1.1.4/1.1.5 or pagination.
-      Do not reuse its tag or treat it as pending review
+- [ ] Recheck owner-visible AMO version history and remote tags before selecting a new
+      version. Version 1.1.5 is already approved and published; v1.1.4 remains an immutable
+      failed submission attempt. Do not reuse either tag or treat v1.1.4 as pending review
 - [ ] Keep reviewer notes at or below Mozilla's 3,000-character limit; run the metadata
       guard and boundary tests. Link full tagged docs instead of expanding API notes
 - [ ] In that separate release PR, align package, lockfile and manifest to the next

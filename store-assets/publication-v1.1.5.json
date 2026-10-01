@@ -1,0 +1,147 @@
+{
+  "recordType": "manual-browser-publication-read-only-verification",
+  "observedAtUtc": "2026-10-01T13:57:55Z",
+  "addonSlug": "net-identity",
+  "publicListingUrl": "https://addons.mozilla.org/en-US/firefox/addon/net-identity/",
+  "publicApiUrl": "https://addons.mozilla.org/api/v5/addons/addon/net-identity/",
+  "extensionVersion": "1.1.5",
+  "publicVersionId": 6531573,
+  "publicFile": {
+    "id": 5075716,
+    "url": "https://addons.mozilla.org/firefox/downloads/file/5075716/net_identity-1.1.5.xpi",
+    "hash": "sha256:2db507ebfc7af778f0c5118a88db1ca153aeb6ffbe5f73c3b5ec4494b4d71c29",
+    "status": "public",
+    "size": 533790
+  },
+  "publicationMethod": "Listing text and media were saved manually through the authenticated AMO browser UI; this is an independent read-only verification receipt, not an automated listing-publisher transaction receipt.",
+  "sourceListingFile": "store-assets/listing-en-US.json",
+  "sourceListingSha256": "2ff1ed0b95b9ca55f3500d0c3a0999f4b17f5efd48a1326b48cf3a378a4d7b7d",
+  "sourceCapture": {
+    "runUrl": "https://github.com/jacek4yang/net-identity/actions/runs/36863012728",
+    "conclusion": "success",
+    "artifactId": 11163131466,
+    "artifactName": "candidate-real-map-listing",
+    "artifactSha256": "a8d97d1da00ce7c7fae360d6c72136a3402e6dda8c94406e179f2f8f8954bda3"
+  },
+  "copyVerification": {
+    "descriptionSource": "https://addons.mozilla.org/api/v5/addons/addon/net-identity/",
+    "privacySource": "https://addons.mozilla.org/en-US/firefox/addon/net-identity/privacy/",
+    "privacySourceNote": "Public add-on API exposes has_privacy_policy but not policy text; text verified from public privacy page.",
+    "fields": {
+      "description": {
+        "normalizedTextMatchesSourceAndMarkdown": true,
+        "emphasisCodeAndListStructureMatches": true,
+        "explicitLinkDestinationsMatch": true,
+        "additionalAutoLinks": ["http://ipwho.is"],
+        "linkDestinations": ["http://ipwho.is"],
+        "normalizedTextSha256": "7854afb4e93f94c3fd6020d3bd2f72d0d7188afa35016c6422c09a2d66430ac6"
+      },
+      "privacy_policy": {
+        "normalizedTextMatchesSourceAndMarkdown": true,
+        "emphasisCodeAndListStructureMatches": true,
+        "explicitLinkDestinationsMatch": true,
+        "additionalAutoLinks": [],
+        "linkDestinations": [
+          "https://openfreemap.org/privacy/",
+          "https://openfreemap.org/tos/",
+          "https://www.rfc-editor.org/rfc/rfc1929.html#section-3",
+          "https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/"
+        ],
+        "normalizedTextSha256": "bbbbda84a6e58f76320ad4012fc7dec8262bce54fd74a79957c7ea4c31bac223"
+      }
+    }
+  },
+  "media": {
+    "count": 4,
+    "previousPreviewIdsAbsent": true,
+    "previews": [
+      {
+        "previewId": 416928,
+        "position": 0,
+        "caption": "Switch profiles and review the current identity in one compact popup",
+        "captionMatches": true,
+        "sourceFile": "store-assets/screenshots/01-active-profile.png",
+        "publicImageUrl": "https://addons.mozilla.org/user-media/previews/full/416/416928.png?modified=1790862984",
+        "dimensions": [1280, 800],
+        "sourceSha256": "64a79a55a0e2009df138627f5ad1e42f14878d2c35805e5a93646b3834d18693",
+        "publicSha256": "b2395b033cd6c4a3bb944d61d5ba7d48e5bb946e7e4b5913f95de90ab61b84d7",
+        "decodedRgbaComparison": {
+          "differentPixels": 0,
+          "maximumChannelDifference": 0
+        }
+      },
+      {
+        "previewId": 416929,
+        "position": 1,
+        "caption": "Manage proxy profiles and save identity settings before applying them",
+        "captionMatches": true,
+        "sourceFile": "store-assets/screenshots/02-profile-management.png",
+        "publicImageUrl": "https://addons.mozilla.org/user-media/previews/full/416/416929.png?modified=1790862984",
+        "dimensions": [1280, 800],
+        "sourceSha256": "4de80bd399cd4d898890ed723fd7768701bd11ab1f80bb9ccd4834199c67c8c3",
+        "publicSha256": "28dfe7d81fd22cf1f25d67a7465644515f917fbdb8b21db31214125ca1fa27a4",
+        "decodedRgbaComparison": {
+          "differentPixels": 0,
+          "maximumChannelDifference": 0
+        }
+      },
+      {
+        "previewId": 416930,
+        "position": 2,
+        "caption": "Inspect routing, WebRTC policy and identity checks, including unverified states",
+        "captionMatches": true,
+        "sourceFile": "store-assets/screenshots/03-identity-audit.png",
+        "publicImageUrl": "https://addons.mozilla.org/user-media/previews/full/416/416930.png?modified=1790862984",
+        "dimensions": [1280, 800],
+        "sourceSha256": "2f66f6feafc51385ae651fa1575531c865783b5bbfec25e8dfa8b512fb2714b8",
+        "publicSha256": "37e97c8eec22f39e79bc88e5f908225eb2475c66fc1fe970e09d177dd095cea1",
+        "decodedRgbaComparison": {
+          "differentPixels": 0,
+          "maximumChannelDifference": 0
+        }
+      },
+      {
+        "previewId": 416931,
+        "position": 3,
+        "caption": "Choose manual coordinates on an optional OpenFreeMap basemap, with visible attribution",
+        "captionMatches": true,
+        "sourceFile": "store-assets/screenshots/04-local-location-picker.png",
+        "publicImageUrl": "https://addons.mozilla.org/user-media/previews/full/416/416931.png?modified=1790862984",
+        "dimensions": [1280, 800],
+        "sourceSha256": "9b63d5fb08cd4bfb6b949aad459b1b1fe7d963cc2c064169aeff81e4c16ef239",
+        "publicSha256": "ed8cbb0258c242be4e18f0998aae83521bff435466d96f7f6e2b2cdb21d8f186",
+        "decodedRgbaComparison": {
+          "differentPixels": 0,
+          "maximumChannelDifference": 0
+        }
+      }
+    ],
+    "icon": {
+      "publicUrl": "https://addons.mozilla.org/user-media/addon_icons/3080/3080130-64.png?modified=7ca222d2",
+      "dimensions": [64, 64],
+      "publicSha256": "38dba584aeeb939164b1b71d071081ca207958f7f536d98efa15154da39d06d6",
+      "comparisonSource": "public/icons/icon-128.png",
+      "sourceSha256": "11e3ff94d2f3f2f283ad36798a5eb244552121fdb0dae30e0b7550abf64e32cc",
+      "comparisonTransform": "Decode RGBA, then resize 128×128 to 64×64 with Pillow LANCZOS",
+      "decodedRgbaComparison": {
+        "differentPixels": 0,
+        "maximumChannelDifference": 0
+      },
+      "note": "Public 64px icon matches the uploaded 128px artwork after LANCZOS resizing exactly; it is not byte/pixel-identical to the separately generated native 64px source."
+    }
+  },
+  "visualReview": {
+    "passed": true,
+    "allFourDownloadedPreviewsInspected": true,
+    "publicIconInspected": true,
+    "findings": [
+      "Readable text, correct preview order and matching captions",
+      "Actual Tokyo geography and CJK labels, with OpenFreeMap/OpenMapTiles/OpenStreetMap attribution",
+      "Complete map fieldset with policy controls, warning, provider disclosure, loaded state and coordinate inputs",
+      "Synthetic identity and loopback endpoint only; no public IP or credentials shown",
+      "Partial and unverified diagnostic states remain visible",
+      "Original route-shield icon is recognizable with preserved transparent background"
+    ]
+  },
+  "scope": "Verifies public listing copy and media against versioned source. Public API reports the 1.1.5 file as public. Signature and permanent-install verification belong to the separate release finalization evidence."
+}
