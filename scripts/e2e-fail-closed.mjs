@@ -1,10 +1,10 @@
-/** Deterministic Firefox SOCKS5 outage and full-restart leak test. */
-import { spawn } from "node:child_process";
+/** Deterministic local Firefox SOCKS5 outage, flap recovery, and full-restart leak test. */
+import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
-import { networkInterfaces } from "node:os";
+import { createServer as createHttpsServer } from "node:https";
 import { mkdtemp, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { tmpdir } from "node:os";
@@ -16,6 +16,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({
   options: {
     firefox: { type: "string" },
+    flap: { type: "boolean", default: false },
     restart: { type: "boolean", default: false },
     auth: { type: "boolean", default: false },
     timeout: { type: "string", default: "90" },
@@ -42,16 +43,6 @@ async function freePort() {
   const port = await listen(server);
   await new Promise((resolve) => server.close(resolve));
   return port;
-}
-
-function privateAddress() {
-  for (const addresses of Object.values(networkInterfaces())) {
-    for (const address of addresses ?? []) {
-      if (address.family === "IPv4" && !address.internal && !address.address.startsWith("169.254."))
-        return address.address;
-    }
-  }
-  throw new Error("No private IPv4 interface for the direct-origin leak fixture");
 }
 
 function socksServer(seen, origin, requireAuth) {
@@ -110,9 +101,20 @@ function socksServer(seen, origin, requireAuth) {
       const port = buffer.readUInt16BE(4 + length);
       seen.push({ host, port });
       phase = 3;
+      // Flap mode uses distinct origin and direct-sentinel ports. In every mode
+      // the fixture accepts only its own local destinations.
+      const localFixture = host === origin.address || host === "ni-fail-closed.invalid";
+      if (!localFixture || ![origin.port, origin.securePort].includes(port)) {
+        socket.end(Buffer.from([5, 4, 0, 1, 0, 0, 0, 0, 0, 0]));
+        return;
+      }
       const destination = net.connect({
-        host: host === "ni-fail-closed.invalid" ? origin.address : host,
-        port,
+        host: localFixture ? "127.0.0.1" : host,
+        port: values.flap
+          ? port === origin.securePort
+            ? origin.proxySecurePort
+            : origin.proxyPort
+          : port,
       });
       sockets.add(destination);
       destination.on("close", () => sockets.delete(destination));
@@ -190,6 +192,9 @@ async function startFirefox(profileDir, marionettePort, pageUrl) {
     pageUrl,
     `--pref=marionette.port=${marionettePort}`,
     "--pref=xpinstall.signatures.required=false",
+    // A non-bypassed local name makes the sentinel reachable even in loopback-only
+    // sandboxes. The separate .invalid name below is resolved exclusively by SOCKS.
+    "--pref=network.dns.localDomains=ni-fail-closed-origin.test",
     "--arg=--marionette",
     "--arg=-remote-allow-system-access",
     "--arg=-headless",
@@ -213,7 +218,8 @@ async function startFirefox(profileDir, marionettePort, pageUrl) {
   try {
     const client = await connectMarionette(marionettePort, deadline);
     await client.send("WebDriver:NewSession", {
-      capabilities: { alwaysMatch: { browserName: "firefox" } },
+      browserName: "firefox",
+      acceptInsecureCerts: values.flap,
     });
     await client.send("WebDriver:SetTimeouts", { script: 30000, pageLoad: 15000, implicit: 0 });
     await client.send("Marionette:SetContext", { value: "chrome" });
@@ -347,14 +353,31 @@ async function checkTraffic(browser, origin, phase) {
       args: [
         `http://${origin.address}:${origin.port}/${phase}?r=${Date.now()}`,
         `ws://${origin.address}:${origin.port}/${phase}`,
-        `https://${origin.address}:${origin.port}/${phase}`,
+        `https://${origin.address}:${origin.securePort ?? origin.port}/${phase}`,
         `http://ni-fail-closed.invalid:${origin.port}/${phase}-dns`,
-        `wss://${origin.address}:${origin.port}/${phase}`,
+        `wss://${origin.address}:${origin.securePort ?? origin.port}/${phase}`,
       ],
     },
     30000,
   );
   return response?.value ?? response;
+}
+
+async function checkOutageTraffic(browser, origin, phase, directHits) {
+  const before = directHits.length;
+  let result;
+  // Corroborate failures across time and hosts. One refused origin is not proof
+  // that the selected proxy is unavailable.
+  for (let wave = 0; wave < 3; wave++) {
+    result = await checkTraffic(browser, origin, `${phase}-${wave}`);
+    if (
+      ["http", "https", "ws", "wss", "dns"].some((scheme) => result[scheme]?.ok) ||
+      directHits.length !== before
+    )
+      throw new Error(`${phase} leaked during outage: ${JSON.stringify({ result, directHits })}`);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+  return result;
 }
 
 async function checkHttp(browser, origin, phase) {
@@ -366,6 +389,151 @@ async function checkHttp(browser, origin, phase) {
   return result?.value ?? result;
 }
 
+function assertSameRoute(state, initial, phase) {
+  if (
+    state?.activeProfileId !== initial.activeProfileId ||
+    state.generation !== initial.generation ||
+    state.appliedRevision !== initial.appliedRevision ||
+    state.desiredRoute !== "proxy" ||
+    state.appliedRoute !== "proxy" ||
+    JSON.stringify(state.identity) !== JSON.stringify(initial.identity) ||
+    JSON.stringify(state.proxy) !== JSON.stringify(initial.proxy)
+  ) {
+    throw new Error(
+      `${phase} changed selected route/generation/identity: ${JSON.stringify(state)}`,
+    );
+  }
+}
+
+async function exerciseFlaps(browser, origin, initial, directHits, proxiedHits, seen, stop, start) {
+  initial ??= (await message(browser, { type: "state:get" })).state;
+  const assertNoDirect = () => {
+    if (directHits.length !== 0)
+      throw new Error(`direct sentinel received traffic: ${JSON.stringify(directHits)}`);
+  };
+  const assertHealthyTraffic = async (phase) => {
+    const before = seen.length;
+    const result = await checkTraffic(browser, origin, phase);
+    if (!["http", "https", "ws", "wss", "dns"].every((scheme) => result[scheme]?.ok)) {
+      throw new Error(
+        `${phase} did not recover every protocol: ${JSON.stringify({ result, seen: seen.slice(before), proxiedHits })}`,
+      );
+    }
+    if (!seen.slice(before).some((entry) => entry.host === "ni-fail-closed.invalid")) {
+      throw new Error(`${phase} did not resolve DNS through SOCKS`);
+    }
+    const state = (await message(browser, { type: "state:get" })).state;
+    assertSameRoute(state, initial, phase);
+    if (state.runtimeHealth !== "healthy")
+      throw new Error(
+        `${phase} did not restore healthy status: ${JSON.stringify(state.lastError)}`,
+      );
+    assertNoDirect();
+  };
+  await assertHealthyTraffic("flap-baseline");
+  for (let cycle = 0; cycle < 3; cycle++) {
+    const downAt = Date.now();
+    await stop();
+    // A page burst contains non-idempotent requests too. They must terminate,
+    // not be queued/replayed when the same proxy returns.
+    await browser.client.send("WebDriver:Navigate", {
+      url: `http://127.0.0.1:${origin.pagePort}/`,
+    });
+    const result = await browser.client.send("WebDriver:ExecuteAsyncScript", {
+      script: `const done = arguments[arguments.length - 1];
+        const bases = arguments[0];
+        (async () => {
+          const results = [];
+          for (let wave = 0; wave < 3; wave++) {
+            results.push(...await Promise.all(Array.from({length: 12}, (_, i) => fetch(bases[i % 2] + wave + "-" + i, {
+              method: i % 2 ? "POST" : "GET", body: i % 2 ? "must-not-replay" : undefined,
+              cache: "no-store", signal: AbortSignal.timeout(2000)
+            }).then(r => ({ok: true, status: r.status}), e => ({ok: false, error: String(e)})))));
+            await new Promise(resolve => setTimeout(resolve, 350));
+          }
+          done(results);
+        })();`,
+      args: [
+        [
+          `http://${origin.address}:${origin.port}/failed-${cycle}-`,
+          `http://ni-fail-closed.invalid:${origin.port}/failed-${cycle}-`,
+        ],
+      ],
+    });
+    const burst = result?.value ?? result;
+    if (!Array.isArray(burst) || burst.length !== 36 || burst.some((item) => item.ok))
+      throw new Error(`flap burst escaped outage: ${JSON.stringify(burst)}`);
+    const down = await checkTraffic(browser, origin, `flap-down-${cycle}`);
+    if (["http", "https", "ws", "wss", "dns"].some((scheme) => down[scheme]?.ok))
+      throw new Error(`flap outage leaked: ${JSON.stringify(down)}`);
+    const state = (await message(browser, { type: "state:get" })).state;
+    assertSameRoute(state, initial, `flap-down-${cycle}`);
+    if (state.runtimeHealth === "healthy")
+      throw new Error("SOCKS outage never affected runtime health");
+    assertNoDirect();
+    await start();
+    log(
+      `flap ${cycle + 1}: outage ${Date.now() - downAt}ms, 36-request burst blocked, direct sentinel 0`,
+    );
+    // Only new application requests trigger recovery. No Apply/Refresh, background
+    // fetch, or replay is used. The deadline accommodates the bounded cooldown.
+    const recoveryDeadline = Math.min(deadline, Date.now() + 12000);
+    let recovered;
+    do {
+      recovered = await checkHttp(browser, origin, `flap-recovery-${cycle}`);
+      if (recovered.ok) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } while (Date.now() < recoveryDeadline);
+    if (!recovered?.ok) throw new Error(`flap ${cycle + 1} did not recover automatically`);
+    // Health deliberately needs corroborated sustained success, rather than
+    // oscillating on a single completion from a busy tab.
+    for (let confirmation = 0; confirmation < 3; confirmation++) {
+      await new Promise((resolve) => setTimeout(resolve, 550));
+      const success = await checkHttp(browser, origin, `flap-confirm-${cycle}-${confirmation}`);
+      if (!success.ok) throw new Error("recovery did not remain stable");
+    }
+    await assertHealthyTraffic(`flap-up-${cycle}`);
+    if (proxiedHits.some((url) => url.startsWith("/failed-") || url.startsWith("/flap-down-")))
+      throw new Error(`failed application request was replayed: ${JSON.stringify(proxiedHits)}`);
+  }
+  const error = await checkHttp(browser, origin, "origin-error");
+  if (!error.ok || error.status !== 503)
+    throw new Error("origin-error control did not reach origin");
+  await browser.client.send("WebDriver:ExecuteAsyncScript", {
+    script: `const done = arguments[arguments.length - 1];
+      fetch(arguments[0], {signal: AbortSignal.timeout(100)}).then(() => done(false), () => done(true));`,
+    args: [`http://${origin.address}:${origin.port}/cancel`],
+  });
+  const afterControls = (await message(browser, { type: "state:get" })).state;
+  assertSameRoute(afterControls, initial, "origin error/cancellation");
+  if (afterControls.runtimeHealth !== "healthy")
+    throw new Error(
+      `unrelated origin error/cancellation poisoned proxy health: ${JSON.stringify(afterControls.lastError)}`,
+    );
+  if (!proxiedHits.includes("/cancel"))
+    throw new Error("cancellation control never reached proxy origin");
+  assertNoDirect();
+  log(
+    "PASS: three SOCKS flaps, HTTP/HTTPS/WS/WSS/DNS recovery, stable identity/generation, no replay, zero direct sentinel hits",
+  );
+}
+
+function acceptWebSocket(hits, request, socket) {
+  hits.push(request.url);
+  const key = request.headers["sec-websocket-key"];
+  if (typeof key !== "string") {
+    socket.destroy();
+    return;
+  }
+  const accept = createHash("sha1")
+    .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+    .digest("base64");
+  socket.write(
+    `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`,
+  );
+  socket.once("data", () => socket.end(Buffer.from([0x88, 0])));
+}
+
 async function main() {
   if (!existsSync(firefoxPath) || !existsSync(path.join(root, "dist", "manifest.json"))) {
     log("Firefox or dist/ is missing. Build first and pass --firefox if needed.");
@@ -373,27 +541,14 @@ async function main() {
     return;
   }
   const profileDir = await mkdtemp(path.join(tmpdir(), "ni-fail-closed-"));
-  const address = privateAddress();
+  const address = "ni-fail-closed-origin.test";
   const directHits = [];
   const direct = createHttpServer((request, response) => {
     if (request.url !== "/page") directHits.push(request.url);
     response.writeHead(200, { "content-type": "text/plain", "access-control-allow-origin": "*" });
     response.end("origin");
   });
-  direct.on("upgrade", (request, socket) => {
-    directHits.push(request.url);
-    const key = request.headers["sec-websocket-key"];
-    if (typeof key !== "string") {
-      socket.destroy();
-      return;
-    }
-    const accept = createHash("sha1")
-      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-      .digest("base64");
-    socket.end(
-      `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`,
-    );
-  });
+  direct.on("upgrade", (request, socket) => acceptWebSocket(directHits, request, socket));
   direct.on("clientError", (_error, socket) => {
     directHits.push("tls-attempt");
     socket.destroy();
@@ -402,15 +557,94 @@ async function main() {
     response.writeHead(200, { "content-type": "text/html" });
     response.end("<!doctype html><title>fail-closed probe</title>");
   });
-  const port = await listen(direct, 0, "0.0.0.0");
+  const port = await listen(direct);
   const pagePort = await listen(page);
   const origin = { address, port, pagePort };
+  const proxiedHits = [];
+  const extraServers = [];
+  if (values.flap) {
+    // TLS is entirely local. Generate a short-lived test certificate, never a
+    // production credential; Marionette accepts it only in this test profile.
+    const keyFile = path.join(profileDir, "fixture-key.pem");
+    const certFile = path.join(profileDir, "fixture-cert.pem");
+    execFileSync(
+      "openssl",
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-nodes",
+        "-keyout",
+        keyFile,
+        "-out",
+        certFile,
+        "-days",
+        "1",
+        "-subj",
+        "/CN=localhost",
+      ],
+      { stdio: "ignore" },
+    );
+    const handler = (request, response) => {
+      proxiedHits.push(request.url);
+      if (request.url === "/cancel") return;
+      response.writeHead(request.url === "/origin-error" ? 503 : 200, {
+        "content-type": "text/plain",
+        "access-control-allow-origin": "*",
+        connection: "close",
+      });
+      response.end("proxied origin");
+    };
+    const plain = createHttpServer(handler);
+    const secure = createHttpsServer(
+      { key: readFileSync(keyFile), cert: readFileSync(certFile) },
+      handler,
+    );
+    for (const server of [plain, secure]) {
+      server.on("upgrade", (request, socket) => acceptWebSocket(proxiedHits, request, socket));
+      extraServers.push(server);
+    }
+    const secureSentinel = net.createServer((socket) => {
+      directHits.push("direct-secure-connection");
+      socket.destroy();
+    });
+    extraServers.push(secureSentinel);
+    origin.proxyPort = await listen(plain);
+    origin.proxySecurePort = await listen(secure);
+    origin.securePort = await listen(secureSentinel);
+  }
   const seen = [];
   let socks = socksServer(seen, origin, values.auth);
   const socksPort = await listen(socks.server);
   let browser = null;
   try {
     browser = await startFirefox(profileDir, await freePort(), `http://127.0.0.1:${pagePort}/`);
+    // Ignore host-machine proxy environment during the positive control. The
+    // recording Firefox fallback is configured explicitly below and retained
+    // across the subsequent browser restarts.
+    await browser.client.send("Marionette:SetContext", { value: "chrome" });
+    await browser.client.send("WebDriver:ExecuteScript", {
+      script: 'Services.prefs.setIntPref("network.proxy.type", 0);',
+      args: [],
+    });
+    await browser.client.send("Marionette:SetContext", { value: "content" });
+    if (values.flap) {
+      // Positive controls prove the sentinels are reachable directly in Firefox,
+      // before applying the route whose zero-leak interval we measure.
+      const control = await checkHttp(browser, origin, "sentinel-control");
+      if (!control.ok || directHits.at(-1) !== "/sentinel-control")
+        throw new Error(
+          `HTTP direct sentinel positive control failed: ${JSON.stringify({ control, directHits, state: await message(browser, { type: "state:get" }) })}`,
+        );
+      await browser.client.send("WebDriver:ExecuteAsyncScript", {
+        script: httpOnlyProbe,
+        args: [`https://${origin.address}:${origin.securePort}/sentinel-control`],
+      });
+      if (!directHits.includes("direct-secure-connection"))
+        throw new Error("TLS direct sentinel positive control failed");
+      directHits.length = 0;
+    }
     const profile = {
       id: "failclosed01",
       name: "Proxy A",
@@ -455,6 +689,13 @@ async function main() {
           `session snapshot did not retain test credentials: ${JSON.stringify(lengths)}`,
         );
     }
+    if (values.flap) {
+      // Establish the local TLS exception through a real document navigation;
+      // Firefox does not apply Marionette's cert override to first-use subresources.
+      await browser.client.send("WebDriver:Navigate", {
+        url: `https://${origin.address}:${origin.securePort}/tls-bootstrap`,
+      });
+    }
     log("Proxy A active; probing live traffic");
     const live = await checkTraffic(browser, origin, "live");
     if (
@@ -480,15 +721,31 @@ async function main() {
     });
     await browser.client.send("Marionette:SetContext", { value: "content" });
     log("Firefox system fallback points at the recording origin");
+    if (values.flap) {
+      await exerciseFlaps(
+        browser,
+        origin,
+        activated.state,
+        directHits,
+        proxiedHits,
+        seen,
+        async () => socks.close(),
+        async () => {
+          socks = socksServer(seen, origin, values.auth);
+          await listen(socks.server, socksPort);
+        },
+      );
+      return;
+    }
     const baseline = directHits.length;
     await socks.close();
     log("SOCKS server stopped; probing outage");
     const httpFailure = await checkHttp(browser, origin, "http-diagnostic");
     const httpFailureState = await message(browser, { type: "state:get" });
     log(
-      `early outage diagnostic: ${JSON.stringify({ http: httpFailure.http, error: httpFailureState?.state?.lastError })}`,
+      `early outage diagnostic: ${JSON.stringify({ http: httpFailure, error: httpFailureState?.state?.lastError })}`,
     );
-    const down = await checkTraffic(browser, origin, "down");
+    const down = await checkOutageTraffic(browser, origin, "down", directHits);
     if (
       down.http?.ok ||
       down.https?.ok ||
@@ -503,7 +760,7 @@ async function main() {
     const state = await message(browser, { type: "state:get" });
     if (state?.state?.activeProfileId !== profile.id) throw new Error("outage deselected Proxy A");
     log(`outage diagnostic: ${JSON.stringify(state.state.lastError)}`);
-    await popupStatus(browser, profile.id, "Proxy unavailable");
+    await popupStatus(browser, profile.id, "Proxy connection uncertain");
     log(
       `outage: HTTP/HTTPS/WS/WSS/DNS failed; direct-origin leak count ${directHits.length - baseline}`,
     );
@@ -522,6 +779,9 @@ async function main() {
     if (
       afterEventRestart.http?.ok ||
       afterEventRestart.ws?.ok ||
+      afterEventRestart.https?.ok ||
+      afterEventRestart.wss?.ok ||
+      afterEventRestart.dns?.ok ||
       directHits.length !== beforeEventRestart
     )
       throw new Error(
@@ -566,7 +826,7 @@ async function main() {
         throw new Error("startup navigation reached the origin directly");
       log("Firefox restarted; probing cold traffic");
       const before = directHits.length;
-      const cold = await checkTraffic(browser, origin, "cold");
+      const cold = await checkOutageTraffic(browser, origin, "cold", directHits);
       if (
         cold.http?.ok ||
         cold.https?.ok ||
@@ -588,7 +848,7 @@ async function main() {
       await popupStatus(
         browser,
         profile.id,
-        values.auth ? "Credentials required" : "Proxy unavailable",
+        values.auth ? "Credentials required" : "Proxy connection uncertain",
       );
       log(`restart with SOCKS down: direct-origin leak count ${directHits.length - before}`);
     }
@@ -631,6 +891,14 @@ async function main() {
       throw new Error(
         `recovered request did not traverse only Proxy A: ${JSON.stringify({ seen: seen.slice(beforeRecoveredSocks), hits: directHits.slice(beforeRecoveredHits) })}`,
       );
+    for (let confirmation = 0; confirmation < 3; confirmation++) {
+      await new Promise((resolve) => setTimeout(resolve, 550));
+      const success = await checkHttp(browser, origin, `recovery-confirm-${confirmation}`);
+      if (!success.ok) throw new Error("same proxy recovery was not sustained");
+    }
+    const recoveredState = (await message(browser, { type: "state:get" })).state;
+    if (recoveredState.runtimeHealth !== "healthy")
+      throw new Error("sustained proxy success did not restore health");
     await popupStatus(browser, profile.id, "Active");
     log("PASS: Proxy A survived outage and recovered without a route switch");
     if (values.restart && !values.auth) {
@@ -682,6 +950,10 @@ async function main() {
   } finally {
     if (browser) await stopFirefox(browser);
     if (socks.server.listening) await socks.close();
+    for (const server of extraServers) {
+      server.closeAllConnections?.();
+      await new Promise((resolve) => server.close(resolve));
+    }
     await new Promise((resolve) => direct.close(resolve));
     await new Promise((resolve) => page.close(resolve));
     await rm(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });

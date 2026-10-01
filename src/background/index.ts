@@ -189,10 +189,13 @@ function addSettingListener(
 // `<all_urls>` includes http(s) and ws(s). `decideProxy` then routes those four
 // schemes and leaves internal URLs direct; narrowing the filter would let a
 // WebSocket bypass the active profile.
-// eslint-disable-next-line @typescript-eslint/no-misused-promises
-browser.proxy.onRequest.addListener((details) => controller.decideProxyForRequest(details.url), {
-  urls: ["<all_urls>"],
-});
+browser.proxy.onRequest.addListener(
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  (details) => controller.decideProxyForRequest(details.url, details.requestId),
+  {
+    urls: ["<all_urls>"],
+  },
+);
 
 // ProxyInfo has no "block" value. Cancel requests whose durable route cannot
 // be reconstructed; a proxy.onRequest error must never become a direct request.
@@ -241,13 +244,13 @@ browser.webRequest.onCompleted.addListener(releaseProxyAuthAttempt, { urls: ["<a
 browser.webRequest.onErrorOccurred.addListener(releaseProxyAuthAttempt, { urls: ["<all_urls>"] });
 browser.webRequest.onCompleted.addListener(
   (details) => {
-    controller.recordNetworkSuccess(details.url);
+    controller.recordNetworkSuccess(details);
   },
   { urls: ["<all_urls>"] },
 );
 browser.webRequest.onErrorOccurred.addListener(
   (details) => {
-    controller.recordNetworkFailure(details.url, details.error);
+    controller.recordNetworkFailure(details);
   },
   { urls: ["<all_urls>"] },
 );

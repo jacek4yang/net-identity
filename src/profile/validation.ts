@@ -152,19 +152,25 @@ export function parseProxyConfig(input: unknown): Result<IdentityProfile["proxy"
     port = input.port;
   }
 
-  let username: string | undefined;
+  // Accept legacy usernames only as an authentication marker. Never return the value.
   if (
-    !isDirect &&
     input.username !== undefined &&
     input.username !== null &&
-    input.username !== ""
+    input.username !== "" &&
+    !isNonEmptyString(input.username, MAX_USERNAME_LENGTH)
   ) {
-    if (!isNonEmptyString(input.username, MAX_USERNAME_LENGTH)) {
-      errors.push("proxy username is too long or empty");
-    } else {
-      username = trimToLength(String(input.username), MAX_USERNAME_LENGTH);
-    }
+    errors.push("proxy username is too long or empty");
   }
+  if (
+    input.authenticationRequired !== undefined &&
+    typeof input.authenticationRequired !== "boolean"
+  ) {
+    errors.push("proxy authentication requirement must be boolean");
+  }
+  const authenticationRequired =
+    !isDirect &&
+    (input.authenticationRequired === true ||
+      (typeof input.username === "string" && input.username.trim() !== ""));
 
   const proxyDNS = input.proxyDNS === undefined ? type === "socks5" : input.proxyDNS === true;
 
@@ -180,7 +186,7 @@ export function parseProxyConfig(input: unknown): Result<IdentityProfile["proxy"
     type,
     ...(host === undefined ? {} : { host }),
     ...(port === undefined ? {} : { port }),
-    ...(username === undefined ? {} : { username }),
+    ...(authenticationRequired ? { authenticationRequired: true } : {}),
     proxyDNS,
     bypassHosts,
   });

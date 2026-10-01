@@ -23,7 +23,7 @@ changes diagnostic health only. In particular:
 proxy unavailable -> no network
 ```
 
-The route changes only after an explicit user action. Proxy passwords remain
+The route changes only after an explicit user action. Proxy usernames and passwords remain
 session-only; after a full restart an authenticated proxy can reject requests
 until credentials are supplied again, but traffic must never go direct.
 
@@ -34,9 +34,9 @@ until credentials are supplied again, but traffic must never go direct.
    keys in tests.
 
 2. **Proxy credentials are never persisted in `storage.local`.**
-   Passwords live only under `ni.cred.v1.<profileId>` in `browser.storage.session`
+   Usernames and passwords live only under `ni.cred.v1.<profileId>` in `browser.storage.session`
    (`src/background/credentials.ts`), plus inside the session-only active-target
-   snapshot. Tests serialise the local area and assert the password is absent.
+   snapshot. Tests serialise the local area and assert usernames and passwords are absent.
 
 3. **Proxy credentials are never logged.**
    Only `describeError()` output is ever logged, which redacts `Basic …`/`Bearer …`
@@ -120,7 +120,7 @@ until credentials are supplied again, but traffic must never go direct.
 | Secret                               | Where it lives                                            | Lifetime            | Reaches page context?                            |
 | ------------------------------------ | --------------------------------------------------------- | ------------------- | ------------------------------------------------ |
 | Proxy password                       | `storage.session` (`ni.cred.v1.*`, `ni.active-target.v1`) | until Firefox exits | never                                            |
-| Proxy username                       | profile in `storage.local`                                | persistent          | never                                            |
+| Proxy username                       | `storage.session` (`ni.cred.v1.*`, `ni.active-target.v1`) | until Firefox exits | never                                            |
 | GeoIP location data                  | profile in `storage.local`                                | persistent          | only coordinates/accuracy/timezone, deliberately |
 | Client certificate, cookies, history | not touched                                               | —                   | —                                                |
 
@@ -144,7 +144,7 @@ The manifest declares:
 
 ```json
 "data_collection_permissions": {
-  "required": ["locationInfo"],
+  "required": ["locationInfo", "authenticationInfo"],
   "optional": ["personallyIdentifyingInfo"]
 }
 ```
@@ -154,7 +154,7 @@ Reasoning, so a reviewer can verify it:
 - Automatic and manual activation can send an HTTPS request to a third-party GeoIP
   provider (`https://ipwho.is/…`) and store the returned location data. That is location
   data collected and transmitted off the device, so `none` would be false.
-- Firefox 140+ presents required `locationInfo` in the install prompt. The extension
+- Firefox 140+ presents required `locationInfo` and `authenticationInfo` in the install/update consent experience. The extension
   does not run on older Firefox, so there is no second consent UI.
 - `personallyIdentifyingInfo` is _optional_ because a **direct** profile sends the
   user's own public IP. A **proxied** profile sends the proxy's address and does not
@@ -173,10 +173,10 @@ If you add another provider, re-review this declaration, this document, the READ
 the test. `docs/ROADMAP.md` tracks making the provider selectable so the declaration can
 stay accurate per configuration.
 
-## Post-v1 profile configuration (schema 3)
+## Post-v1 profile configuration (schema 4)
 
-The durable `ni.state.v1` document now has `schemaVersion: 3`. The key stays stable
-so version-1 and version-2 documents migrate in place. The non-secret applied route
+The durable `ni.state.v1` document now has `schemaVersion: 4`. The key stays stable
+so version-1, version-2 and version-3 documents migrate in place. The non-secret applied route
 is stored separately from the saved profile; Save cannot change full-restart routing.
 An older selected user Direct profile whose applied route cannot be proved is blocked
 until the user explicitly selects a route again. Migration validates every profile, preserves
@@ -194,8 +194,8 @@ manual coordinates alone do not imply a locally inferred timezone.
 Save increments the configuration revision and does not alter runtime. Apply activates
 the saved revision without saving or discarding unsaved form edits. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
 configuration; Refresh uses that applied configuration, including its session credentials.
-Blank passwords retain saved credentials. Clear changes the saved session credentials;
-Apply removes them from a currently active target. Duplicate does not copy passwords.
+Both credential fields start blank. Leaving both blank retains saved session credentials; entering either replaces the pair. Clear changes the saved session credentials;
+Apply removes them from a currently active target. Duplicate does not copy usernames or passwords.
 Deleting an active profile deactivates it. Off releases WebRTC and synthetic identity.
 Direct switches without optional GeoIP permission; without consent it commits an empty,
 controlled identity. Firefox/system routing still applies. No lookup occurs merely
@@ -222,3 +222,28 @@ reconstructing that single byte in memory and matching the original submission S
 it does not normalize JSON or allow value changes. All other payload files must remain
 byte-identical. Release metadata records both manifest hashes and whether this occurred.
 The downloaded signed XPI is never rewritten.
+
+## Schema-4 credential and health regression guards
+
+A legacy username is parsed only to derive `authenticationRequired`; the value never
+appears in the new profile. Migration preserves v3 `appliedSelection` independently from
+saved edits, including an applied proxy with a newer saved Direct revision. Valid old
+session snapshots retain their active credentials during an event-page/upgrade restart.
+Unsupported or unsafe durable documents remain unchanged and fail closed; this is not a
+claim that arbitrary unknown documents can be scrubbed safely.
+
+Passive SOCKS health accepts only request/generation/endpoint-correlated observations.
+`proxyInfo` is configured route metadata, not handshake proof; error strings cannot
+prove outage. Destination refusal and rejected SOCKS authentication can share an error.
+No raw event object, username, authorization header, path or query is retained. Cancellation,
+cache hits, mismatched endpoints and expired requests cannot establish failure/recovery.
+The bounded cooldown recomputes routing when released; it never replays HTTP or changes
+the selected route. See [architecture](ARCHITECTURE.md#passive-socks-health) and `e2e:flap`.
+
+### Authentication data consent
+
+The schema-4 candidate declares `authenticationInfo` for existing usernames/passwords
+sent to the user-selected proxy, alongside required `locationInfo`; optional
+`personallyIdentifyingInfo` remains the gate for direct GeoIP lookup. This declaration
+correction adds no new collection or API capability. Required-data consent can change
+install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).

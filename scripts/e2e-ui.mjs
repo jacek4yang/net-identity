@@ -9,9 +9,12 @@
  *
  * Usage:
  *   node scripts/e2e-ui.mjs [--firefox <path>] [--timeout <seconds>]
+ *   node scripts/e2e-ui.mjs --firefox <path> --screenshots store-assets/screenshots
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +28,7 @@ const { values } = parseArgs({
   options: {
     firefox: { type: "string" },
     timeout: { type: "string", default: "90" },
+    screenshots: { type: "string" },
   },
 });
 
@@ -173,6 +177,7 @@ async function main() {
       "--no-input",
       "--no-reload",
       `--pref=marionette.port=${marionettePort}`,
+      ...(values.screenshots ? ["--pref=ui.systemUsesDarkTheme=1"] : []),
       "--arg=--marionette",
       "--arg=-remote-allow-system-access",
       "--arg=-headless",
@@ -182,6 +187,8 @@ async function main() {
     { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
   );
 
+  firefox.stderr.on("data", (chunk) => process.stderr.write(chunk));
+  firefox.stdout.on("data", (chunk) => process.stderr.write(chunk));
   const deadline = Date.now() + timeoutMs;
   const failures = [];
   let client = null;
@@ -283,6 +290,126 @@ async function main() {
           },
         ],
       });
+    }
+
+    // Store images use this same real-Firefox fixture and shipped UI. Only
+    // synthetic local proxy coordinates are entered; GeoIP is explicitly off.
+    if (values.screenshots) {
+      const directory = path.resolve(values.screenshots);
+      await mkdir(directory, { recursive: true });
+      const images = [];
+      const capture = async (name, selector, offset = 24) => {
+        if (selector)
+          await execute(
+            'document.querySelector(arguments[0]).scrollIntoView({block:"start"}); window.scrollBy(0, -arguments[1]);',
+            [selector, offset],
+          );
+        else await execute("window.scrollTo(0, 0);");
+        await execute("document.activeElement?.blur();");
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        const result = await client.send("WebDriver:TakeScreenshot", { full: false });
+        const bytes = Buffer.from(result.value, "base64");
+        if (bytes.readUInt32BE(16) !== 1280 || bytes.readUInt32BE(20) !== 800) {
+          throw new Error(`Unexpected screenshot dimensions for ${name}`);
+        }
+        await writeFile(path.join(directory, name), bytes);
+        images.push({
+          file: name,
+          width: 1280,
+          height: 800,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        });
+        log(`Wrote ${name} (1280 × 800)`);
+      };
+      // Size by content viewport, not OS-dependent browser decoration height.
+      await client.send("WebDriver:SetWindowRect", { width: 1280, height: 900 });
+      const windowRect = await client.send("WebDriver:GetWindowRect");
+      const rect = windowRect.value ?? windowRect;
+      const viewport = await execute("return {width:innerWidth,height:innerHeight};");
+      await client.send("WebDriver:SetWindowRect", {
+        width: rect.width + 1280 - viewport.width,
+        height: rect.height + 800 - viewport.height,
+      });
+      await client.send("WebDriver:Navigate", { url: optionsUrl });
+      await waitFor('return !document.getElementById("direct-view").hidden;');
+      await click("#new-profile");
+      await fill({
+        "field-name": "Tokyo · Local demo",
+        "field-proxy-host": "127.0.0.1",
+        "field-proxy-port": "9999",
+      });
+      await click("#field-mode-manual");
+      await fill({
+        "field-geoip-policy": "disabled",
+        "field-latitude": "35.68",
+        "field-longitude": "139.76",
+        "field-accuracy": "20000",
+        "field-timezone": "Asia/Tokyo",
+      });
+      await click("#save");
+      await waitFor(
+        'return document.getElementById("form-title").textContent === "Tokyo · Local demo";',
+      );
+      await click("#save-activate");
+      await waitFor(
+        'return document.getElementById("options-status").textContent.includes("Asia/Tokyo");',
+      );
+      await capture("02-profile-management.png");
+      await capture("04-local-location-picker.png", ".identity-mode-group", 48);
+      await client.send("WebDriver:Navigate", { url: popupUrl });
+      await waitFor(
+        'return document.getElementById("identity-timezone").textContent === "Asia/Tokyo";',
+      );
+      // The popup is intrinsically 380px wide. Center the unchanged popup on a
+      // plain canvas, without scaling, invented chrome, captions, or overlays.
+      await execute('document.body.style.margin = "36px auto";');
+      await capture("01-active-profile.png");
+      await click("#toggle-details");
+      await capture("03-identity-audit.png", "#details-panel", 0);
+      const userAgent = await execute("return navigator.userAgent;");
+      const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));
+      const sourceHashes = {};
+      for (const surface of ["popup", "options"]) {
+        for (const extension of ["html", "css", "js"]) {
+          const file = `${surface}/${surface}.${extension}`;
+          sourceHashes[file] = createHash("sha256")
+            .update(await readFile(path.join(root, "dist", file)))
+            .digest("hex");
+        }
+      }
+      await writeFile(
+        path.join(directory, "metadata.json"),
+        JSON.stringify(
+          {
+            extensionVersion: manifest.version,
+            provenance: {
+              build: "unsigned local candidate",
+              installation: "temporary add-on installed by web-ext in disposable Firefox profile",
+              sourceDirectory: "dist",
+              signedRelease: false,
+            },
+            userAgent,
+            theme: "dark",
+            sourceHashes,
+            fixture: {
+              profile: "Tokyo · Local demo",
+              proxy: "127.0.0.1:9999",
+              geoip: "disabled",
+              credentials: false,
+              latitude: 35.68,
+              longitude: 139.76,
+              accuracy: 20000,
+              timezone: "Asia/Tokyo",
+            },
+            images,
+          },
+          null,
+          2,
+        ) + "\n",
+      );
+      await call({ type: "profiles:deactivate" });
+      log("Store captures complete: synthetic local fixture, GeoIP disabled.");
+      return;
     }
 
     await client.send("WebDriver:Navigate", { url: popupUrl });

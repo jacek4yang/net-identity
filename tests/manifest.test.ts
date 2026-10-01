@@ -24,8 +24,10 @@ interface ManifestShape {
   name: string;
   version: string;
   description: string;
+  homepage_url?: string;
   background?: { scripts?: string[]; type?: string; service_worker?: string; persistent?: boolean };
   browser_specific_settings?: {
+    gecko_android?: unknown;
     gecko?: {
       id?: string;
       strict_min_version?: string;
@@ -75,10 +77,13 @@ describe("manifest", () => {
     expect(manifest.background?.persistent).toBeUndefined();
   });
 
-  it("declares the Firefox target with an id and a version floor", () => {
+  it("keeps desktop Firefox 140 for built-in data_collection_permissions (MAIN world alone needs 128)", () => {
     const gecko = manifest.browser_specific_settings?.gecko;
     expect(gecko?.id).toBe("net-identity@jacek4yang.github.io");
     expect(gecko?.strict_min_version).toBe("140.0");
+    expect(gecko?.data_collection_permissions).toBeDefined();
+    expect(manifest.browser_specific_settings?.gecko_android).toBeUndefined();
+    expect(manifest.homepage_url).toBe("https://github.com/jacek4yang/net-identity");
     // No upper bound: the extension must keep working on newer Firefox builds.
     expect(gecko?.strict_max_version).toBeUndefined();
   });
@@ -94,7 +99,8 @@ describe("manifest", () => {
     for (const entry of [...(declared?.required ?? []), ...(declared?.optional ?? [])]) {
       expect(DATA_CATEGORIES, `unknown data category ${entry}`).toContain(entry);
     }
-    expect(declared?.required).toContain("locationInfo");
+    expect(declared?.required).toEqual(["locationInfo", "authenticationInfo"]);
+    // Authentication is sent only to the user-selected proxy, never GeoIP/telemetry.
     expect(declared?.optional).toContain("personallyIdentifyingInfo");
   });
 
@@ -139,7 +145,7 @@ describe("manifest", () => {
   });
 
   it("wires up icons, the popup and the options page", () => {
-    expect(Object.keys(manifest.icons ?? {}).sort()).toEqual(["128", "48", "96"]);
+    expect(Object.keys(manifest.icons ?? {}).sort()).toEqual(["128", "16", "32", "48", "64", "96"]);
     expect(manifest.action?.default_popup).toBe("popup/popup.html");
     expect(manifest.options_ui?.page).toBe("options/options.html");
     expect(manifest.options_ui?.open_in_tab).toBe(true);

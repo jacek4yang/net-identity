@@ -24,6 +24,7 @@ import {
 import type { RuntimeState, RuntimeStatus } from "../shared/state";
 import { isBuiltinDirectProfile, type IdentityProfile } from "../profile/schema";
 import { explainRuntimeError } from "../shared/onboarding";
+import { describePopupStatus } from "./status";
 
 const elements = {
   statusPill: requireElement<HTMLElement>("#status-pill"),
@@ -47,22 +48,6 @@ const elements = {
   detailsWebrtcDetail: requireElement<HTMLElement>("#details-webrtc-detail"),
   detailsFrames: requireElement<HTMLElement>("#details-frames"),
   auditChecks: requireElement<HTMLUListElement>("#audit-checks"),
-};
-
-const LIFECYCLE_LABELS: Record<RuntimeStatus, string> = {
-  idle: "Off",
-  activating: "Activating…",
-  resolving: "Resolving…",
-  ready: "Active",
-  error: "Error",
-};
-
-const LIFECYCLE_TONES: Record<RuntimeStatus, string> = {
-  idle: "pending",
-  activating: "pending",
-  resolving: "pending",
-  ready: "ok",
-  error: "bad",
 };
 
 const VERDICT_LABELS: Record<AuditVerdict, string> = {
@@ -99,24 +84,7 @@ let isDeactivating = false;
 let displayedGeneration = -1;
 
 function setStatusPill(state: RuntimeState | RuntimeStatus): void {
-  const status = typeof state === "string" ? state : state.status;
-  if (typeof state !== "string" && state.runtimeHealth === "unavailable") {
-    elements.statusText.textContent = "Proxy unavailable";
-    elements.statusPill.dataset.tone = "bad";
-    return;
-  }
-  if (typeof state !== "string" && state.runtimeHealth === "credentials_required") {
-    elements.statusText.textContent = "Credentials required";
-    elements.statusPill.dataset.tone = "bad";
-    return;
-  }
-  if (typeof state !== "string" && state.appliedRoute === "blocked") {
-    elements.statusText.textContent = "Routing blocked";
-    elements.statusPill.dataset.tone = "bad";
-    return;
-  }
-  const label = LIFECYCLE_LABELS[status] ?? status;
-  const tone = LIFECYCLE_TONES[status] ?? "pending";
+  const { label, tone } = describePopupStatus(state);
   elements.statusText.textContent = label;
   elements.statusPill.dataset.tone = tone;
 }

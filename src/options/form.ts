@@ -6,7 +6,7 @@
  * element wiring. The output is still validated by `parseProfile` before it is
  * saved, so the form cannot bypass domain rules.
  *
- * The password is never part of the profile shape: it is returned separately so it
+ * Neither username nor password is part of the profile shape: it is returned separately so it
  * can be routed to session storage only.
  */
 import type { IdentityProfile } from "../profile/schema";
@@ -58,7 +58,6 @@ function toNumberOrUndefined(value: string): number | undefined {
 export function toProfileInput(values: ProfileFormValues, fallbackId: string): unknown {
   const isDirect = values.proxyType === "direct";
   const mode = values.identityMode === "manual" ? "manual" : "auto";
-  const username = values.proxyUsername.trim();
 
   const proxy: Record<string, unknown> = {
     type: values.proxyType,
@@ -69,7 +68,6 @@ export function toProfileInput(values: ProfileFormValues, fallbackId: string): u
     proxy.host = values.proxyHost.trim();
     proxy.port = toNumberOrUndefined(values.proxyPort);
   }
-  if (!isDirect && username !== "") proxy.username = username;
 
   const geolocationPolicy = mode === "auto" ? "follow" : (values.geolocationPolicy ?? "manual");
   const timezonePolicy = mode === "auto" ? "follow" : (values.timezonePolicy ?? "manual");
@@ -105,22 +103,22 @@ export function toProfileInput(values: ProfileFormValues, fallbackId: string): u
 /**
  * Decides what to do with the stored session credentials for a save.
  *
- * The password input is always empty when loaded, so:
- *   - a typed password means "replace the stored credentials"
+ * Both credential inputs are always empty when loaded, so:
+ *   - either typed credential means "replace the stored pair"
  *   - the remove checkbox means "forget them"
  *   - otherwise the stored value (if any) is left untouched
  */
 export function credentialsIntentFrom(values: ProfileFormValues): CredentialsIntent {
   if (values.removeCredentials) return { action: "clear" };
-  if (values.password !== "") {
+  if (values.password !== "" || values.proxyUsername.trim() !== "") {
     return { action: "set", username: values.proxyUsername.trim(), password: values.password };
   }
   return { action: "keep" };
 }
 
 /**
- * Projects a stored profile onto the form fields. The password is never part of a
- * stored profile, so the field always starts empty.
+ * Projects a stored profile onto the form fields. Credentials are never part of a
+ * stored profile, so both fields always start empty.
  */
 export function toFormValues(profile: IdentityProfile | null): ProfileFormValues {
   if (profile === null) {
@@ -153,7 +151,7 @@ export function toFormValues(profile: IdentityProfile | null): ProfileFormValues
     proxyType: profile.proxy.type,
     proxyHost: profile.proxy.host ?? "",
     proxyPort: profile.proxy.port === undefined ? "" : String(profile.proxy.port),
-    proxyUsername: profile.proxy.username ?? "",
+    proxyUsername: "",
     password: "",
     removeCredentials: false,
     proxyDns: profile.proxy.proxyDNS,

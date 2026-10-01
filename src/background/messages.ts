@@ -97,7 +97,26 @@ async function saveProfile(
     return mutation(false, parsedCredentials.errors, deps.controller);
 
   const existing = await deps.profiles.load();
-  const isNew = findProfile(existing, profile.id) === null;
+  const previous = findProfile(existing, profile.id);
+  const clearingCredentials =
+    credentialInput === null || (credentialInput !== undefined && parsedCredentials === null);
+  // Blank Save preserves the session pair and the non-secret restart hint.
+  // Save never changes the separately persisted applied route or its credentials.
+  const authenticationRequired =
+    profile.proxy.type !== "direct" &&
+    (clearingCredentials
+      ? false
+      : parsedCredentials?.ok
+        ? true
+        : previous?.proxy.authenticationRequired === true ||
+          profile.proxy.authenticationRequired === true);
+  const safeProxy = { ...profile.proxy };
+  delete safeProxy.authenticationRequired;
+  profile.proxy = {
+    ...safeProxy,
+    ...(authenticationRequired ? { authenticationRequired: true } : {}),
+  };
+  const isNew = previous === null;
   if (isNew && !canStoreMoreProfiles(existing)) {
     return mutation(false, ["The profile limit has been reached."], deps.controller);
   }

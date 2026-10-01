@@ -1,8 +1,9 @@
 /**
  * Forward migrations for the durable profile document (`ni.state.v1`).
  *
- * Version 1 migrates to version 2 policy defaults and revisions. The durable
- * key is unchanged; built-in Direct is projected rather than persisted. Session snapshots and proxy passwords are not part of this document:
+ * Versions 1–3 migrate to schema 4, which retains only a non-secret authentication
+ * marker instead of a username. Version 3 applied routes remain separate from saved edits. The durable
+ * key is unchanged; built-in Direct is projected rather than persisted. Session snapshots and proxy credentials are not part of this document:
  * a password key found in it is dropped and never written back.
  *
  * A newer schema is left byte-for-byte in storage. A version we do understand
@@ -51,6 +52,7 @@ export function migrateStoredProfileState(raw: unknown): MigrationResult {
     version === 0 ||
     version === 1 ||
     version === 2 ||
+    version === 3 ||
     version === SCHEMA_VERSION
   )
     return migrateSupportedDocument(raw);
@@ -102,7 +104,7 @@ function migrateSupportedDocument(raw: Record<string, unknown>): MigrationResult
   }
 
   let appliedSelection: AppliedSelection | null;
-  if (version === SCHEMA_VERSION) {
+  if (version >= 3) {
     const parsed = parseAppliedSelection(stripSecretsDeep(raw.appliedSelection), activeProfileId);
     if (!parsed.ok) return { status: "hold", reason: "unsafe-profile", schemaVersion: version };
     appliedSelection = parsed.value;

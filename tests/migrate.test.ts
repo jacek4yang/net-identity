@@ -5,7 +5,7 @@ import {
   SCHEMA_VERSION,
   durableProfileState,
 } from "../src/profile/schema";
-import { STORAGE_KEY } from "../src/shared/constants";
+import { ACTIVE_TARGET_KEY, STORAGE_KEY } from "../src/shared/constants";
 import { createHarness, createMemoryStorage, makeProfile } from "./helpers";
 
 const PASSWORD = "session-secret-value";
@@ -22,6 +22,106 @@ function version1Document(
 }
 
 describe("profile schema migration", () => {
+  it("keeps legacy applied session credentials through the schema upgrade", async () => {
+    const profile = makeProfile({
+      id: "v3-session-upgrade",
+      proxy: {
+        type: "socks5",
+        host: "127.0.0.1",
+        port: 1080,
+        proxyDNS: true,
+        bypassHosts: [],
+        authenticationRequired: true,
+      },
+    });
+    const h = createHarness();
+    await h.saveProfile(profile);
+    await h.credentialStore.set(profile.id, { username: "session-only-user", password: PASSWORD });
+    await h.controller.activate(profile.id);
+    const snapshot = await h.targetStore.load();
+    expect(snapshot?.profile).toBeDefined();
+    if (snapshot?.profile === undefined) return;
+    const { authenticationRequired: _marker, ...proxy } = snapshot.proxy;
+    const legacyProxy = { ...proxy, username: "session-only-user" };
+    const legacyProfile = { ...snapshot.profile, proxy: legacyProxy };
+    await h.localArea.set({
+      [STORAGE_KEY]: {
+        schemaVersion: 3,
+        activeProfileId: profile.id,
+        profiles: [legacyProfile],
+        appliedSelection: { kind: "profile", profile: legacyProfile },
+      },
+    });
+    await h.sessionArea.set({
+      [ACTIVE_TARGET_KEY]: { ...snapshot, profile: legacyProfile, proxy: legacyProxy },
+    });
+    const resumed = createHarness({ localArea: h.localArea, sessionArea: h.sessionArea });
+    await resumed.controller.initialize();
+    expect(resumed.controller.getTarget()?.credentials).toEqual({
+      username: "session-only-user",
+      password: PASSWORD,
+    });
+    expect(resumed.controller.getTarget()?.proxy.authenticationRequired).toBe(true);
+    expect(h.localArea.serialized()).not.toContain("session-only-user");
+    expect(h.localArea.serialized()).not.toContain(PASSWORD);
+  });
+  it("migrates v3 usernames without replacing an applied proxy with newer saved Direct", async () => {
+    const profile = makeProfile({ id: "v3-credential-route", revision: 2 });
+    const applied = {
+      ...profile,
+      revision: 1,
+      proxy: { ...profile.proxy, username: "applied-secret-user", password: PASSWORD },
+    };
+    const saved = { ...profile, proxy: { type: "direct", proxyDNS: false, bypassHosts: [] } };
+    const localArea = createMemoryStorage({
+      [STORAGE_KEY]: {
+        schemaVersion: 3,
+        activeProfileId: profile.id,
+        profiles: [saved],
+        appliedSelection: { kind: "profile", profile: applied },
+      },
+    });
+    const h = createHarness({ localArea });
+    const stored = await h.profileStore.load();
+    expect(stored.schemaVersion).toBe(4);
+    expect(stored.profiles.find((p) => p.id === profile.id)?.proxy.type).toBe("direct");
+    expect(stored.appliedSelection).toMatchObject({
+      kind: "profile",
+      profile: {
+        revision: 1,
+        proxy: { type: "http", authenticationRequired: true },
+      },
+    });
+    expect(localArea.serialized()).not.toContain("applied-secret-user");
+    expect(localArea.serialized()).not.toContain("username");
+    expect(localArea.serialized()).not.toContain(PASSWORD);
+    const state = await h.controller.initialize();
+    expect(state.desiredRoute).toBe("proxy");
+    expect(h.controller.getTarget()?.proxy.type).toBe("http");
+    expect(h.controller.getTarget()?.credentials).toBeNull();
+    const once = localArea.serialized();
+    await h.profileStore.load();
+    expect(localArea.serialized()).toBe(once);
+  });
+  it("scrubs different usernames independently from saved and applied v3 proxies", () => {
+    const profile = makeProfile({ id: "v3-two-usernames" });
+    const result = migrateStoredProfileState({
+      schemaVersion: 3,
+      activeProfileId: profile.id,
+      profiles: [{ ...profile, proxy: { ...profile.proxy, username: "saved-user" } }],
+      appliedSelection: {
+        kind: "profile",
+        profile: { ...profile, proxy: { ...profile.proxy, username: "applied-user" } },
+      },
+    });
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.state.profiles[1]?.proxy.authenticationRequired).toBe(true);
+    expect(result.state.appliedSelection).toMatchObject({
+      profile: { proxy: { authenticationRequired: true } },
+    });
+    expect(JSON.stringify(result.state)).not.toMatch(/saved-user|applied-user|"username"/);
+  });
   it("migrates a v2 active proxy into a credential-free applied route", () => {
     const profile = makeProfile({ id: "v2-proxy-route" });
     const result = migrateStoredProfileState({

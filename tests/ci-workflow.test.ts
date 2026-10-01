@@ -12,6 +12,7 @@ describe("real-Firefox release gate", () => {
     expect(firefox).toContain("run websocket npm run e2e:websocket");
     expect(firefox).toContain("run ui npm run e2e:ui");
     expect(firefox).toContain("run fail-closed npm run e2e:fail-closed");
+    expect(firefox).toContain("run flap npm run e2e:flap");
     expect(firefox).toContain("run restart npm run e2e:restart");
     expect(firefox).toContain("run socks-auth npm run e2e:socks-auth");
   });

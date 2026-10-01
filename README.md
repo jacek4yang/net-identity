@@ -41,7 +41,7 @@ usually still leaks:
   (create, edit, duplicate, delete, activate).
 - **Proxy support** for `direct`, `http`, `https`, `socks4` and `socks5`, with bypass
   lists (hosts, `*.domain`, IP literals, IPv4 CIDR) and loopback always bypassed.
-- **Proxy authentication** without ever putting a password in durable storage:
+- **Proxy authentication** with session-only usernames and passwords:
   session-only credentials, preemptive Basic for HTTP/HTTPS, strict challenge matching
   for proxies that demand `407`.
 - **Automatic identity**: the public egress IP is observed through the active proxy and
@@ -77,7 +77,7 @@ Full details, including why each Firefox API is used the way it is, are in
 
 ## Security model
 
-1. Proxy passwords live **only** in `browser.storage.session` and vanish when Firefox
+1. Proxy usernames and passwords live **only** in `browser.storage.session` and vanish when Firefox
    exits. They are never written to `storage.local`, never included in a profile, never
    logged, and never sent to a content script, page or GeoIP provider.
 2. Only this extension can talk to the background script (`sender.id` check), and every
@@ -102,7 +102,7 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
   optional personal-data collection. The request sends no credentials, no cookies and
   no referrer, and the response is never cached. Installing the extension does not
   create or activate a profile, so a fresh install makes no such request.
-- This is declared to AMO as required `locationInfo` collection, with
+- This is declared to AMO as required `locationInfo` and `authenticationInfo` collection, with
   `personallyIdentifyingInfo` as optional; see
   [`docs/SECURITY.md`](docs/SECURITY.md#data-collection-declaration).
 - GeoIP coordinates are **approximate**. They are published with a coarse accuracy
@@ -122,22 +122,25 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 ## Installation
 
-Ordinary Firefox users install and update net-identity from addons.mozilla.org
-after Mozilla approves a listed submission. That listing does not exist until the
-first tagged release is submitted and reviewed, so this README does not link to a
-listing page yet. The reviewer package and the pre-submission checklist are in
-[`docs/AMO-REVIEW.md`](docs/AMO-REVIEW.md) and
-[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md); the privacy policy is
-[`docs/PRIVACY.md`](docs/PRIVACY.md); the release process is
-[`docs/RELEASING.md`](docs/RELEASING.md).
+For normal Firefox, use a verified signed installer from the
+[GitHub Releases](https://github.com/jacek4yang/net-identity/releases) page. The
+[v1.1.0 public release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0)
+records the canonical [AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
+Status checked on 2026-10-01 from GitHub release provenance; the live AMO page was
+not independently reachable during this check. The earlier statement that no listing
+exists is obsolete.
 
-New releases remain draft until Mozilla approves the listed version. A finalized release
-provides `net-identity-<version>-firefox-signed.xpi`, downloaded unchanged from Mozilla
-and verified by normal Firefox, plus source, checksums and provenance. Install that XPI
-through Firefox's Add-ons Manager. Version 1.1.1 uses Mozilla's unlisted signing for
-self-distribution; this does not mean public AMO listing approval. GitHub does not
-automatically update installed extensions. No custom update URL is configured; a future
-higher listed AMO version may update the installation through Firefox's AMO update service.
+New unlisted releases remain draft until Mozilla signs the exact version and the
+finalizer verifies its bytes and permanent installation in normal Firefox. Download
+`net-identity-<version>-firefox-signed.xpi` and use Add-ons and themes → gear →
+Install Add-on From File. Source, checksums and provenance accompany the installer.
+Versions 1.1.1 and 1.1.2 use unlisted self-distribution; that does not confer public
+listing approval. GitHub does not automatically update installations. No custom update
+URL is configured; a higher listed AMO version may update the installation through
+Firefox's default AMO update service.
+
+See [reviewer notes](docs/AMO-REVIEW.md), [release checklist](docs/RELEASE-CHECKLIST.md),
+[privacy policy](docs/PRIVACY.md), and [release process](docs/RELEASING.md).
 The historical v1.0.0 ZIP is not the signed installer and remains unchanged.
 
 ### From a packaged build, for development
@@ -225,8 +228,8 @@ stay direct.
 
 - A `document_start`, `MAIN`-world content script overrides
   `navigator.geolocation.getCurrentPosition`, `watchPosition` and `clearWatch`.
-- While no profile is active, calls are delegated to the native implementation, so an
-  idle extension is invisible.
+- Once Off has successfully committed, calls are delegated to the native implementation.
+  The compatibility shim remains detectable; this is not an invisibility guarantee.
 - While a profile is active, pending, or still starting, the shim does not call
   Firefox's geolocation API. A previous synthetic position is kept until the new
   identity is committed. If none is available, the page gets a timeout or
@@ -291,11 +294,11 @@ tests/            vitest unit tests (no browser required)
 
 ## Testing
 
-- `npm run test` – 301 unit tests: profile validation, proxy mapping and auth decisions,
+- `npm run test` – browser-free unit tests: profile validation, proxy mapping and auth decisions,
   bypass matching, GeoIP parsing and failure handling, timezone maths, DST transitions,
   real `Date`/`Intl` shim behaviour, activation atomicity and stale-response handling,
-  credential separation, message-router authorisation, the manifest contract, the
-  manual location map (projection, seeding, tile URLs), profile schema migration,
+  session-only credential separation, bounded SOCKS health and cooldown, message-router authorisation, the manifest contract, the
+  offline location map (projection, seeding and interaction), profile schema migration,
   per-frame page-shim diagnostics, audit updates after external proxy or WebRTC setting
   changes, the AMO reviewer metadata, the real-Firefox CI gate, the AMO submission
   workflow, and the GitHub Release metadata and checksums.
@@ -315,16 +318,23 @@ tests/            vitest unit tests (no browser required)
   `Date` getters follow the profile, that child frames see the same timezone, and
   that deactivation restores the previous WebRTC policy and the native position.
 - `npm run e2e:proxy-auth` – launches real Firefox against the bundled authenticating
-  proxy and checks that a correct password is accepted without a 407 loop, and a wrong
-  password is challenged only a bounded number of times.
+  local CONNECT fixture and checks that a correct password is accepted without a 407
+  loop, and a wrong password is challenged only a bounded number of times. No public
+  provider or upstream service is contacted.
+- `npm run e2e:ui` – checks the real popup, profile Save/Apply and offline map interactions.
+- `npm run e2e:fail-closed` – checks SOCKS outage and event-page recovery with zero direct
+  or system-proxy fallback for HTTP, HTTPS, WS, WSS and proxy DNS.
+- `npm run e2e:restart` – checks retained-profile full Firefox restart while SOCKS is down.
+- `npm run e2e:socks-auth` – checks session credential loss and recovery through the same
+  selected proxy after restart.
+- `npm run e2e:flap` – checks three SOCKS outage/recovery cycles, burst failures, stable
+  identity/generation, no failed-request replay and zero fallback sentinel hits.
 
-CI runs two jobs on every pull request and every push to `main`: the fast `quality`
-job and a real-Firefox `firefox` job. The `firefox` job runs the deterministic
-`e2e:invariants` and `e2e:websocket` harnesses against a loopback page and proxies, so
-it never contacts the public GeoIP provider. It is the browser gate for a release; see
-[`docs/CI.md`](docs/CI.md) for the one-time branch-protection setting that makes it a
-required check. `npm run e2e` and `npm run e2e:proxy-auth` need the public provider or
-a settled profile, so they stay local and release-candidate smoke checks (#21).
+CI requires `quality` and `firefox / invariants`. Its eight deterministic loopback browser gates
+cover invariants, WebSockets, proxy authentication, UI, fail-closed outages, full
+restart, credential loss and `e2e:flap` (three SOCKS outage/recovery cycles).
+They do not contact the public GeoIP provider. Only `npm run e2e`, the optional public
+provider smoke test, stays outside CI. See [CI details](docs/CI.md).
 
 Manual proxy verification (including `407` authentication) uses the bundled test proxy:
 
@@ -368,3 +378,31 @@ Short version (details in [`docs/ROADMAP.md`](docs/ROADMAP.md)):
 ## License
 
 [MIT](LICENSE).
+
+## SOCKS health and recovery
+
+Health is passive evidence, not proof of a proxy outage. Matching request IDs,
+route generations and sanitized proxy endpoints prevent unrelated, bypassed, cached
+or old requests from changing the current route's diagnosis. Repeated failures across
+multiple destinations and time buckets can mark the route suspect; sustained successful
+traffic establishes recovery. The selected profile and synthetic identity stay unchanged.
+
+Suspected SOCKS failures can briefly delay new proxy decisions with a bounded cooldown.
+The extension never replays failed HTTP requests, changes to Direct, or launches background
+health probes. See [the exact bounds and limitations](docs/ARCHITECTURE.md#passive-socks-health).
+Schema 4 removes legacy stored usernames; usernames and passwords live only for the
+Firefox session. Enter both again when replacing an authenticated pair.
+
+### Authentication data consent
+
+The schema-4 candidate declares `authenticationInfo` for existing usernames/passwords
+sent to the user-selected proxy, alongside required `locationInfo`; optional
+`personallyIdentifyingInfo` remains the gate for direct GeoIP lookup. This declaration
+correction adds no new collection or API capability. Required-data consent can change
+install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).
+
+### Store asset provenance
+
+[Four real Firefox UI captures](store-assets/README.md#screenshots) accompany the
+candidate. They use a labeled local demonstration profile with GeoIP disabled and no
+credentials. They are unsigned-candidate UI evidence, not signing or listing approval.

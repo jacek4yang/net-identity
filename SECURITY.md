@@ -51,3 +51,9 @@ packaged build, please reproduce the issue against the latest commit before repo
 The authoritative list of invariants, and the tests that enforce them, is in
 [`docs/SECURITY.md`](docs/SECURITY.md). Contributions that touch credentials, the proxy
 engine, the page shims or the manifest permissions should be reviewed against that list.
+
+The schema-4 candidate treats both proxy usernames and passwords as session-only
+credentials. A durable non-secret authentication-required flag supports restart warnings.
+Passive SOCKS health is diagnostic evidence only: no failed request is replayed and
+suspected failures never authorize changing the route. See the authoritative invariants
+and the required repeated-flap regression gate before approving security changes.

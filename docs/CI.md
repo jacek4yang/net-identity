@@ -37,13 +37,13 @@ without contacting a public provider. It runs in the required Firefox gate along
 interactions, including Firefox offline mode. `npm run e2e` remains outside CI because
 it requires the public GeoIP provider.
 
-`e2e:fail-closed`, `e2e:restart` and `e2e:socks-auth` use a local SOCKS5 server,
+`e2e:fail-closed`, `e2e:restart`, `e2e:socks-auth` and `e2e:flap` use a local SOCKS5 server,
 a recording origin and an alternate Firefox system proxy. They assert zero
 connections to that origin while the selected SOCKS server is down, including
 HTTP/HTTPS/WS/WSS, a synthetic DNS name, event-page teardown and a full browser
 restart. The restart harness preinstalls the extension in a retained profile so a
 startup navigation races restoration. The auth variant verifies that a lost
-session password leaves Proxy A selected and blocked until credentials are entered
+session credential pair leaves Proxy A selected and blocked until credentials are entered
 again. Recovery uses the same proxy endpoint.
 
 On failure the job uploads `firefox-*.log`. The logs contain loopback ports and the
@@ -77,6 +77,7 @@ npm run e2e:ui -- --firefox "<path to Firefox>"
 npm run e2e:fail-closed -- --firefox "<path to Firefox Developer Edition>"
 npm run e2e:restart -- --firefox "<path to Firefox Developer Edition>"
 npm run e2e:socks-auth -- --firefox "<path to Firefox Developer Edition>"
+npm run e2e:flap -- --firefox "<path to Firefox Developer Edition>"
 ```
 
 A missing Firefox binary exits with code `2` and an `INCONCLUSIVE` message; it is never
@@ -86,3 +87,18 @@ The Firefox gate also permanently attempts an unsigned fixture installation with
 Firefox signature enforcement and requires rejection. This tests the release verifier's
 negative path; finalization tests the actual AMO-signed file. Release submission and
 approval/signature finalization are separate workflows; see [RELEASING.md](RELEASING.md).
+
+## Repeated SOCKS flaps
+
+`npm run e2e:flap` runs the retained-profile Developer Edition harness through three
+outage/recovery cycles. It covers HTTP, HTTPS, WS, WSS and synthetic-name proxy DNS,
+36-request failure bursts, stable selected route/identity generation, no replay of failed
+requests, same-endpoint recovery and zero hits at the direct/system-proxy sentinel.
+Fixture timing observations are not a real-world recovery SLA. The test is part of the
+shared PR/tag gate, not an optional smoke test.
+
+The desktop minimum remains Firefox 140.0 because built-in data consent starts there;
+no maximum version is set. CI's installed stable and Developer Edition browsers exercise
+current behavior; a passing current-browser run is not a claim that a separate Firefox
+140 run occurred. Record actual binary versions in gate logs and do not label missing
+binaries a pass. See [Mozilla's version guidance](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).
