@@ -166,7 +166,9 @@ export const VECTOR_TILE = Buffer.concat([
     ]),
   ),
   layer("city", feature(1, [[2300, 2400]])),
-  layer("label", feature(1, [[2800, 1900]])),
+  // Account for the provider glyph's baseline bearing: y1900 clipped its top
+  // stroke in the real 660×280 viewport. y2300 places the ink around y89–155.
+  layer("label", feature(1, [[2800, 2300]])),
 ]);
 
 // Original synthetic 日 glyph: five rectangular strokes, not copied font data.

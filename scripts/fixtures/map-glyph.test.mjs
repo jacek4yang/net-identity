@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PbfReader } from "pbf";
+import { VectorTile } from "@mapbox/vector-tile";
 import {
   FIXTURE_STYLE,
   GLYPH_BITMAP,
   GLYPH_PATH,
   GLYPH_PBF,
+  VECTOR_TILE,
   inspectGlyphPixels,
 } from "./map-provider.mjs";
 
@@ -36,6 +38,24 @@ test("original glyph PBF has matching range, dimensions, metrics and SDF data", 
   assert.ok(GLYPH_PATH.endsWith("/25856-26111.pbf"));
   assert.ok(glyph[1] >= 25856 && glyph[1] <= 26111);
   assert.ok(FIXTURE_STYLE.glyphs.endsWith("/fonts/{fontstack}/{range}.pbf"));
+});
+
+test("glyph ink has generous margins in the initial real-Firefox viewport", () => {
+  const point = new VectorTile(new PbfReader(VECTOR_TILE)).layers.label
+    .feature(0)
+    .loadGeometry()[0][0];
+  const size = FIXTURE_STYLE.layers.find((layer) => layer.id === "cjk-label").layout["text-size"];
+  const scale = size / 24;
+  // Existing model zoom2 is renderer zoom1: a 1024px world and extent4096.
+  const anchorX = 660 / 2 + (point.x - 2048) * (1024 / 4096);
+  const anchorY = 280 / 2 + (point.y - 2048) * (1024 / 4096);
+  // Provider metrics (left3, top21, advance24, width18, height22), plus
+  // MapLibre's SHAPING_DEFAULT_OFFSET=17 baseline for this centered single line.
+  const left = anchorX + (3 - 24 / 2) * scale;
+  const top = anchorY - (21 + 17) * scale;
+  const right = left + 18 * scale;
+  const bottom = top + 22 * scale;
+  assert.ok(left > 40 && top > 40 && right < 660 - 40 && bottom < 280 - 40);
 });
 
 function image(shape) {
