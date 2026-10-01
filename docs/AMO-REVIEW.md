@@ -34,7 +34,7 @@ when the proxy is unavailable or its required session credentials are gone. Unsa
 profile documents are held unchanged. A failed teardown does not release native
 geolocation until Off successfully commits.
 
-These notes describe the unreleased schema-4 candidate, whose package version remains 1.1.2 until a separate version PR selects an unused patch. Earlier
+These notes describe the 1.1.3 schema-4 release candidate. Its implementation was merged in PR #76; the separate release PR sets version 1.1.3. No tag, submission, signing or publication is implied by these notes. Earlier
 versions retain their immutable tagged source archives for historical review.
 
 ## Install channel
@@ -64,7 +64,7 @@ The committed PNGs are:
 4. [`04-local-location-picker.png`](../store-assets/screenshots/04-local-location-picker.png)
 
 [Capture metadata](../store-assets/screenshots/metadata.json) records Firefox 158.0 on
-Linux, candidate extension version 1.1.2, dark theme, source/image hashes and the
+Linux, candidate extension version 1.1.3, dark theme, source/image hashes and the
 `Tokyo · Local demo` fixture: loopback proxy, GeoIP disabled, no credentials, synthetic
 coordinates and timezone. The popup is the real 380px UI centered on a plain 1280×800
 canvas; options retain their normal layout. [Asset instructions](../store-assets/README.md)
@@ -94,7 +94,7 @@ Outage, event-page restart, full restart, authentication loss, and recovery are 
 by real Firefox tests for HTTP, HTTPS, WS, WSS and proxy DNS. The normal-user GitHub
 installer is published only after Mozilla signing and permanent installation checks.
 
-## Current candidate: credentials and SOCKS health
+## Version 1.1.3 candidate: credentials and SOCKS health
 
 Both username and password are stored only in `storage.session`, including the active
 session snapshot. The options fields load blank; both blank preserve the saved pair,

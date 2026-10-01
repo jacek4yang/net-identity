@@ -144,7 +144,7 @@ gate includes the SOCKS outage, event-page restart, full-restart, authenticated 
 HTTP/HTTPS/WS/WSS, DNS, and zero direct-origin leak checks. At the time of that release, v1.1.0 was listed/unreviewed. Historical tags, releases
 and AMO submissions remain unchanged; see the dated status below.
 
-## Current status and unreleased candidate (2026-10-01)
+## Current status and 1.1.3 release candidate (2026-10-01)
 
 The public [v1.1.0 GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0)
 now records listed distribution and the canonical
@@ -153,13 +153,18 @@ This corrects the earlier historical pending-review statements. The live AMO pag
 not independently reachable during this check; GitHub release provenance is the evidence
 for this documentation update, not a new claim about live listing availability.
 
-The current working candidate still carries package version 1.1.2. Its schema-4,
-session-only username/password and passive SOCKS-health changes are unreleased. Select
-and verify the next unused patch against tags and authenticated AMO state before the
-separate version PR. The authenticated main-only [status run](https://github.com/jacek4yang/net-identity/actions/runs/36807778410)
+Version 1.1.3 is the selected schema-4 release candidate, with session-only usernames
+and passwords, passive SOCKS health, bounded cooldown and repeated-flap coverage.
+The implementation was squash-merged in [PR #76](https://github.com/jacek4yang/net-identity/pull/76)
+to main commit `104a97706be1421574915d921d3696d9870a1095`; its
+[exact-head CI](https://github.com/jacek4yang/net-identity/actions/runs/36809016499) passed.
+The separate release PR aligns the version and reviewer material. Its merged commit
+must pass every release gate before the immutable v1.1.3 tag is created.
+
+The authenticated main-only [status run](https://github.com/jacek4yang/net-identity/actions/runs/36807778410)
 on 2026-10-01 at 02:51:21 UTC reported the add-on public and version 1.1.3 absent.
-Thus 1.1.3 is the checked candidate patch, not a release or submission; recheck before
-use if intervening submissions occur. Keep `release-config.json` unlisted.
+This establishes candidate selection, not submission, signing or publication; recheck
+before use if intervening submissions occur. `release-config.json` remains unlisted.
 Neither the older listed release nor any historical signing assets are changed.
 
 Candidate screenshots are prepared from actual clean Firefox UI with fixture-only data.
