@@ -1,0 +1,49 @@
+name: Publish approved AMO listing
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Plan only (default); false applies reviewed repository listing assets"
+        type: boolean
+        default: true
+      receipt_run_id:
+        description: "Prior main-only listing run receipt to resume; empty for first publication"
+        type: string
+        required: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: amo-distribution
+  cancel-in-progress: false
+jobs:
+  listing:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Plan or apply approved listing through AMO API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          RECEIPT_RUN_ID: ${{ inputs.receipt_run_id }}
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: node --experimental-strip-types scripts/amo-listing.mjs
+      - name: Preserve secret-free resumable receipt and plan
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: amo-listing-receipt
+          path: |
+            artifacts/listing/receipt.json
+            artifacts/listing/plan.json
+          if-no-files-found: ignore
+          retention-days: 90
