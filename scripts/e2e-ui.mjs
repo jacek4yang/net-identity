@@ -21,6 +21,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createLiveMapProxy } from "./live-map-proxy.mjs";
+import { captureFrameFits } from "./capture-frame.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WINDOWS_DEVELOPER_EDITION = "C:\\Program Files\\Firefox Developer Edition\\firefox.exe";
@@ -553,7 +554,8 @@ async function main() {
               const bottom = (arguments[1] === "picker" ? picker : document.querySelector("#details-panel")).getBoundingClientRect();
               const x = Math.floor(top.left), y = Math.floor(top.top);
               const width = Math.ceil(top.right) - x, height = Math.ceil(bottom.bottom) - y;
-              if (x < 0 || top.right > innerWidth || y < 0 || bottom.bottom > innerHeight || height > 768) {
+              const fits = (${captureFrameFits.toString()})(arguments[1], {x,y,width,height}, {width:innerWidth,height:innerHeight});
+              if (!fits) {
                 done({error: "Real UI region does not fit fully inside the capture: " + JSON.stringify({y,height,bottom:bottom.bottom})}); return;
               }
               const screenshot = new Image();

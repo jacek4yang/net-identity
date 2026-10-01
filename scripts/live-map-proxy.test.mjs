@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import test from "node:test";
 import { createLiveMapProxy, isMapAuthority } from "./live-map-proxy.mjs";
+import { captureFrameFits } from "./capture-frame.mjs";
 
 test("only the exact HTTPS provider authority is eligible", () => {
   assert.equal(isMapAuthority("tiles.openfreemap.org:443"), true);
@@ -147,7 +148,7 @@ test(
         await mkdir(path.join(root, child), { recursive: true });
       await writeFile(path.join(root, "package.json"), '{"type":"module"}');
       await writeFile(path.join(root, "dist/manifest.json"), '{"version":"0.0.0"}');
-      for (const name of ["e2e-ui.mjs", "live-map-proxy.mjs"])
+      for (const name of ["e2e-ui.mjs", "live-map-proxy.mjs", "capture-frame.mjs"])
         await copyFile(new URL(name, import.meta.url), path.join(root, "scripts", name));
       await writeFile(
         path.join(root, "node_modules/web-ext/bin/web-ext.js"),
@@ -361,3 +362,21 @@ test(
     }
   },
 );
+
+test("picker native framing accepts 778/784px and rejects oversized or clipped content", () => {
+  const viewport = { width: 1280, height: 800 };
+  const box = (height) => ({ x: 430, y: 16, width: 692, height });
+  assert.equal(captureFrameFits("picker", box(778), viewport), true);
+  assert.equal((800 - 778) / 2, 11);
+  assert.equal(captureFrameFits("picker", box(784), viewport), true);
+  assert.equal((800 - 784) / 2, 8);
+  assert.equal(captureFrameFits("picker", { ...box(785), y: 0 }, viewport), false);
+  assert.equal(captureFrameFits("picker", { ...box(778), y: 23 }, viewport), false);
+  assert.equal(captureFrameFits("picker", { ...box(778), y: -1 }, viewport), false);
+  assert.equal(captureFrameFits("picker", { ...box(778), x: -1 }, viewport), false);
+  assert.equal(captureFrameFits("picker", { ...box(778), x: 600 }, viewport), false);
+  assert.equal(captureFrameFits("picker", { ...box(778), height: NaN }, viewport), false);
+  assert.equal(captureFrameFits("picker", box(784), { width: 1280, height: 900 }), false);
+  assert.equal(captureFrameFits("audit", box(768), viewport), true);
+  assert.equal(captureFrameFits("audit", box(769), viewport), false);
+});
