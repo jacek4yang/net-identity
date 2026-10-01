@@ -91,7 +91,6 @@ describe("toProfileInput", () => {
       type: "http",
       host: "127.0.0.1",
       port: 8080,
-      username: "user",
       proxyDNS: false,
       bypassHosts: ["localhost", "*.example.com", "10.0.0.0/8"],
     });
@@ -111,7 +110,7 @@ describe("toProfileInput", () => {
     if (!parsed.ok) return;
     expect(parsed.value.proxy.host).toBeUndefined();
     expect(parsed.value.proxy.port).toBeUndefined();
-    expect(parsed.value.proxy.username).toBeUndefined();
+    expect(Object.keys(parsed.value.proxy)).not.toContain("username");
   });
 
   it("converts manual identity fields and drops them in automatic mode", () => {
@@ -172,8 +171,22 @@ describe("toProfileInput", () => {
 });
 
 describe("credentialsIntentFrom", () => {
-  it("keeps stored credentials when the password field is blank", () => {
-    expect(credentialsIntentFrom(formValues({ password: "" }))).toEqual({ action: "keep" });
+  it("supports username-only replacement without putting credentials in the profile", () => {
+    const values = formValues({ password: "", proxyUsername: "session-username" });
+    expect(credentialsIntentFrom(values)).toEqual({
+      action: "set",
+      username: "session-username",
+      password: "",
+    });
+    expect(JSON.stringify(toProfileInput(values, "profile-0001"))).not.toContain(
+      "session-username",
+    );
+    expect(toFormValues(makeProfile({ id: "session-user-profile" })).proxyUsername).toBe("");
+  });
+  it("keeps stored credentials when both credential fields are blank", () => {
+    expect(credentialsIntentFrom(formValues({ password: "", proxyUsername: "" }))).toEqual({
+      action: "keep",
+    });
   });
 
   it("sets credentials when a password is typed", () => {
@@ -253,6 +266,6 @@ describe("proxy field hints", () => {
 
 describe("persisted state expectations", () => {
   it("keeps the schema version stable for the stored state", () => {
-    expect(SCHEMA_VERSION).toBe(3);
+    expect(SCHEMA_VERSION).toBe(4);
   });
 });

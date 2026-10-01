@@ -15,6 +15,7 @@ const readme = readFileSync("README.md", "utf8");
 describe("AMO reviewer package", () => {
   it("carries the first-listing metadata web-ext requires", () => {
     expect(metadata.summary?.["en-US"]).toBeTruthy();
+    expect(metadata.summary?.["en-US"]?.length).toBeLessThanOrEqual(250);
     expect(metadata.categories).toEqual(["privacy-security"]);
     expect(metadata.version?.license).toBe("MIT");
     expect(metadata.version?.approval_notes).toContain("docs/AMO-REVIEW.md");

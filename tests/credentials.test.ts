@@ -60,7 +60,7 @@ describe("credential store", () => {
         type: "http",
         host: "127.0.0.1",
         port: 8080,
-        username: "user",
+        authenticationRequired: true,
         proxyDNS: false,
         bypassHosts: ["localhost"],
       },
@@ -74,7 +74,8 @@ describe("credential store", () => {
     });
     await credentials.set(profile.id, { username: "user", password: "hunter2-secret" });
 
-    // The password exists only in the session area.
+    // Both credential values exist only in the session area.
+    expect(localArea.serialized()).not.toContain("username");
     expect(localArea.serialized()).not.toContain("hunter2-secret");
     expect(localArea.serialized()).not.toContain("password");
     expect(sessionArea.serialized()).toContain("hunter2-secret");
@@ -83,7 +84,9 @@ describe("credential store", () => {
     await credentials.remove(profile.id);
     const reloaded = await profiles.load();
     expect(reloaded.profiles).toHaveLength(2);
-    expect(reloaded.profiles.find((p) => p.id === profile.id)?.proxy.username).toBe("user");
+    expect(reloaded.profiles.find((p) => p.id === profile.id)?.proxy.authenticationRequired).toBe(
+      true,
+    );
   });
 
   it("round-trips credential keys", () => {

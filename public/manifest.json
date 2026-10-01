@@ -8,13 +8,16 @@
       "id": "net-identity@jacek4yang.github.io",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["locationInfo"],
+        "required": ["locationInfo", "authenticationInfo"],
         "optional": ["personallyIdentifyingInfo"]
       }
     }
   },
   "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
+    "64": "icons/icon-64.png",
     "96": "icons/icon-96.png",
     "128": "icons/icon-128.png"
   },
@@ -26,8 +29,8 @@
     "default_title": "net-identity",
     "default_popup": "popup/popup.html",
     "default_icon": {
-      "48": "icons/icon-48.png",
-      "96": "icons/icon-96.png"
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
     }
   },
   "options_ui": {
@@ -52,5 +55,6 @@
       "all_frames": true,
       "match_about_blank": true
     }
-  ]
+  ],
+  "homepage_url": "https://github.com/jacek4yang/net-identity"
 }

@@ -98,7 +98,7 @@ describe("built-in Direct route", () => {
 
   it("cannot be deleted via store.removeProfile or profiles:delete", async () => {
     const state = {
-      schemaVersion: SCHEMA_VERSION as 3,
+      schemaVersion: SCHEMA_VERSION as typeof SCHEMA_VERSION,
       activeProfileId: null,
       appliedSelection: null,
       profiles: [createBuiltinDirectProfile(), makeProfile({ id: "p1" })],

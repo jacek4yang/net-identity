@@ -74,7 +74,6 @@ import {
 } from "./active-target";
 import type { CredentialStore } from "./credentials";
 import {
-  decideProxy,
   decideFailClosedProxy,
   decideProxyAuth,
   parseRequestUrl,
@@ -83,6 +82,12 @@ import {
   type ProxyAuthChallenge,
   type ProxyAuthCredentials,
 } from "./proxy";
+import {
+  ProxyHealthTracker,
+  ProxyCooldown,
+  sanitizeProxyEndpoint,
+  type NetworkObservation,
+} from "./proxy-health";
 import { createPendingWebRtcState, describeObservedWebRtc, type WebRtcController } from "./webrtc";
 
 export interface ActivationDeps {
@@ -163,7 +168,8 @@ export class ActivationController {
   private routingIntent: "off" | "direct" | "proxy" | "blocked" | null = null;
   private pendingRoutingIntent: Promise<void> | null = null;
   private networkHealthEpoch = 0;
-  private networkUnavailable = false;
+  private readonly networkHealth: ProxyHealthTracker;
+  private readonly cooldown = new ProxyCooldown();
   /**
    * False until the first committed startup result. Content scripts that ask
    * before then are told geolocation is controlled, so a restoring profile
@@ -185,6 +191,7 @@ export class ActivationController {
 
   constructor(deps: ActivationDeps) {
     this.deps = deps;
+    this.networkHealth = new ProxyHealthTracker(deps.now);
     this.state = createInitialRuntimeState(deps.now());
   }
 
@@ -233,12 +240,33 @@ export class ActivationController {
    */
   decideProxyForRequest(
     url: string,
+    requestId?: string,
   ):
     | browser.proxy.ProxyInfo
     | Array<browser.proxy.ProxyInfo | null>
     | Promise<browser.proxy.ProxyInfo | Array<browser.proxy.ProxyInfo | null>> {
-    if (this.target !== null) return decideFailClosedProxy(this.target, url);
-    return this.ensureRoutingIntentLoaded().then(() => decideFailClosedProxy(this.target, url));
+    const decide = () => {
+      const result = decideFailClosedProxy(this.target, url);
+      const endpoint = sanitizeProxyEndpoint(Array.isArray(result) ? result[0] : result);
+      if (
+        requestId !== undefined &&
+        endpoint !== null &&
+        (endpoint.type === "socks" || endpoint.type === "socks4") &&
+        this.target !== null
+      )
+        this.networkHealth.track(requestId, this.target.generation, url, endpoint);
+      return result;
+    };
+    const ready = () => {
+      const result = decideFailClosedProxy(this.target, url);
+      const endpoint = sanitizeProxyEndpoint(Array.isArray(result) ? result[0] : result);
+      const socks = endpoint?.type === "socks" || endpoint?.type === "socks4";
+      const wait = socks ? this.cooldown.wait(this.networkHealth.cooldownMs()) : null;
+      // Recompute after waking: Apply/Off may have changed the mandatory route.
+      return wait === null ? decide() : wait.then(decide);
+    };
+    if (this.target !== null) return ready();
+    return this.ensureRoutingIntentLoaded().then(ready);
   }
 
   /** A blocking webRequest gate covers states for which ProxyInfo cannot express cancel. */
@@ -369,6 +397,7 @@ export class ActivationController {
         });
         if (this.generation !== epoch) return this.state;
         this.generation = Math.max(this.generation, snapshot.generation);
+        this.networkHealth.reset(this.generation);
         this.target = {
           profileId: snapshot.profileId,
           profileName: snapshot.profileName,
@@ -388,6 +417,7 @@ export class ActivationController {
         // An interrupted Apply already selected this configuration. Resume it,
         // never a newer Save made while its provider request was outstanding.
         this.generation = Math.max(this.generation, snapshot.generation);
+        this.networkHealth.reset(this.generation);
         return await this.activate(stored.activeProfileId, {
           profile: snapshot.profile,
           credentials: snapshot.credentials,
@@ -421,6 +451,8 @@ export class ActivationController {
     applied?: { profile: IdentityProfile; credentials: ActiveProxyTarget["credentials"] },
   ): Promise<RuntimeState> {
     const generation = ++this.generation;
+    this.networkHealth.reset(generation);
+    this.cooldown.cancel();
     this.abortController?.abort();
     const controller = new AbortController();
     this.abortController = controller;
@@ -445,7 +477,6 @@ export class ActivationController {
 
       if (generation !== this.generation) return this.state;
       this.diagnostics = [];
-      this.networkUnavailable = false;
       this.networkHealthEpoch += 1;
       this.activeTabId = null;
       this.content = { ...EMPTY_CONTENT_STATE };
@@ -601,6 +632,8 @@ export class ActivationController {
   async deactivate(): Promise<RuntimeState> {
     this.deactivating = true;
     const generation = ++this.generation;
+    this.networkHealth.reset(generation);
+    this.cooldown.cancel();
     try {
       this.abortController?.abort();
       this.abortController = null;
@@ -618,7 +651,6 @@ export class ActivationController {
       this.target = null;
       this.appliedProfile = null;
       this.blockedProfile = null;
-      this.networkUnavailable = false;
       this.networkHealthEpoch += 1;
       this.routingIntent = "off";
       const webrtc = await this.changeWebRtc(() => this.deps.webrtc.release());
@@ -648,36 +680,32 @@ export class ActivationController {
   }
 
   /** `proxy.onError`: surfaced in the UI, never containing credentials. */
-  recordProxyError(error: unknown): Promise<void> {
-    const message = describeError(error, "The proxy reported an error.");
+  recordProxyError(_error: unknown): Promise<void> {
+    const message =
+      "Firefox reported a proxy configuration or listener error. The selected route remains mandatory.";
     return this.recordDiagnostic("proxy_error", message, this.networkHealthEpoch);
   }
 
-  /** Network failure changes health only; the selected proxy remains mandatory. */
-  recordNetworkFailure(url: string, error: unknown): void {
-    if (
-      this.target?.proxy.type === "direct" ||
-      this.target === null ||
-      parseRequestUrl(url) === null
-    )
-      return;
-    if (decideProxy(this.target, url).type === "direct") return;
-    if (this.networkUnavailable) return;
-    this.networkUnavailable = true;
-    void this.recordDiagnostic(
-      "proxy_unavailable",
-      `Proxy request failed: ${describeError(error, "network error")}. Traffic remains restricted to this profile.`,
-      ++this.networkHealthEpoch,
-    );
+  /** Passive, generation-correlated observations never change routing or identity. */
+  recordNetworkFailure(details: NetworkObservation): void {
+    this.recordNetworkObservation(details, false);
   }
 
-  recordNetworkSuccess(url: string): void {
-    if (!this.networkUnavailable || this.target === null) return;
-    if (decideProxy(this.target, url).type === "direct") return;
-    this.networkUnavailable = false;
+  recordNetworkSuccess(details: NetworkObservation): void {
+    this.recordNetworkObservation(details, true);
+  }
+
+  private recordNetworkObservation(details: NetworkObservation, success: boolean): void {
+    if (!this.networkHealth.observe(details, success)) return;
+    const health = this.networkHealth.status;
+    if (health === "healthy") this.cooldown.cancel();
     void this.recordDiagnostic(
-      "proxy_recovered",
-      "The selected proxy is reachable again.",
+      health === "healthy" ? "proxy_recovered" : "proxy_suspect",
+      health === "healthy"
+        ? "Sustained requests through the selected proxy completed successfully."
+        : health === "recovering"
+          ? "Requests are completing again; waiting for sustained recovery."
+          : "Repeated requests failed across destinations. The cause is uncertain; the selected proxy remains mandatory.",
       ++this.networkHealthEpoch,
     );
   }
@@ -944,16 +972,18 @@ export class ActivationController {
       runtimeHealth:
         profile !== null &&
         isProxied(profile.proxy) &&
-        profile.proxy.username &&
+        profile.proxy.authenticationRequired &&
         !params.hasCredentials
           ? "credentials_required"
-          : this.networkUnavailable
+          : this.networkHealth.status === "unavailable"
             ? "unavailable"
-            : params.status === "error"
-              ? "error"
-              : params.lastError !== undefined && params.lastError.code !== "proxy_recovered"
-                ? "degraded"
-                : "healthy",
+            : this.networkHealth.status !== "healthy"
+              ? "degraded"
+              : params.status === "error"
+                ? "error"
+                : params.lastError !== undefined && params.lastError.code !== "proxy_recovered"
+                  ? "degraded"
+                  : "healthy",
       generation: params.generation,
       activeProfileId: profile === null ? null : profile.id,
       activeProfileName: profile === null ? null : profile.name,

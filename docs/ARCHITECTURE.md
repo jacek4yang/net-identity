@@ -39,7 +39,7 @@ answering `{ type: "direct" }` would quietly send traffic outside the proxy.
 Two mechanisms prevent that:
 
 1. **Session snapshot** (`src/background/active-target.ts`) — after routing changes, the
-   active target (including the session password) is written to `storage.session`. It is
+   active target (including the session credentials) is written to `storage.session`. It is
    written _before_ the network lookup so a crash or suspension mid-activation is safe.
 2. **Durable routing barrier** — `ActivationController.decideProxyForRequest()` returns
    the in-memory decision synchronously when available. Otherwise a single-flight
@@ -52,8 +52,10 @@ Two mechanisms prevent that:
 For a proxied decision, `proxy.onRequest` returns `[selectedProxy, null]`.
 Firefox appends its own proxy settings as failover to a single proxy result;
 the terminal null prevents an unavailable profile from falling through to
-Firefox/system routing. A one-second failover timeout makes failure visible
-quickly. The local Firefox harness sets the system proxy to a recording endpoint
+Firefox/system routing. `failoverTimeout: 1` is retained: Gecko uses this value
+for failed-proxy retry suppression, not as a TCP/SOCKS connection deadline.
+Increasing it to three seconds does not grant a connection three seconds to
+succeed. No alternative proxy exists in this terminal list. The local Firefox harness sets the system proxy to a recording endpoint
 and verifies zero fallback requests during SOCKS outage and restart.
 
 `storage.session` is cleared when Firefox exits, so a fresh browser session always
@@ -150,7 +152,7 @@ expect. This is verified in real Firefox by `npm run e2e`.
 ## Profile schema migration
 
 `ni.state.v1` in `storage.local` is the only durable profile document. `src/profile/migrate.ts`
-reads it. Versions 1 and 2 migrate to schema 3 in place: unknown keys are dropped, and `password`,
+reads it. Versions 1, 2 and 3 migrate to schema 4 in place: unknown keys are dropped, and `password`,
 `credentials` and `proxyPassword` are never copied into the result. The same function is
 idempotent. A newer integer `schemaVersion` is not opened and not replaced. A version-1
 document that fails validation, repeats an id, or exceeds the profile limit is not
@@ -206,14 +208,14 @@ Closed tabs are removed. The log keeps at most 64 frames.
 - The provider interface is intentionally narrow (IP + location + timezone) so replacing
   it cannot ripple through the activation logic.
 
-## Post-v1 profile configuration (schema 3)
+## Post-v1 profile configuration (schema 4)
 
 Diagnostic and error composition takes identity only from the current routing
 generation. An error during teardown cannot attach the previous coordinates to an
 empty route or release native geolocation before a successful idle commit.
 
-The durable `ni.state.v1` document now has `schemaVersion: 3`. The key stays stable
-so version-1 and version-2 documents migrate in place. The applied route is recorded
+The durable `ni.state.v1` document now has `schemaVersion: 4`. The key stays stable
+so version-1, version-2 and version-3 documents migrate in place. The applied route is recorded
 separately from mutable saved profiles, without credentials; cold routing uses it before
 GeoIP or UI startup. An ambiguous older active user Direct profile is blocked until an
 explicit route selection. Migration validates every profile, preserves
@@ -231,8 +233,8 @@ manual coordinates alone do not imply a locally inferred timezone.
 Save increments the configuration revision and does not alter runtime. Apply activates
 the saved revision without saving or discarding unsaved form edits. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
 configuration; Refresh uses that applied configuration, including its session credentials.
-Blank passwords retain saved credentials. Clear changes the saved session credentials;
-Apply removes them from a currently active target. Duplicate does not copy passwords.
+Both credential fields start blank. Leaving both blank retains saved session credentials; entering either replaces the pair. Clear changes the saved session credentials;
+Apply removes them from a currently active target. Duplicate does not copy usernames or passwords.
 Deleting an active profile deactivates it. Off releases WebRTC and synthetic identity.
 Direct switches without optional GeoIP permission; without consent it commits an empty,
 controlled identity. Firefox/system routing still applies. No lookup occurs merely
@@ -253,3 +255,44 @@ AMO signing. See docs/RELEASING.md for provenance, rerun and failure rules.
 Unlisted AMO file downloads authenticate only the initial request to the AMO file endpoint;
 redirects and CDN requests never receive credentials. Finalization tools come from trusted
 main and operate in a separate checkout of the unchanged release tag.
+
+## Passive SOCKS health
+
+`src/background/proxy-health.ts` is an in-memory diagnostic, used for SOCKS4/SOCKS5
+routes. `proxy.onRequest` records request ID, generation, sanitized endpoint (type,
+host, port), destination hostname and start time. Completion requires matching actual
+`webRequest.proxyInfo`; it is configuration evidence, not proof of a handshake.
+
+- At most 512 requests are retained, with 30-second expiry; oldest entries are evicted
+- Failures use a five-second window with 300 ms buckets; three buckets and two distinct
+  hostnames yield `suspect`, never confirmed `unavailable`
+- Known cancellation/abort/redirect errors are ignored. Missing or mismatched metadata,
+  old generations and cached responses do not count
+- Recovery requires three matching non-cached successes spanning at least one second;
+  a new failure resets recovery. This is hysteresis, not a guarantee of future reachability
+- Cooldown grows 250/500/1000/2000 ms, with one shared timer and at most 128 waiting
+  decisions. Overflow immediately uses the same mandatory route. Apply/Off releases
+  waiters; every released decision recomputes routing from current intent
+
+No timer probes the network, no request body is retained, and no failed HTTP request is
+replayed. Long-running requests can expire without affecting health. Sparse traffic or
+one failing destination may leave health unchanged. Correlated failures may still be
+destination, authentication or network failures; the browser exposes no transport-phase
+proof. Health resets with a new routing generation and does not change identity policy.
+
+Firefox accepts a Promise from `proxy.onRequest`; see
+[MDN](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/proxy/onRequest).
+`failoverTimeout: 1` remains a retry-suppression value in seconds, not a one-second
+connection deadline; increasing it to 3 does not establish a three-second connection
+budget. See [Gecko's proxy interface](https://searchfox.org/firefox-main/source/netwerk/base/nsIProxyInfo.idl)
+and [proxy service](https://raw.githubusercontent.com/mozilla-firefox/firefox/main/netwerk/base/nsProtocolProxyService.cpp).
+The terminal null in `[selectedProxy, null]` is essential; bare null is not a cancel result.
+
+## Schema-4 credential migration
+
+Saved/applied profiles contain only an `authenticationRequired` boolean. Usernames and
+passwords remain in `storage.session`; the options form never receives them back. Blank
+fields preserve the pair, either entered field replaces it, and Clear removes the saved
+pair and marker. Save leaves the active target unchanged until Apply. Duplicates contain
+no credential values. v3 applied snapshots survive migration independently of newer saved
+edits, and matching legacy session snapshots preserve their active credentials.

@@ -55,7 +55,7 @@ const PROXIED_PROFILE = makeProfile({
     type: "http",
     host: "127.0.0.1",
     port: 8080,
-    username: "user",
+    authenticationRequired: true,
     proxyDNS: false,
     bypassHosts: ["localhost"],
   },
@@ -109,8 +109,9 @@ describe("message router", () => {
     expect(list.ok && list.value.profiles[0]?.name).toBe("Direct");
     expect(list.ok && list.value.profiles[1]?.name).toBe("Office");
     expect(list.ok && list.value.credentialProfileIds).toEqual(["profile-0001"]);
-    // The persisted profile keeps the username (not a secret) but never a password.
-    expect(list.ok && list.value.profiles[1]?.proxy.username).toBe("user");
+    // The persisted profile contains only a non-secret authentication marker.
+    expect(harness.localArea.serialized()).not.toContain("username");
+    expect(list.ok && list.value.profiles[1]?.proxy.authenticationRequired).toBe(true);
   });
 
   it("leaves stored credentials untouched when the password field is blank", async () => {

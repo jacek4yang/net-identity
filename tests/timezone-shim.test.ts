@@ -124,6 +124,7 @@ describe("timezone shim", () => {
 
   it("restores the original implementations on uninstall", () => {
     const nativeDateTimeFormat = Intl.DateTimeFormat;
+    const nativeZone = new Intl.DateTimeFormat("en-US").resolvedOptions().timeZone;
     const nativeOffset = WINTER.getTimezoneOffset();
 
     const installed = install();
@@ -133,9 +134,7 @@ describe("timezone shim", () => {
     installed.uninstall();
     expect(WINTER.getTimezoneOffset()).toBe(nativeOffset);
     expect(Intl.DateTimeFormat).toBe(nativeDateTimeFormat);
-    expect(new Intl.DateTimeFormat("en-US").resolvedOptions().timeZone).not.toBe(
-      "America/Los_Angeles",
-    );
+    expect(new Intl.DateTimeFormat("en-US").resolvedOptions().timeZone).toBe(nativeZone);
   });
 
   it("makes local Date getters agree with the active zone and leaves UTC getters alone", () => {

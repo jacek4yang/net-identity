@@ -4,7 +4,7 @@
  * A profile binds one network identity together: proxy configuration, the observed
  * public egress identity and the browser-visible WebRTC policy.
  *
- * SECURITY: `IdentityProfile` intentionally has no password field. Proxy passwords
+ * SECURITY: `IdentityProfile` intentionally has no credential fields. Proxy usernames and passwords
  * are session-scoped secrets and live only in `browser.storage.session` (see
  * `src/background/credentials.ts`). Never add credentials to this model, to the
  * persisted state below, or to anything derived from it.
@@ -29,7 +29,8 @@ export interface ProxyConfig {
   type: ProxyType;
   host?: string;
   port?: number;
-  username?: string;
+  /** Non-secret indication that this route needs session credentials. */
+  authenticationRequired?: boolean;
   proxyDNS: boolean;
   bypassHosts: string[];
 }
@@ -67,14 +68,14 @@ export type AppliedSelection =
   | { kind: "unresolved"; profileId: string };
 
 export interface ProfileState {
-  schemaVersion: 3;
+  schemaVersion: 4;
   activeProfileId: string | null;
   /** Committed, non-secret configuration; Save never changes this. */
   appliedSelection: AppliedSelection | null;
   profiles: IdentityProfile[];
 }
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** New proxy profiles default to the strictest practical policy. */
 export const DEFAULT_PROXY_WEBRTC_POLICY: WebRTCPolicy = "disable_non_proxied_udp";
@@ -158,7 +159,7 @@ export function describeProxy(proxy: ProxyConfig): string {
   if (proxy.type === "direct") return "Browser routing (does not override Firefox's proxy)";
   const host = proxy.host ?? "?";
   const port = proxy.port === undefined ? "?" : String(proxy.port);
-  const auth = proxy.username ? " with authentication" : "";
+  const auth = proxy.authenticationRequired ? " with authentication" : "";
   return `${proxy.type.toUpperCase()} ${host}:${port}${auth}`;
 }
 

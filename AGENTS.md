@@ -86,7 +86,7 @@ extension in ways tests will not catch:
 7. **`content_scripts[].world: "MAIN"` requires Firefox 128+**. The manifest floor is
    **140.0** because that is when Firefox shows built-in data-collection consent.
 8. **`data_collection_permissions` is enforced by the 140 floor.** Required
-   `locationInfo` is accepted at install. Optional `personallyIdentifyingInfo` is
+   `locationInfo` and `authenticationInfo` are declared for built-in consent. Optional `personallyIdentifyingInfo` is
    requested from a user gesture before a _direct_ profile may send the user's own
    public IP to the GeoIP provider. Do not call the provider when that grant is absent.
 9. **`proxy.onRequest` sees `ws:` and `wss:` as well as `http:`/`https:`.**
@@ -166,23 +166,22 @@ network requests. A proxy becoming unavailable changes health, not route.
 
 Storage layout:
 
-| Key                      | Area              | Contents                                                                                    |
-| ------------------------ | ----------------- | ------------------------------------------------------------------------------------------- |
-| `ni.state.v1`            | `storage.local`   | profiles + selected/applied route. **Never** a password. Schema version 3 (migrates v1/v2). |
-| `ni.cred.v1.<profileId>` | `storage.session` | `{ username, password }`. Cleared when Firefox exits.                                       |
-| `ni.active-target.v1`    | `storage.session` | active target snapshot incl. credentials (needed for cold-start routing).                   |
+| Key                      | Area              | Contents                                                                                                   |
+| ------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------------- |
+| `ni.state.v1`            | `storage.local`   | profiles + selected/applied route. **Never** a username or password. Schema version 4 (migrates v1/v2/v3). |
+| `ni.cred.v1.<profileId>` | `storage.session` | `{ username, password }`. Cleared when Firefox exits.                                                      |
+| `ni.active-target.v1`    | `storage.session` | active target snapshot incl. credentials (needed for cold-start routing).                                  |
 
-Durable profile documents are migrated by `src/profile/migrate.ts`. Versions 1 and 2 are released shapes; current main migrates both to version 3. A password key found in that document is removed and not written
+Durable profile documents are migrated by `src/profile/migrate.ts`. Versions 1, 2 and 3 are released shapes; current main migrates all three to version 4. A password key found in that document is removed and not written
 back. A higher `schemaVersion`, or a version-1 profile that cannot be parsed without
-dropping the profile or its proxy, is left byte-for-byte in storage. Startup then stays
-idle and reports `schema_unsupported` instead of activating a direct connection. Session
+dropping the profile or its proxy, is left byte-for-byte in storage. Startup then blocks ordinary network traffic and reports `schema_unsupported` instead of activating a direct connection. Session
 snapshots are not copied into `storage.local`. Bump `SCHEMA_VERSION` and add a migration
 step before changing the stored shape.
 
 ## 7. Data collection
 
 `browser_specific_settings.gecko.data_collection_permissions` is declared as
-`required: ["locationInfo"]` and `optional: ["personallyIdentifyingInfo"]`:
+`required: ["locationInfo", "authenticationInfo"]` and `optional: ["personallyIdentifyingInfo"]`:
 
 - Automatic and manual activation can query a third-party GeoIP provider (ipwho.is)
   for the observed egress IP. A proxied profile shows the proxy's address. A direct
@@ -212,6 +211,7 @@ npm run e2e:invariants  # local Firefox checks: fail-closed geo, Date, frames, W
 npm run e2e:fail-closed # local SOCKS outage, zero direct-origin requests, event-page restart
 npm run e2e:restart     # retained-profile full Firefox restart with SOCKS unavailable
 npm run e2e:socks-auth  # session credential loss and recovery without direct fallback
+npm run e2e:flap        # repeated SOCKS outage/recovery, no replay or identity reset
 npm run icons        # regenerate public/icons deterministically
 ```
 
@@ -229,7 +229,7 @@ Package output: `artifacts/`.
   version floor and the data-collection declaration.
 - Every change that affects behaviour needs a test that fails without the change.
 - Firefox-only behaviour is covered by `npm run e2e:invariants`, `e2e:websocket`,
-  `e2e:proxy-auth`, `e2e:ui`, `e2e:fail-closed`, `e2e:restart` and `e2e:socks-auth`.
+  `e2e:proxy-auth`, `e2e:ui`, `e2e:fail-closed`, `e2e:restart`, `e2e:socks-auth` and `e2e:flap`.
   Those run in the real-Firefox CI gate (`docs/CI.md`), which
   is required on `main`. `npm run e2e` (the smoke test) needs the public GeoIP
   provider, so it stays out of CI and out of `npm run check`.
@@ -317,13 +317,13 @@ notes list the supplied pull-request titles and do not add changes that were
 not in that list.
 
 `main` is protected: pull requests only, linear history, conversation resolution,
-0 required approvals, admins included, no force pushes, no deletions. CI (`quality`)
-is a required check. Merge with `gh pr merge --squash --delete-branch`.
+0 required approvals, admins included, no force pushes, no deletions. CI (`quality` and `firefox / invariants`)
+provides required checks. Merge with `gh pr merge --squash --delete-branch`.
 
-## Post-v1 profile configuration (schema 3)
+## Post-v1 profile configuration (schema 4)
 
-The durable `ni.state.v1` document now has `schemaVersion: 3`. The key stays stable
-so version-1 and version-2 documents migrate in place. Migration validates every profile, preserves
+The durable `ni.state.v1` document now has `schemaVersion: 4`. The key stays stable
+so version-1, version-2 and version-3 documents migrate in place. Migration validates every profile, preserves
 routing and explicit WebRTC choices, strips secret keys and leaves unsupported or
 unsafe documents unchanged. The reserved `builtin-direct` route is projected in the
 domain/UI and is never a persisted user profile. Existing legitimate built-in Direct
@@ -338,8 +338,8 @@ manual coordinates alone do not imply a locally inferred timezone.
 Save increments the configuration revision and does not alter runtime. The durable applied route is stored separately from the saved profile, without credentials, so a full Firefox restart cannot activate an unapplied edit. An older active user Direct profile with ambiguous applied routing is blocked until the user selects a route again. Apply activates
 the saved revision without saving or discarding unsaved form edits. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
 configuration; Refresh uses that applied configuration, including its session credentials.
-Blank passwords retain saved credentials. Clear changes the saved session credentials;
-Apply removes them from a currently active target. Duplicate does not copy passwords.
+Both credential fields start blank. Leaving both blank retains saved session credentials; entering either replaces the pair. Clear changes the saved session credentials;
+Apply removes them from a currently active target. Duplicate does not copy usernames or passwords.
 Deleting an active profile deactivates it. Off releases WebRTC and synthetic identity.
 Direct switches without optional GeoIP permission; without consent it commits an empty,
 controlled identity. Firefox/system routing still applies. No lookup occurs merely
@@ -360,3 +360,32 @@ AMO signing. See docs/RELEASING.md for provenance, rerun and failure rules.
 Unlisted AMO file downloads authenticate only the initial request to the AMO file endpoint;
 redirects and CDN requests never receive credentials. Finalization tools come from trusted
 main and operate in a separate checkout of the unchanged release tag.
+
+## Current schema-4 and health work
+
+Do not reintroduce usernames into `ProxyConfig` or any durable saved/applied profile.
+Only `authenticationRequired` is persisted. v3 migrations must preserve the explicit
+applied snapshot; do not reconstruct it from newer saved edits. Both credential form
+fields load blank. Blank Save keeps the pair; either entered field replaces it; Clear
+removes the saved pair/marker; Apply changes runtime. See the upgrade tests in `migrate.test.ts`.
+
+`proxy-health.ts` is passive bounded SOCKS evidence: matching request ID, generation,
+endpoint and hostname; five-second failure window; three 300 ms buckets across at least
+two hostnames for suspicion; three non-cached successes across one second for recovery.
+Do not call generic errors proof of a proxy outage. Keep the 512-request/30-second bound,
+the single shared cooldown timer, 128 waiting decisions and 2-second ceiling. Overflow
+still uses the selected route. Never replay HTTP, probe the public network, change route
+or clear identity for a health transition. Keep `failoverTimeout: 1`; it is Gecko retry
+suppression, not a connection deadline. Preserve Promise and terminal-null semantics.
+
+Store screenshots may come from a clean unsigned candidate when their provenance says
+so. They must show actual extension UI with fixture-only data, never fabricated approval
+badges. Screenshot preparation is separate from AMO signing/publication gates.
+
+### Authentication data consent
+
+The schema-4 candidate declares `authenticationInfo` for existing usernames/passwords
+sent to the user-selected proxy, alongside required `locationInfo`; optional
+`personallyIdentifyingInfo` remains the gate for direct GeoIP lookup. This declaration
+correction adds no new collection or API capability. Required-data consent can change
+install/update prompts. See [Mozilla's taxonomy](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).

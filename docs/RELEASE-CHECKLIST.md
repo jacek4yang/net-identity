@@ -37,7 +37,7 @@ a signed build, a real proxy or a second Firefox version.
 
 - [ ] HTTP and HTTPS requests follow the active proxy.
 - [ ] `ws` and `wss` follow the active proxy; a loopback WebSocket stays direct.
-- [ ] The proxy password is absent from `storage.local`, from every page context and from
+- [ ] Proxy usernames and passwords are absent from `storage.local`, from every page context and from
       the browser console. (`about:debugging` → inspect → storage.)
 - [ ] Off releases routing, WebRTC and synthetic identity without making a lookup.
 
@@ -97,7 +97,7 @@ and tag. Never move or reuse a rejected tag.
 ## Distribution gates
 
 Before tag: `npm ci`, `npm run check`, `npm run package` and every Firefox E2E
-(invariants, websocket, proxy-auth, ui, fail-closed, restart, socks-auth), plus
+(invariants, websocket, proxy-auth, ui, fail-closed, restart, socks-auth, flap), plus
 green required CI on exact merged main.
 Do not require a signed artifact before submitting its new version for signing.
 
@@ -106,3 +106,19 @@ manifest ID/version, production payload and normal Firefox permanent signature-e
 installation. Only then finalize the public GitHub Release. Pending review is an external
 blocker, never a successful user release. Verify canonical AMO URL and default update
 channel, then update README in a separate documentation PR if needed.
+
+## Candidate-specific checks
+
+- [ ] Schema-4 migration removes legacy usernames from both saved and applied profiles,
+      preserving an applied proxy when a newer saved revision is Direct
+- [ ] Both blank credential fields preserve the session pair; either field replaces it;
+      Clear affects runtime only after Apply; Duplicate carries no credential values
+- [ ] `e2e:flap` passes all three outage/recovery cycles and direct sentinels remain zero
+- [ ] Suspected proxy-health wording does not claim transport outage or guaranteed
+      recovery timing; failed HTTP requests are never replayed
+- [ ] Required data declarations include the existing authentication transmission to the
+      user-selected proxy; new/update consent prompts are not described as silent
+- [ ] Four store screenshots show actual fixture UI, with unsigned-candidate provenance
+      when applicable; screenshots are not evidence of Mozilla approval or signature
+- [ ] Authenticated AMO state confirms the next patch version is unused before the
+      separate version PR. Do not infer availability from Git tags alone

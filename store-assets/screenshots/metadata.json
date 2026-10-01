@@ -1,0 +1,55 @@
+{
+  "extensionVersion": "1.1.2",
+  "provenance": {
+    "build": "unsigned local candidate",
+    "installation": "temporary add-on installed by web-ext in disposable Firefox profile",
+    "sourceDirectory": "dist",
+    "signedRelease": false
+  },
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:158.0) Gecko/20100101 Firefox/158.0",
+  "theme": "dark",
+  "sourceHashes": {
+    "popup/popup.html": "8db711354bba517af1a97b16b1e65fbbebdf88c11c29c418a0b7322cd58fae5e",
+    "popup/popup.css": "4e2407664eadb85437142f8b695b71e9f10d8d6f90caf1aa6fcffc3d3bfa0cb8",
+    "popup/popup.js": "836ade9a9ba4b2eb7cc429c2eb6543ddbe1adcd796fd22d4d9fc4621b9d80527",
+    "options/options.html": "9740dcea5fe4e1fc783cf087b7b227460bcb7c1793165b17d17bbcca09463441",
+    "options/options.css": "a2e8acb287d37c6f5781e83be2d82447b69aec0878d3fe4fecde0ac909708574",
+    "options/options.js": "110286f39fb2408cc0b00ccb6eae496daa526214edc8b1842c453716467f0fda"
+  },
+  "fixture": {
+    "profile": "Tokyo · Local demo",
+    "proxy": "127.0.0.1:9999",
+    "geoip": "disabled",
+    "credentials": false,
+    "latitude": 35.68,
+    "longitude": 139.76,
+    "accuracy": 20000,
+    "timezone": "Asia/Tokyo"
+  },
+  "images": [
+    {
+      "file": "02-profile-management.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "bd21836e340da7135389836c2fc6ef2071ea5ff3e224793e1f296558be524b44"
+    },
+    {
+      "file": "04-local-location-picker.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "867e2bd6bc916c3eac2e08feebb8d1f993277fadff3ad4ef4d5e8103726e6e8b"
+    },
+    {
+      "file": "01-active-profile.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "777fd20db83346a23830a3b1921291f4930849d892957f1ee1705c337c9a93fb"
+    },
+    {
+      "file": "03-identity-audit.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "6fd71ed115e03193ca45c369164c94fe8c828bfbf16aa7e7f5217e8e6d5199f0"
+    }
+  ]
+}

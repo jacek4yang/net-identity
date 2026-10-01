@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = path.join(root, "public", "icons");
-const SIZES = [48, 96, 128];
+const SIZES = [16, 32, 48, 64, 96, 128];
 
 /* --------------------------------------------------------------- PNG encoder */
 
@@ -74,71 +74,92 @@ function encodePng(width, height, rgba) {
 
 /* ------------------------------------------------------------------- drawing */
 
-const BACKGROUND = [16, 43, 82]; // deep blue
-const FOREGROUND = [235, 244, 255]; // near white
-const ACCENT = [90, 200, 250]; // cyan
+// A shield enclosing one continuous route and its two endpoints. Geometry is
+// shared with the SVG master, so editing the master means editing these points.
+const SHIELD = [
+  [8, 3],
+  [13.5, 5],
+  [13.5, 9],
+  [12, 12],
+  [8, 15],
+  [4, 12],
+  [2.5, 9],
+  [2.5, 5],
+];
+const ROUTE = [
+  [5.5, 6.25],
+  [5.5, 9.5],
+  [10.5, 9.5],
+  [10.5, 6.25],
+];
+const NAVY = [21, 47, 68];
+const MINT = [105, 239, 200];
+const WHITE = [247, 253, 255];
 
-function mix(base, overlay, alpha) {
-  return [
-    Math.round(base[0] + (overlay[0] - base[0]) * alpha),
-    Math.round(base[1] + (overlay[1] - base[1]) * alpha),
-    Math.round(base[2] + (overlay[2] - base[2]) * alpha),
-  ];
+function polygon(x, y, points) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const [xi, yi] = points[i];
+    const [xj, yj] = points[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
-
-/**
- * Draws a rounded square with a globe: a circle plus horizontal and vertical
- * meridians, representing "network identity".
- */
+function segmentDistance(x, y, a, b) {
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1];
+  const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy);
+}
+function sample(x, y) {
+  if (!polygon(x, y, SHIELD)) return null;
+  if (Math.hypot(x - 10.5, y - 6.25) <= 1.35) return MINT;
+  if (Math.hypot(x - 5.5, y - 6.25) <= 1.35) return WHITE;
+  if (ROUTE.slice(1).some((b, i) => segmentDistance(x, y, ROUTE[i], b) <= 0.75)) return WHITE;
+  return NAVY;
+}
 function renderIcon(size) {
   const pixels = Buffer.alloc(size * size * 4);
-  const center = (size - 1) / 2;
-  const radius = size * 0.42;
-  const corner = size * 0.22;
-  const ringWidth = Math.max(1, size * 0.055);
-
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const distanceFromCenter = Math.hypot(x - center, y - center);
-      const inCircle = distanceFromCenter <= radius;
-      const ringOuter = radius - ringWidth <= distanceFromCenter && distanceFromCenter <= radius;
-
-      // Vertical meridian: narrow ellipse across the circle.
-      const nx = (x - center) / radius;
-      const ny = (y - center) / radius;
-      const verticalMeridian = inCircle && Math.abs(nx) <= 0.07;
-      const horizontalMeridian = inCircle && Math.abs(ny) <= 0.07;
-      const midMeridian = inCircle && Math.abs((nx * nx) / 0.28 + ny * ny - 1) <= 0.12;
-
-      let color = BACKGROUND;
-      let alpha = 255;
-
-      // Rounded square background with transparent corners.
-      const dx = Math.max(Math.abs(x - center) - (center - corner), 0);
-      const dy = Math.max(Math.abs(y - center) - (center - corner), 0);
-      const outsideRoundedSquare = Math.hypot(dx, dy) > corner;
-      if (outsideRoundedSquare) {
-        alpha = 0;
-      } else if (ringOuter || verticalMeridian || horizontalMeridian || midMeridian) {
-        color = mix(BACKGROUND, FOREGROUND, 0.95);
-      } else if (inCircle) {
-        color = mix(BACKGROUND, ACCENT, 0.22);
+  const samples = 8;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const sum = [0, 0, 0];
+      let covered = 0;
+      for (let sy = 0; sy < samples; sy++) {
+        for (let sx = 0; sx < samples; sx++) {
+          const color = sample(
+            ((x + (sx + 0.5) / samples) * 16) / size,
+            ((y + (sy + 0.5) / samples) * 16) / size,
+          );
+          if (color) {
+            covered++;
+            for (let c = 0; c < 3; c++) sum[c] += color[c];
+          }
+        }
       }
-
       const offset = (y * size + x) * 4;
-      pixels[offset] = color[0];
-      pixels[offset + 1] = color[1];
-      pixels[offset + 2] = color[2];
-      pixels[offset + 3] = alpha;
+      for (let c = 0; c < 3; c++) pixels[offset + c] = covered ? Math.round(sum[c] / covered) : 0;
+      pixels[offset + 3] = Math.round((255 * covered) / (samples * samples));
     }
   }
-
   return encodePng(size, size, pixels);
 }
-
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
+  <title>Net Identity route shield</title>
+  <path fill="#152f44" d="M${SHIELD.map((p) => p.join(" ")).join("L")}Z"/>
+  <path d="M${ROUTE.map((p) => p.join(" ")).join("L")}" stroke="#f7fdff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="5.5" cy="6.25" r="1.35" fill="#f7fdff"/>
+  <circle cx="10.5" cy="6.25" r="1.35" fill="#69efc8"/>
+</svg>
+`;
 await mkdir(outputDir, { recursive: true });
+const listingDir = path.join(root, "store-assets", "icons");
+await mkdir(listingDir, { recursive: true });
+await writeFile(path.join(listingDir, "icon.svg"), svg);
 for (const size of SIZES) {
+  const png = renderIcon(size);
   const file = path.join(outputDir, `icon-${size}.png`);
-  await writeFile(file, renderIcon(size));
+  await writeFile(file, png);
+  if (size === 32 || size === 64) await writeFile(path.join(listingDir, `icon-${size}.png`), png);
   console.error(`wrote ${path.relative(root, file)}`);
 }

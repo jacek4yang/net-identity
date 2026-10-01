@@ -5,6 +5,12 @@ import { createProfile, SCHEMA_VERSION } from "../src/profile/schema";
 import { makeProfile } from "./helpers";
 
 describe("parseProfile", () => {
+  it("rejects a malformed non-secret authentication marker", () => {
+    const profile = makeProfile({ id: "session-user-profile" });
+    expect(
+      parseProfile({ ...profile, proxy: { ...profile.proxy, authenticationRequired: "yes" } }).ok,
+    ).toBe(false);
+  });
   it("accepts a valid HTTP proxy profile and drops unknown keys", () => {
     const parsed = parseProfile({
       ...makeProfile({ id: "profile-0001" }),
@@ -26,7 +32,8 @@ describe("parseProfile", () => {
 
     expect(parsed.value.proxy.host).toBe("proxy.example.com");
     expect(parsed.value.proxy.port).toBe(3128);
-    expect(parsed.value.proxy.username).toBe("user");
+    expect(parsed.value.proxy.authenticationRequired).toBe(true);
+    expect(Object.keys(parsed.value.proxy)).not.toContain("username");
     // Neither the profile nor its proxy may carry a password, even when supplied.
     expect(JSON.stringify(parsed.value)).not.toContain("super-secret");
     expect(Object.keys(parsed.value.proxy)).not.toContain("password");

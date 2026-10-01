@@ -15,8 +15,8 @@ and AMO submission are immutable; its tag targets
 
 Before tagging clean, merged main, run `npm ci`, `npm run check`, `npm run package`,
 `npm run e2e:invariants`, `npm run e2e:websocket`, `npm run e2e:proxy-auth`,
-`npm run e2e:ui`, `npm run e2e:fail-closed`, `npm run e2e:restart` and
-`npm run e2e:socks-auth` on the exact commit. The last three use Firefox Developer
+`npm run e2e:ui`, `npm run e2e:fail-closed`, `npm run e2e:restart`,
+`npm run e2e:socks-auth` and `npm run e2e:flap` on the exact commit. The outage, restart, auth-loss and flap checks use Firefox Developer
 Edition for preinstalled unsigned-candidate restart coverage. Wait for both required CI checks. Follow
 [the release checklist](RELEASE-CHECKLIST.md). Create and push the new immutable tag
 only after every pre-submission gate passes. Never move or reuse a rejected tag.
@@ -105,9 +105,9 @@ administration, `node --experimental-strip-types src/release/amo-status.ts <vers
 returns exit codes: approved 0, error 1, pending 20, rejected/disabled 30, absent 40.
 The finalization workflow translates pending review into successful no-publication behavior.
 
-## 1.1.0 candidate
+## Historical 1.1.0 candidate selection
 
-The next release is 1.1.0: schema-2 migration, reserved Direct, independent identity
+At that candidate-selection stage, the next release was 1.1.0: schema-2 migration, reserved Direct, independent identity
 policies, saved-revision Apply, session-only credentials and the offline coordinate
 picker. Authenticated AMO inspection found 1.1.0 absent before the version PR; v1.0.0
 was listed/unreviewed. This records candidate selection, not approval. The final release
@@ -115,8 +115,8 @@ metadata and AMO status remain authoritative for publication.
 
 ## 1.1.1 self-distribution
 
-Version 1.1.0 already exists on AMO as listed/unreviewed, so 1.1.1 is a distinct unlisted
-submission. Neither the old tags nor earlier submissions are changed. AMO version numbers
+At the time 1.1.1 was selected, version 1.1.0 existed on AMO as listed/unreviewed,
+so 1.1.1 was a distinct unlisted submission. Neither the old tags nor earlier submissions are changed. AMO version numbers
 are unique per add-on across channels. Unlisted signing may also require manual review;
 upload acceptance alone never permits publication. The signing client waits at most two
 minutes for approval, after which hourly finalization can finish later.
@@ -124,7 +124,7 @@ minutes for approval, after which hourly finalization can finish later.
 Install the signed XPI using Firefox Add-ons Manager > Install Add-on From File.
 No custom update URL is configured; GitHub releases do not automatically update the
 installation. A future higher listed AMO version may update it through Firefox's default
-AMO update service. The older pending 1.1.0 will not replace 1.1.1. Unlisted signing does
+AMO update service. The older 1.1.0 cannot replace the higher 1.1.1. Unlisted signing does
 not imply public listing approval; release notes and metadata explicitly record the channel.
 
 The signed manifest may omit exactly one final LF byte. The verifier proves this by
@@ -141,5 +141,29 @@ stored separately from editable saved profiles, so full Firefox restart cannot m
 unapplied Direct edit effective. Proxy outages, lost session credentials, and unsafe
 startup state fail external requests instead of falling back to Direct. The release
 gate includes the SOCKS outage, event-page restart, full-restart, authenticated SOCKS,
-HTTP/HTTPS/WS/WSS, DNS, and zero direct-origin leak checks. v1.1.0 remains listed and
-unreviewed; v1.1.1 and older tags, releases, and AMO submissions are unchanged.
+HTTP/HTTPS/WS/WSS, DNS, and zero direct-origin leak checks. At the time of that release, v1.1.0 was listed/unreviewed. Historical tags, releases
+and AMO submissions remain unchanged; see the dated status below.
+
+## Current status and unreleased candidate (2026-10-01)
+
+The public [v1.1.0 GitHub release](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.0)
+now records listed distribution and the canonical
+[AMO URL](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
+This corrects the earlier historical pending-review statements. The live AMO page was
+not independently reachable during this check; GitHub release provenance is the evidence
+for this documentation update, not a new claim about live listing availability.
+
+The current working candidate still carries package version 1.1.2. Its schema-4,
+session-only username/password and passive SOCKS-health changes are unreleased. Select
+and verify the next unused patch against tags and authenticated AMO state before the
+separate version PR. The authenticated main-only [status run](https://github.com/jacek4yang/net-identity/actions/runs/36807778410)
+on 2026-10-01 at 02:51:21 UTC reported the add-on public and version 1.1.3 absent.
+Thus 1.1.3 is the checked candidate patch, not a release or submission; recheck before
+use if intervening submissions occur. Keep `release-config.json` unlisted.
+Neither the older listed release nor any historical signing assets are changed.
+
+Candidate screenshots are prepared from actual clean Firefox UI with fixture-only data.
+An unsigned candidate is acceptable for asset preparation when provenance records that
+fact. Screenshots do not satisfy any signing gate. AMO icon/preview uploads are separate
+listing API mutations, not prerequisites for unlisted signing; do not mix them into the
+credential-isolated submission/finalizer pipeline.

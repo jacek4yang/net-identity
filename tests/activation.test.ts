@@ -103,7 +103,7 @@ describe("activation", () => {
         type: "http",
         host: "127.0.0.1",
         port: 8080,
-        username: "user",
+        authenticationRequired: true,
         proxyDNS: false,
         bypassHosts: ["localhost"],
       },
@@ -519,7 +519,7 @@ describe("activation", () => {
 
     const message = harness.controller.getState().lastError?.message ?? "";
     expect(message).not.toContain("dXNlcjpwdw==");
-    expect(message).toContain("[redacted]");
+    expect(message).not.toContain("Basic");
   });
 
   it("does not let an in-flight proxy diagnostic erase a newly resolved identity", async () => {
@@ -841,7 +841,7 @@ describe("background restart", () => {
         type: "socks5",
         host: "127.0.0.1",
         port: 1080,
-        username: "user",
+        authenticationRequired: true,
         proxyDNS: true,
         bypassHosts: [],
       },
@@ -870,22 +870,99 @@ describe("background restart", () => {
     expect(state.activeProfileId).toBe(profile.id);
   });
 
-  it("changes proxy health without changing the selected route, and recovers", async () => {
-    const harness = createHarness();
-    const profile = makeProfile({ id: "health-proxy" });
+  it("correlates suspect health, preserves identity and recovers only with sustained success", async () => {
+    let now = 0;
+    const harness = createHarness({ now: () => now });
+    const profile = makeProfile({
+      id: "health-proxy",
+      proxy: { type: "socks5", host: "proxy.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
+    });
     await harness.saveProfile(profile);
-    await harness.controller.activate(profile.id);
-    harness.controller.recordNetworkFailure("https://example.invalid/", "NS_ERROR_NET_RESET");
-    await waitUntil(() => harness.controller.getState().runtimeHealth === "unavailable");
-    harness.controller.recordNetworkFailure("https://example.invalid/", "NS_ERROR_NET_RESET");
-    void harness.controller.recordProxyError(new Error("proxy failed"));
+    const activated = await harness.controller.activate(profile.id);
+    const observations = [];
+    for (let i = 0; i < 6; i++) {
+      const url = `https://origin${i % 2}.invalid/`;
+      const requestId = `request-${i}`;
+      const proxyInfo = terminalProxy(
+        await harness.controller.decideProxyForRequest(url, requestId),
+      );
+      observations.push({
+        url,
+        requestId,
+        proxyInfo,
+        fromCache: false,
+        error: "NS_ERROR_NET_RESET",
+      });
+    }
+    for (const details of observations.slice(0, 3)) {
+      harness.controller.recordNetworkFailure(details);
+      now += 350;
+    }
+    await waitUntil(() => harness.controller.getState().runtimeHealth === "degraded");
+    expect(harness.controller.getState().lastError?.code).toBe("proxy_suspect");
     expect(harness.controller.getState().desiredRoute).toBe("proxy");
     expect(harness.controller.getState().appliedRoute).toBe("proxy");
-    expect(harness.controller.getState().activeProfileId).toBe(profile.id);
-    terminalProxy(await harness.controller.decideProxyForRequest("https://example.invalid/"));
-    harness.controller.recordNetworkSuccess("https://example.invalid/");
+    expect(harness.controller.getState().identity).toEqual(activated.identity);
+    expect(harness.controller.getState().generation).toBe(activated.generation);
+    for (const details of observations.slice(3)) {
+      harness.controller.recordNetworkSuccess(details);
+      now += 600;
+    }
     await waitUntil(() => harness.controller.getState().runtimeHealth === "healthy");
     expect(harness.controller.getState().activeProfileId).toBe(profile.id);
+  });
+
+  it("ignores stale generation, uncorrelated, bypass, cached and origin-only failures", async () => {
+    let now = 0;
+    const harness = createHarness({ now: () => now });
+    const profile = makeProfile({
+      id: "health-isolated",
+      proxy: { type: "socks5", host: "proxy.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
+    });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+    const url = "https://example.invalid/";
+    const proxyInfo = terminalProxy(await harness.controller.decideProxyForRequest(url, "old"));
+    await harness.controller.activate(profile.id);
+    harness.controller.recordNetworkFailure({ url, requestId: "old", proxyInfo, error: "failure" });
+    for (let i = 0; i < 6; i++) {
+      const requestId = `isolated-${i}`;
+      await harness.controller.decideProxyForRequest(url, requestId);
+      harness.controller.recordNetworkFailure({ url, requestId, proxyInfo, error: "failure" });
+      now += 400;
+    }
+    expect(harness.controller.getState().runtimeHealth).toBe("healthy");
+    expect(harness.controller.decideProxyForRequest(url)).not.toBeInstanceOf(Promise);
+  });
+
+  it("wakes cooldown on Off and recomputes the route without retaining the old proxy", async () => {
+    let now = 0;
+    const harness = createHarness({ now: () => now });
+    const profile = makeProfile({
+      id: "health-off",
+      proxy: { type: "socks5", host: "proxy.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
+    });
+    await harness.saveProfile(profile);
+    await harness.controller.activate(profile.id);
+    for (let i = 0; i < 3; i++) {
+      const url = `https://origin${i % 2}.invalid/`;
+      const requestId = `off-${i}`;
+      const proxyInfo = terminalProxy(
+        await harness.controller.decideProxyForRequest(url, requestId),
+      );
+      harness.controller.recordNetworkFailure({ url, requestId, proxyInfo, error: "failure" });
+      if (i < 2) now += 350;
+    }
+    const pending = harness.controller.decideProxyForRequest("https://pending.invalid/");
+    expect(pending).toBeInstanceOf(Promise);
+    await harness.controller.deactivate();
+    // A wake during teardown may retain the departing mandatory route until Off commits.
+    const awakened = await pending;
+    if (Array.isArray(awakened)) terminalProxy(awakened);
+    expect(harness.controller.getState().runtimeHealth).toBe("healthy");
+    expect(await harness.controller.decideProxyForRequest("https://pending.invalid/")).toEqual({
+      type: "direct",
+    });
   });
 
   it("does not call the GeoIP provider for a direct profile without personal-data consent", async () => {
