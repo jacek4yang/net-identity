@@ -46,10 +46,12 @@ jobs:
       - name: Require deterministic real-render gate first
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
+          LP_NUM_THREADS: "2"
         run: xvfb-run -a node scripts/e2e-map.mjs --firefox /usr/bin/firefox --screenshots artifacts/map-gate
       - name: Capture actual provider geography using the production UI
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
+          LP_NUM_THREADS: "2"
         run: |
           set -euo pipefail
           xvfb-run -a node scripts/e2e-ui.mjs --firefox /usr/bin/firefox \

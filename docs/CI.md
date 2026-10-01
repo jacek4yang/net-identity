@@ -131,3 +131,23 @@ no maximum version is set. CI's installed stable and Developer Edition browsers 
 current behavior; a passing current-browser run is not a claim that a separate Firefox
 140 run occurred. Record actual binary versions in gate logs and do not label missing
 binaries a pass. See [Mozilla's version guidance](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).
+
+### Software-renderer resource bound
+
+The Xvfb/Mesa render gate and live-capture workflow set `LP_NUM_THREADS=2` alongside
+`LIBGL_ALWAYS_SOFTWARE=1`. [Mesa documents this setting](https://docs.mesa3d.org/envvars.html#lp-num-threads)
+as the number of rendering threads, whose default follows CPU-core count. This makes
+software-renderer resource use bounded across runner sizes; rasterization remains enabled.
+The harness logs only these selected settings and standard version/renderer information
+from the existing production canvas, without allocating a probe context. The synthetic map harness enables web-ext debug
+output but retains only native Firefox graphics messages; authorization/cookie/password
+lines are dropped and extension origins redacted. Unprefixed continuation lines are
+omitted, so this is selective diagnostics rather than a complete native stderr capture. Live-provider UI capture does not
+enable verbose logging.
+
+Two earlier runs reported native `FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS` while
+creating the replacement context after an intentional map-data failure. Initial render pixels and the separate no-WebGL/privacy gate passed and the extension correctly fell back offline. That Gecko
+message means context creation exhausted its driver options; it does not establish
+thread or memory exhaustion. The resource bound tests that hypothesis without changing
+extension runtime, browser protections, deadlines, pixel assertions or the three
+immediate Reload cycles. A passing run is evidence for that run, not proof of root cause.

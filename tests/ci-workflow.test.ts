@@ -25,7 +25,7 @@ describe("real-Firefox release gate", () => {
     expect(firefox).toContain("--no-local-cjk --screenshots artifacts/map-render");
     expect(firefox).toContain("run map-fallback npm run e2e:map-fallback");
     expect(firefox).toContain(
-      "run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map",
+      "run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=2 xvfb-run -a npm run e2e:map",
     );
     expect(firefox).toContain("--screenshots artifacts/map-render");
     expect(firefox).toContain("artifacts/map-render/*");

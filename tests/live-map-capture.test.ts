@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 const workflow = () => readFileSync(".github/workflows/capture-live-map.yml", "utf8");
 
 describe("optional real-provider listing capture", () => {
+  it("bounds Mesa threads for both production rendering and live capture", () => {
+    expect(workflow().match(/LP_NUM_THREADS: "2"/g)).toHaveLength(2);
+  });
   it("requires a manual opt-in and grants no write credentials", () => {
     const source = workflow();
     expect(source).toContain("workflow_dispatch:");
