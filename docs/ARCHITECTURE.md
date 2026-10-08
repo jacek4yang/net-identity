@@ -348,3 +348,11 @@ asserts zero ordinary-fixture CONNECTs/origin hits while credentials are missing
 zero-handshake counts would hide this platform limit and are not an acceptance criterion.
 See [the security boundary](SECURITY.md#missing-required-credentials-and-the-firefox-cancellation-boundary)
 and Mozilla's linked documentation for the distinction.
+
+## Candidate popup quick setup
+
+`profile/quick-proxy.ts` parses bounded endpoint text using shared host validation and
+constructs a profile through `parseProfile`. `popup/quick-add.ts` owns only form state
+and invokes the existing save/activate protocol. It adds no background permission,
+network probe, persistent credential format or alternate activation controller. The
+first slice remains English; full locale support is a separate tracked slice.

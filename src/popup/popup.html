@@ -60,9 +60,68 @@
           </div>
         </div>
 
+        <button
+          id="quick-add-toggle"
+          type="button"
+          class="btn"
+          aria-expanded="false"
+          aria-controls="quick-add-panel"
+        >
+          + Add Proxy
+        </button>
+        <section id="quick-add-panel" hidden aria-label="Quick add proxy">
+          <form id="quick-add-form" autocomplete="off">
+            <fieldset id="quick-add-fields">
+              <legend>Add a proxy</legend>
+              <label for="quick-protocol">Protocol</label>
+              <select id="quick-protocol">
+                <option value="socks5">SOCKS5</option>
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks4">SOCKS4</option>
+              </select>
+              <label for="quick-host">Host or proxy address</label>
+              <input
+                id="quick-host"
+                maxlength="1024"
+                required
+                placeholder="127.0.0.1:10808"
+                spellcheck="false"
+              />
+              <label for="quick-port">Port (when not included above)</label>
+              <input id="quick-port" inputmode="numeric" maxlength="5" placeholder="10808" />
+              <label for="quick-name">Profile name (optional)</label>
+              <input id="quick-name" maxlength="64" />
+              <details>
+                <summary>Session-only authentication</summary>
+                <label for="quick-username">Username</label
+                ><input id="quick-username" autocomplete="off" maxlength="128" spellcheck="false" />
+                <label for="quick-password">Password</label
+                ><input
+                  id="quick-password"
+                  type="password"
+                  autocomplete="new-password"
+                  maxlength="256"
+                />
+                <p>
+                  Credentials are lost when Firefox exits. SOCKS4 does not support authentication.
+                </p>
+              </details>
+              <p>
+                Explicit URL schemes take precedence. No automatic protocol detection. Enter
+                credentials separately, not in a URL.
+              </p>
+              <button id="quick-save" class="btn" type="submit">Save</button>
+              <button id="quick-save-activate" class="btn" type="submit">
+                Save &amp; Activate
+              </button>
+            </fieldset>
+          </form>
+          <p id="quick-status" role="status" aria-live="polite"></p>
+        </section>
         <div class="manage-row">
           <button id="manage-profiles" type="button" class="manage-button">
-            <span class="plus-symbol" aria-hidden="true">+</span> Add / Manage profiles
+            Settings / Manage profiles
           </button>
         </div>
       </section>

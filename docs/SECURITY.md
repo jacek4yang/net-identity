@@ -322,3 +322,12 @@ uses proxy matching. The dual-mode fixture records and locally rejects browser-s
 attempts, while asserting zero anonymous fixture CONNECTs and origin hits from ordinary
 test traffic. It does not assert zero browser-wide SOCKS handshakes. Removing the gate
 must make the ordinary-traffic negative control fail.
+
+## Candidate quick setup
+
+The popup quick-add form uses the existing validated profile save and explicit activation
+messages. It never probes an endpoint. Credential-bearing pasted URIs are refused with
+fixed text; credentials must use the existing session-only fields. Save never changes
+the applied route or initiates identity lookup. While a quick submission is pending its
+controls and competing popup route actions are disabled; runtime generations remain
+responsible for rejecting stale state. Closing the panel clears credential input fields.

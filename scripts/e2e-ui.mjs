@@ -932,6 +932,39 @@ async function main() {
 
     await client.send("WebDriver:Navigate", { url: popupUrl });
     await waitFor(`return !!document.querySelector('[data-profile-id="${id}"]');`);
+    const beforeQuick = (await call({ type: "state:get" })).state;
+    await click("#quick-add-toggle");
+    await fill({ "quick-host": "socks5://[::1]:10808", "quick-name": "Quick local fixture" });
+    await click("#quick-save");
+    await waitFor(
+      'return document.getElementById("quick-status").textContent.startsWith("Saved.");',
+    );
+    const afterQuick = (await call({ type: "state:get" })).state;
+    const quickProfiles = await call({ type: "profiles:list" });
+    const quickProfile = quickProfiles.profiles.find((p) => p.name === "Quick local fixture");
+    check(
+      quickProfile?.proxy.type === "socks5" &&
+        quickProfile.proxy.host === "::1" &&
+        quickProfile.proxy.port === 10808,
+      "Popup quick setup parses IPv6 and saves a validated proxy",
+    );
+    check(
+      afterQuick.generation === beforeQuick.generation &&
+        afterQuick.activeProfileId === beforeQuick.activeProfileId,
+      "Popup Save does not activate or resolve identity",
+    );
+    await fill({ "quick-host": "http://fixture-secret:fixture-password@localhost:8080" });
+    await click("#quick-save");
+    await waitFor(
+      'return document.getElementById("quick-status").textContent.includes("Remove credentials");',
+    );
+    check(
+      !(await call({ type: "profiles:list" })).profiles.some((p) =>
+        JSON.stringify(p).includes("fixture-secret"),
+      ),
+      "Credential-bearing pasted URL is not saved",
+    );
+    await click("#quick-add-toggle");
     await click(`[data-profile-id="${id}"]`);
     await waitFor(
       'return document.getElementById("identity-timezone").textContent === "Asia/Tokyo";',

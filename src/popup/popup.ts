@@ -1,3 +1,4 @@
+import { bindQuickAdd } from "./quick-add";
 /**
  * Popup view: compact quick-switching route switcher and identity surface.
  *
@@ -76,6 +77,7 @@ const CHECK_STATUS_LABELS: Record<AuditCheckStatus, string> = {
   error: "error",
 };
 
+let quickAddBusy = false;
 let knownProfiles: IdentityProfile[] = [];
 let currentActiveId: string | null = null;
 let currentStatus: RuntimeStatus = "idle";
@@ -110,6 +112,7 @@ function renderRoutes(): void {
   elements.routeOff.setAttribute("aria-checked", String(isOff));
   elements.routeOff.classList.toggle("is-activating", isDeactivating);
 
+  elements.routeOff.disabled = quickAddBusy;
   clear(elements.routeList);
 
   for (const profile of knownProfiles) {
@@ -155,6 +158,7 @@ function renderRoutes(): void {
       ],
     });
 
+    item.disabled = quickAddBusy;
     elements.routeList.append(item);
   }
 }
@@ -243,7 +247,7 @@ function renderState(state: RuntimeState): void {
   renderDetails(state);
   renderRoutes();
 
-  elements.refreshButton.disabled = state.activeProfileId === null;
+  elements.refreshButton.disabled = quickAddBusy || state.activeProfileId === null;
 
   renderError(
     state.runtimeHealth === "credentials_required"
@@ -417,6 +421,17 @@ onRuntimeMessage((message) => {
     return undefined;
   }
   return undefined;
+});
+
+bindQuickAdd({
+  profiles: () => knownProfiles,
+  reload: loadProfiles,
+  activate: activateRoute,
+  busy: (value) => {
+    quickAddBusy = value;
+    elements.refreshButton.disabled = value || currentActiveId === null;
+    renderRoutes();
+  },
 });
 
 void bootstrap();

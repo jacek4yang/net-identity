@@ -417,3 +417,11 @@ identity requires server-side rejection of anonymous access. Keep browser-servic
 attempts recorded/rejected in the local fixture; assert zero ordinary-fixture CONNECTs
 and origin hits, not zero global handshakes. Preserve the pre-fix negative control.
 Do not add Direct fallback, OS/native changes or perfect-kill-switch claims.
+
+## Candidate quick-add flow
+
+The popup quick-add editor delegates to existing `profiles:save` and explicit
+`profiles:activate`. Keep Save non-activating. The bounded endpoint parser refuses
+credential URIs without reflecting their text, and new credentials use session-only
+fields. Duplicate endpoints can represent different accounts/policies; do not reject
+all endpoint duplicates. See `docs/UX-2.0.md` for remaining localization and release work.
