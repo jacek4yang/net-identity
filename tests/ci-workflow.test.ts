@@ -5,6 +5,15 @@ const ci = readFileSync(".github/workflows/ci.yml", "utf8");
 const firefox = readFileSync(".github/workflows/firefox-invariants.yml", "utf8");
 
 describe("real-Firefox release gate", () => {
+  it("pins installer names independently of localized display names", () => {
+    const metadata = JSON.parse(readFileSync("package.json", "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    expect(metadata.scripts.package).toContain("--filename net-identity-{version}.zip");
+    expect(firefox).toContain("--filename net-identity-{version}.zip");
+    expect(firefox).toContain('--xpi "artifacts/net-identity-$version.zip"');
+    expect(firefox).toContain("--expect-unsigned");
+  });
   it("runs the deterministic Firefox invariants as a separate CI job", () => {
     expect(ci).toContain("uses: ./.github/workflows/firefox-invariants.yml");
     expect(firefox).toContain("workflow_call");

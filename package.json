@@ -28,7 +28,7 @@
     "lint": "eslint .",
     "lint:ext": "node scripts/lint-extension.mjs",
     "lint:fix": "eslint . --fix",
-    "package": "npm run build:prod && web-ext build --source-dir dist --artifacts-dir artifacts --overwrite-dest && node scripts/verify-artifacts.mjs",
+    "package": "npm run build:prod && web-ext build --source-dir dist --artifacts-dir artifacts --overwrite-dest --filename net-identity-{version}.zip && node scripts/verify-artifacts.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

@@ -104,6 +104,6 @@ jobs:
 
       - name: Verify normal Firefox rejects an unsigned installer
         run: |
-          npx web-ext build --source-dir dist --artifacts-dir artifacts --overwrite-dest
+          npx web-ext build --source-dir dist --artifacts-dir artifacts --overwrite-dest --filename net-identity-{version}.zip
           version=$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")
           node scripts/verify-firefox-signature.mjs --firefox /usr/bin/firefox --xpi "artifacts/net-identity-$version.zip" --version "$version" --expect-unsigned
