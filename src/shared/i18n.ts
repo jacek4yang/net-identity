@@ -5,7 +5,6 @@ import zh from "../../public/_locales/zh_CN/messages.json";
 export type LanguagePreference = "auto" | "en" | "zh_CN";
 export type Locale = "en" | "zh_CN";
 export type MessageKey = keyof typeof en;
-export const LANGUAGE_KEY = "ni.ui.language.v1";
 let locale: Locale = "en";
 
 export function parseLanguage(value: unknown): LanguagePreference {

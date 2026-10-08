@@ -356,3 +356,12 @@ constructs a profile through `parseProfile`. `popup/quick-add.ts` owns only form
 and invokes the existing save/activate protocol. It adds no background permission,
 network probe, persistent credential format or alternate activation controller. The
 first slice remains English; full locale support is a separate tracked slice.
+
+Partial online-map data reload keeps the existing renderer and WebGL context, while
+`setStyle(..., { diff: false })` reloads data through the same generation-bound broker
+session. The existing bounded queue retains in-flight slots until RPC settlement;
+reload does not replace it or create new concurrent queues. A reload revision suppresses
+stale error notifications. Idle readiness is reported only after the new load has no
+reported failure. Off, route changes, editor changes and fatal errors still dispose the
+renderer/session. This avoids immediate GPU-context destruction/recreation during a
+recoverable provider failure without weakening consent or resource limits.

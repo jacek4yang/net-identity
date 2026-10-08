@@ -1,12 +1,6 @@
+import { readUiLanguage, writeUiLanguage, browserUiLanguage } from "./runtime";
 /** UI-only preference; never sends a route mutation or alters page timezone shims. */
-import {
-  LANGUAGE_KEY,
-  message,
-  parseLanguage,
-  resolveLocale,
-  setUiLocale,
-  translateDocument,
-} from "./i18n";
+import { message, parseLanguage, resolveLocale, setUiLocale, translateDocument } from "./i18n";
 
 export async function bindLanguageControl(render: () => void): Promise<void> {
   const selected = document.querySelector<HTMLSelectElement>("#ui-language");
@@ -15,14 +9,14 @@ export async function bindLanguageControl(render: () => void): Promise<void> {
   const select = selected;
   let preference = "auto";
   try {
-    preference = parseLanguage((await browser.storage.local.get(LANGUAGE_KEY))[LANGUAGE_KEY]);
+    preference = parseLanguage(await readUiLanguage());
   } catch {
     /* A language-storage failure must not block proxy controls. */
   }
   function apply(value: unknown): void {
     preference = parseLanguage(value);
     select.value = preference;
-    setUiLocale(resolveLocale(parseLanguage(preference), browser.i18n.getUILanguage()));
+    setUiLocale(resolveLocale(parseLanguage(preference), browserUiLanguage()));
     translateDocument(document);
     render();
     document.dispatchEvent(new Event("ni:language-changed"));
@@ -31,8 +25,7 @@ export async function bindLanguageControl(render: () => void): Promise<void> {
   select.addEventListener("change", () => {
     const next = parseLanguage(select.value);
     select.disabled = true;
-    void browser.storage.local
-      .set({ [LANGUAGE_KEY]: next })
+    void writeUiLanguage(next)
       .then(() => {
         error.hidden = true;
         apply(next);

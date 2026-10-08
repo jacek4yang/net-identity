@@ -72,3 +72,16 @@ export function runtimeId(): string {
 export function extensionUrl(path: string): string {
   return browser.runtime.getURL(path);
 }
+
+const UI_LANGUAGE_KEY = "ni.ui.language.v1";
+
+/** UI preference only; isolated from saved/applied proxy profiles. */
+export async function readUiLanguage(): Promise<unknown> {
+  return (await browser.storage.local.get(UI_LANGUAGE_KEY))[UI_LANGUAGE_KEY];
+}
+export async function writeUiLanguage(value: "auto" | "en" | "zh_CN"): Promise<void> {
+  await browser.storage.local.set({ [UI_LANGUAGE_KEY]: value });
+}
+export function browserUiLanguage(): string {
+  return browser.i18n.getUILanguage();
+}

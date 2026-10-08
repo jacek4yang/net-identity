@@ -224,7 +224,18 @@ async function loadOnlineMap(): Promise<void> {
   }
 }
 mapLoad.addEventListener("click", () => {
-  if (onlineMap !== null) stopOnlineMap();
+  if (onlineMap !== null) {
+    mapLoad.disabled = true;
+    mapLoad.hidden = true;
+    ui.mapSurface.dataset.online = "loading";
+    mapOnlineStatus.textContent = "Reloading map data through the applied route…";
+    try {
+      onlineMap.reload();
+    } catch {
+      stopOnlineMap("WebGL map unavailable. Coordinates still work offline.");
+    }
+    return;
+  }
   void loadOnlineMap();
 });
 mapUnload.addEventListener("click", () => stopOnlineMap());

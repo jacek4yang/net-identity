@@ -538,6 +538,9 @@ async function main() {
             Buffer.from(partial, "base64"),
           );
         }
+        await execute(
+          "window.__reloadCanvas = document.querySelector('#location-map-tiles canvas');",
+        );
         fixture.setFailRaster(false);
         await click("#load-online-map");
         await waitFor(
@@ -545,7 +548,7 @@ async function main() {
         );
         check(
           await execute(
-            `return document.querySelectorAll('#location-map-tiles canvas').length===1;`,
+            `return document.querySelectorAll('#location-map-tiles canvas').length===1 && document.querySelector('#location-map-tiles canvas')===window.__reloadCanvas;`,
           ),
           `Reload cycle ${reloadCycle}: immediate Reload recovers partial data without duplicate canvases`,
         );
