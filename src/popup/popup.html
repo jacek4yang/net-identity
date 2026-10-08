@@ -9,20 +9,36 @@
   <body>
     <header class="header">
       <div class="header-brand">
-        <h1 class="app-title">Net Identity</h1>
+        <h1 class="app-title" data-i18n="extensionName">Net Identity</h1>
       </div>
       <div class="header-status">
         <span id="status-pill" class="status-pill" data-tone="pending">
           <span class="status-dot"></span>
-          <span id="status-text">Inactive</span>
+          <span id="status-text" data-i18n="inactive">Inactive</span>
         </span>
       </div>
     </header>
 
     <main class="main-surface">
+      <label for="ui-language" data-i18n="language">Language / 语言</label>
+      <select id="ui-language">
+        <option value="auto" data-i18n="languageAuto">Auto</option>
+        <option value="en">English</option>
+        <option value="zh_CN">简体中文</option>
+      </select>
+      <p id="language-error" role="status" hidden></p>
       <!-- Route switcher section -->
-      <section class="routes-section" aria-label="Available routes">
-        <div class="routes-container" role="radiogroup" aria-label="Network routes">
+      <section
+        class="routes-section"
+        aria-label="Available routes"
+        data-i18n-aria="availableRoutes"
+      >
+        <div
+          class="routes-container"
+          role="radiogroup"
+          aria-label="Network routes"
+          data-i18n-aria="networkRoutes"
+        >
           <button
             id="route-off"
             type="button"
@@ -45,8 +61,10 @@
               </svg>
             </div>
             <div class="route-body">
-              <span class="route-name">Off</span>
-              <span class="route-desc">Relinquish WebRTC & synthetic identity</span>
+              <span class="route-name" data-i18n="off">Off</span>
+              <span class="route-desc" data-i18n="offDescription"
+                >Relinquish WebRTC & synthetic identity</span
+              >
             </div>
             <div class="route-tail" aria-hidden="true">
               <span class="route-indicator"></span>
@@ -66,21 +84,27 @@
           class="btn"
           aria-expanded="false"
           aria-controls="quick-add-panel"
+          data-i18n="addProxy"
         >
           + Add Proxy
         </button>
-        <section id="quick-add-panel" hidden aria-label="Quick add proxy">
+        <section
+          id="quick-add-panel"
+          hidden
+          aria-label="Quick add proxy"
+          data-i18n-aria="quickAddLabel"
+        >
           <form id="quick-add-form" autocomplete="off">
             <fieldset id="quick-add-fields">
-              <legend>Add a proxy</legend>
-              <label for="quick-protocol">Protocol</label>
+              <legend data-i18n="addProxyLegend">Add a proxy</legend>
+              <label for="quick-protocol" data-i18n="protocol">Protocol</label>
               <select id="quick-protocol">
                 <option value="socks5">SOCKS5</option>
                 <option value="http">HTTP</option>
                 <option value="https">HTTPS</option>
                 <option value="socks4">SOCKS4</option>
               </select>
-              <label for="quick-host">Host or proxy address</label>
+              <label for="quick-host" data-i18n="host">Host or proxy address</label>
               <input
                 id="quick-host"
                 maxlength="1024"
@@ -88,12 +112,14 @@
                 placeholder="127.0.0.1:10808"
                 spellcheck="false"
               />
-              <label for="quick-port">Port (when not included above)</label>
+              <label for="quick-port" data-i18n="port">Port (when not included above)</label>
               <input id="quick-port" inputmode="numeric" maxlength="5" placeholder="10808" />
-              <label for="quick-name">Profile name (optional)</label>
+              <label for="quick-name" data-i18n="profileNameOptional"
+                >Profile name (optional)</label
+              >
               <input id="quick-name" maxlength="64" />
               <details>
-                <summary>Session-only authentication</summary>
+                <summary data-i18n="sessionAuth">Session-only authentication</summary>
                 <label for="quick-username">Username</label
                 ><input id="quick-username" autocomplete="off" maxlength="128" spellcheck="false" />
                 <label for="quick-password">Password</label
@@ -103,16 +129,16 @@
                   autocomplete="new-password"
                   maxlength="256"
                 />
-                <p>
+                <p data-i18n="authNotice">
                   Credentials are lost when Firefox exits. SOCKS4 does not support authentication.
                 </p>
               </details>
-              <p>
+              <p data-i18n="pasteNotice">
                 Explicit URL schemes take precedence. No automatic protocol detection. Enter
                 credentials separately, not in a URL.
               </p>
-              <button id="quick-save" class="btn" type="submit">Save</button>
-              <button id="quick-save-activate" class="btn" type="submit">
+              <button id="quick-save" class="btn" type="submit" data-i18n="save">Save</button>
+              <button id="quick-save-activate" class="btn" type="submit" data-i18n="saveActivate">
                 Save &amp; Activate
               </button>
             </fieldset>
@@ -120,22 +146,27 @@
           <p id="quick-status" role="status" aria-live="polite"></p>
         </section>
         <div class="manage-row">
-          <button id="manage-profiles" type="button" class="manage-button">
+          <button
+            id="manage-profiles"
+            type="button"
+            class="manage-button"
+            data-i18n="manageProfiles"
+          >
             Settings / Manage profiles
           </button>
         </div>
       </section>
 
       <!-- Primary Current Identity card -->
-      <section class="identity-card" aria-label="Current identity">
+      <section class="identity-card" aria-label="Current identity" data-i18n-aria="currentIdentity">
         <div class="identity-header">
-          <h2 class="identity-title">Current identity</h2>
+          <h2 class="identity-title" data-i18n="currentIdentity">Current identity</h2>
           <span id="consistency-badge" class="consistency-badge" data-tone="pending">—</span>
         </div>
 
         <div class="identity-grid">
           <div class="identity-row">
-            <span class="identity-label">Route</span>
+            <span class="identity-label" data-i18n="route">Route</span>
             <span id="identity-route" class="identity-value">—</span>
           </div>
           <div class="identity-row">
@@ -143,23 +174,26 @@
             <span id="identity-ip" class="identity-value mono">—</span>
           </div>
           <div class="identity-row">
-            <span class="identity-label">Location</span>
+            <span class="identity-label" data-i18n="location">Location</span>
             <span id="identity-location" class="identity-value">—</span>
           </div>
           <div class="identity-row">
-            <span class="identity-label">Timezone</span>
+            <span class="identity-label" data-i18n="zone">Timezone</span>
             <span id="identity-timezone" class="identity-value mono">—</span>
           </div>
         </div>
 
         <div class="card-actions">
-          <button id="refresh-button" type="button" class="btn" disabled>Refresh</button>
+          <button id="refresh-button" type="button" class="btn" disabled data-i18n="refresh">
+            Refresh
+          </button>
           <button
             id="toggle-details"
             type="button"
             class="btn btn-secondary"
             aria-expanded="false"
             aria-controls="details-panel"
+            data-i18n="details"
           >
             Details
           </button>
@@ -169,47 +203,55 @@
       <div id="error-box" class="error-box" hidden role="alert"></div>
 
       <!-- Secondary Expandable Details & Diagnostics -->
-      <section id="details-panel" class="details-panel" hidden aria-label="Details and diagnostics">
-        <div class="details-heading">Diagnostics & Details</div>
+      <section
+        id="details-panel"
+        class="details-panel"
+        hidden
+        aria-label="Details and diagnostics"
+        data-i18n-aria="diagnosticsLabel"
+      >
+        <div class="details-heading" data-i18n="diagnostics">Diagnostics & Details</div>
 
         <div class="details-group">
-          <div class="details-group-title">Routing</div>
+          <div class="details-group-title" data-i18n="routing">Routing</div>
           <div class="details-row">
-            <span class="details-label">Endpoint</span>
+            <span class="details-label" data-i18n="endpoint">Endpoint</span>
             <span id="details-endpoint" class="details-value">—</span>
           </div>
           <div class="details-row">
-            <span class="details-label">IP Verification</span>
+            <span class="details-label" data-i18n="ipVerification">IP Verification</span>
             <span id="details-ip-verified" class="details-value">—</span>
           </div>
           <div class="details-row">
-            <span class="details-label">Firefox Proxy</span>
+            <span class="details-label" data-i18n="firefoxProxy">Firefox Proxy</span>
             <span id="details-firefox-proxy" class="details-value">—</span>
           </div>
         </div>
 
         <div class="details-group">
-          <div class="details-group-title">Spoofing & Protection</div>
+          <div class="details-group-title" data-i18n="identityProtection">
+            Spoofing & Protection
+          </div>
           <div class="details-row">
-            <span class="details-label">Coordinates</span>
+            <span class="details-label" data-i18n="coordinates">Coordinates</span>
             <span id="details-coordinates" class="details-value mono">—</span>
           </div>
           <div class="details-row">
-            <span class="details-label">WebRTC Policy</span>
+            <span class="details-label" data-i18n="webrtcPolicy">WebRTC Policy</span>
             <span id="details-webrtc-detail" class="details-value">—</span>
           </div>
           <div class="details-row">
-            <span class="details-label">Frame Shim</span>
+            <span class="details-label" data-i18n="frameShim">Frame Shim</span>
             <span id="details-frames" class="details-value">—</span>
           </div>
         </div>
 
         <div class="details-group">
-          <div class="details-group-title">Consistency Checks</div>
+          <div class="details-group-title" data-i18n="consistencyChecks">Consistency Checks</div>
           <ul id="audit-checks" class="audit-list"></ul>
         </div>
 
-        <p class="details-note">
+        <p class="details-note" data-i18n="detailsNotice">
           Direct route uses Firefox and system routing without configuring an extension proxy.
           Session proxy credentials are kept only in memory until Firefox exits.
         </p>

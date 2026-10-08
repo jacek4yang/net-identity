@@ -38,6 +38,7 @@ const IIFE_ENTRIES = new Set(["content/bridge", "content/page-shim", "options/ma
 const STATIC_FILES = [
   "public/manifest.json",
   "public/icons",
+  "public/_locales",
   "src/popup/popup.html",
   "src/popup/popup.css",
   "src/options/options.html",
@@ -59,6 +60,7 @@ async function verifyMapLibreVendor() {
 async function copyStatic() {
   await cp(path.join(root, "public", "manifest.json"), path.join(dist, "manifest.json"));
   await cp(path.join(root, "public", "icons"), path.join(dist, "icons"), { recursive: true });
+  await cp(path.join(root, "public", "_locales"), path.join(dist, "_locales"), { recursive: true });
   await mkdir(path.join(dist, "popup"), { recursive: true });
   await mkdir(path.join(dist, "options"), { recursive: true });
   await cp(path.join(root, "src/popup/popup.html"), path.join(dist, "popup/popup.html"));

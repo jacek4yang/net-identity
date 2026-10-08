@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "net-identity",
+  "name": "__MSG_extensionName__",
   "version": "1.1.5",
-  "description": "Firefox network identity manager that keeps proxy, public IP, geolocation, timezone, and WebRTC behavior consistent.",
+  "description": "__MSG_extensionDescription__",
   "browser_specific_settings": {
     "gecko": {
       "id": "net-identity@jacek4yang.github.io",
@@ -26,7 +26,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "net-identity",
+    "default_title": "__MSG_extensionName__",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -59,5 +59,6 @@
   "homepage_url": "https://github.com/jacek4yang/net-identity",
   "content_security_policy": {
     "extension_pages": "default-src 'self'; script-src 'self'; worker-src 'self'; object-src 'none'; connect-src 'self' https://ipwho.is https://tiles.openfreemap.org; img-src 'self' data: blob:; style-src 'self'"
-  }
+  },
+  "default_locale": "en"
 }

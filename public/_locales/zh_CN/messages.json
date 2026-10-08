@@ -1,0 +1,284 @@
+{
+  "extensionName": {
+    "message": "Net Identity"
+  },
+  "extensionDescription": {
+    "message": "Firefox 代理配置管理，配合页面可见位置、时区和 WebRTC 控制。"
+  },
+  "language": {
+    "message": "Language / 语言"
+  },
+  "languageAuto": {
+    "message": "自动"
+  },
+  "addProxy": {
+    "message": "+ 添加代理"
+  },
+  "addProxyLegend": {
+    "message": "添加代理"
+  },
+  "protocol": {
+    "message": "协议"
+  },
+  "host": {
+    "message": "主机或代理地址"
+  },
+  "port": {
+    "message": "端口（地址中未填写时）"
+  },
+  "profileNameOptional": {
+    "message": "配置名称（可选）"
+  },
+  "sessionAuth": {
+    "message": "仅当前会话保存认证"
+  },
+  "username": {
+    "message": "用户名"
+  },
+  "password": {
+    "message": "密码"
+  },
+  "authNotice": {
+    "message": "退出 Firefox 后凭据会丢失。SOCKS4 不支持认证。"
+  },
+  "pasteNotice": {
+    "message": "地址中明确指定的协议优先，不会自动探测协议。请单独填写凭据，不要放进地址。"
+  },
+  "save": {
+    "message": "保存"
+  },
+  "saveActivate": {
+    "message": "保存并启用"
+  },
+  "manageProfiles": {
+    "message": "设置／管理配置"
+  },
+  "currentIdentity": {
+    "message": "当前身份"
+  },
+  "route": {
+    "message": "路由"
+  },
+  "location": {
+    "message": "位置"
+  },
+  "zone": {
+    "message": "时区"
+  },
+  "refresh": {
+    "message": "刷新"
+  },
+  "details": {
+    "message": "详情"
+  },
+  "hideDetails": {
+    "message": "收起详情"
+  },
+  "diagnostics": {
+    "message": "诊断与详情"
+  },
+  "routing": {
+    "message": "路由"
+  },
+  "endpoint": {
+    "message": "端点"
+  },
+  "ipVerification": {
+    "message": "IP 验证"
+  },
+  "firefoxProxy": {
+    "message": "Firefox 代理"
+  },
+  "identityProtection": {
+    "message": "身份设置与保护"
+  },
+  "coordinates": {
+    "message": "坐标"
+  },
+  "webrtcPolicy": {
+    "message": "WebRTC 策略"
+  },
+  "frameShim": {
+    "message": "页面适配"
+  },
+  "consistencyChecks": {
+    "message": "一致性检查"
+  },
+  "off": {
+    "message": "关闭"
+  },
+  "offDescription": {
+    "message": "释放 WebRTC 与模拟身份控制"
+  },
+  "detailsNotice": {
+    "message": "浏览器／系统路由不设置扩展代理，仍遵循 Firefox 和系统配置。代理凭据只保存在当前会话中，退出 Firefox 后清除。"
+  },
+  "availableRoutes": {
+    "message": "可用路由"
+  },
+  "networkRoutes": {
+    "message": "网络路由"
+  },
+  "quickAddLabel": {
+    "message": "快捷添加代理"
+  },
+  "diagnosticsLabel": {
+    "message": "详情与诊断"
+  },
+  "inactive": {
+    "message": "未启用"
+  },
+  "consistent": {
+    "message": "✓ 一致"
+  },
+  "partial": {
+    "message": "部分生效"
+  },
+  "error": {
+    "message": "错误"
+  },
+  "activating": {
+    "message": "正在启用…"
+  },
+  "resolving": {
+    "message": "正在解析…"
+  },
+  "active": {
+    "message": "已启用"
+  },
+  "proxyUnavailable": {
+    "message": "代理不可用"
+  },
+  "credentialsRequired": {
+    "message": "需要认证凭据"
+  },
+  "routingBlocked": {
+    "message": "路由已阻止"
+  },
+  "proxyUncertain": {
+    "message": "代理连接状态待确认"
+  },
+  "browserRouting": {
+    "message": "浏览器／系统路由"
+  },
+  "noProxy": {
+    "message": "未启用代理"
+  },
+  "directDetail": {
+    "message": "浏览器／系统路由"
+  },
+  "noRoute": {
+    "message": "未启用路由"
+  },
+  "noneOff": {
+    "message": "无（已关闭）"
+  },
+  "verified": {
+    "message": "已通过出口查询验证"
+  },
+  "unverified": {
+    "message": "未验证"
+  },
+  "noTabs": {
+    "message": "尚无标签页报告"
+  },
+  "saving": {
+    "message": "正在保存配置…"
+  },
+  "saved": {
+    "message": "已保存。保存不代表连接可用，也不会改变当前路由。"
+  },
+  "applying": {
+    "message": "已保存，正在应用路由；身份查询可能稍后完成…"
+  },
+  "appliedSeeStatus": {
+    "message": "已保存，请查看当前路由和身份状态以确认启用结果。"
+  },
+  "operationUnconfirmed": {
+    "message": "无法确认操作结果，请检查配置列表后重试。"
+  },
+  "socks4NoAuth": {
+    "message": "SOCKS4 不支持认证，请选择 SOCKS5、HTTP 或 HTTPS。"
+  },
+  "endpointTooLong": {
+    "message": "代理地址过长。"
+  },
+  "hostWhitespace": {
+    "message": "请输入不含空白字符的主机地址。"
+  },
+  "uriCredentials": {
+    "message": "请移除地址中的凭据，在仅限当前会话的认证字段中填写。"
+  },
+  "percentEndpoint": {
+    "message": "不支持百分号编码的代理地址，请直接填写主机地址。"
+  },
+  "chooseProtocol": {
+    "message": "请选择 HTTP、HTTPS、SOCKS4 或 SOCKS5。"
+  },
+  "endpointOnly": {
+    "message": "仅填写代理主机和端口，不要包含路径或查询参数。"
+  },
+  "ipv6Close": {
+    "message": "请用 ] 结束 IPv6 地址。"
+  },
+  "ipv6Port": {
+    "message": "请使用 [IPv6]:端口 格式。"
+  },
+  "validHost": {
+    "message": "请输入有效主机名、IPv4 或带方括号的 IPv6 地址。"
+  },
+  "validPort": {
+    "message": "请输入 1 至 65535 的端口。"
+  },
+  "ipv6Brackets": {
+    "message": "请给 IPv6 地址加方括号，例如 [::1]:1080。"
+  },
+  "profileLimit": {
+    "message": "已达到配置数量上限。"
+  },
+  "nameTooLong": {
+    "message": "配置名称过长。"
+  },
+  "nameUsed": {
+    "message": "配置名称已被使用，请换一个名称。"
+  },
+  "ok": {
+    "message": "正常"
+  },
+  "notConfigured": {
+    "message": "未配置"
+  },
+  "unavailable": {
+    "message": "不可用"
+  },
+  "manual": {
+    "message": "手动"
+  },
+  "providerError": {
+    "message": "服务提供方错误"
+  },
+  "controlledOther": {
+    "message": "由其他扩展控制"
+  },
+  "stale": {
+    "message": "已过期"
+  },
+  "pending": {
+    "message": "待完成"
+  },
+  "errorLower": {
+    "message": "错误"
+  },
+  "credentialsTraffic": {
+    "message": "需要代理凭据。流量仍受此配置限制。"
+  },
+  "blockedTraffic": {
+    "message": "流量已阻止，不会直连。代理恢复后请重试此配置。"
+  },
+  "refreshConsent": {
+    "message": "刷新浏览器路由配置会向 GeoIP 提供方发送您的公网 IP，需授权后继续。"
+  },
+  "languageSaveFailed": {
+    "message": "无法保存语言偏好，请重试。"
+  }
+}

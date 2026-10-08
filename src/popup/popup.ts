@@ -1,3 +1,5 @@
+import { bindLanguageControl } from "../shared/language-control";
+import { localizeKnownText as lt, message } from "../shared/i18n";
 import { bindQuickAdd } from "./quick-add";
 /**
  * Popup view: compact quick-switching route switcher and identity surface.
@@ -77,6 +79,7 @@ const CHECK_STATUS_LABELS: Record<AuditCheckStatus, string> = {
   error: "error",
 };
 
+let lastState: RuntimeState | undefined;
 let quickAddBusy = false;
 let knownProfiles: IdentityProfile[] = [];
 let currentActiveId: string | null = null;
@@ -87,7 +90,7 @@ let displayedGeneration = -1;
 
 function setStatusPill(state: RuntimeState | RuntimeStatus): void {
   const { label, tone } = describePopupStatus(state);
-  elements.statusText.textContent = label;
+  elements.statusText.textContent = lt(label);
   elements.statusPill.dataset.tone = tone;
 }
 
@@ -98,7 +101,7 @@ function renderError(message: string | null): void {
     return;
   }
   elements.errorBox.hidden = false;
-  elements.errorBox.textContent = message;
+  elements.errorBox.textContent = lt(message);
 }
 
 function describeEndpoint(state: RuntimeState): string {
@@ -146,8 +149,11 @@ function renderRoutes(): void {
         el("div", {
           className: "route-body",
           children: [
-            el("span", { className: "route-name", text: profile.name }),
-            el("span", { className: "route-desc", text: secondaryText }),
+            el("span", {
+              className: "route-name",
+              text: isDirect ? message("browserRouting") : profile.name,
+            }),
+            el("span", { className: "route-desc", text: lt(secondaryText) }),
           ],
         }),
         el("div", {
@@ -168,8 +174,9 @@ function renderIdentity(state: RuntimeState): void {
   const isIdle = state.status === "idle";
 
   elements.identityRoute.textContent = isIdle
-    ? "None (Off)"
-    : (state.activeProfileName ?? (state.activeProfileId === null ? "Routing blocked" : "Direct"));
+    ? message("noneOff")
+    : (state.activeProfileName ??
+      (state.activeProfileId === null ? message("routingBlocked") : message("browserRouting")));
 
   if (isIdle) {
     elements.identityIp.textContent = "—";
@@ -189,19 +196,19 @@ function renderIdentity(state: RuntimeState): void {
 
   // Consistency badge
   const verdict = isIdle ? "inactive" : state.audit.verdict;
-  elements.consistencyBadge.textContent = VERDICT_LABELS[verdict] ?? verdict;
+  elements.consistencyBadge.textContent = lt(VERDICT_LABELS[verdict] ?? verdict);
   elements.consistencyBadge.dataset.tone = VERDICT_TONES[verdict] ?? "pending";
 }
 
 function renderDetails(state: RuntimeState): void {
-  elements.detailsEndpoint.textContent = describeEndpoint(state);
+  elements.detailsEndpoint.textContent = lt(describeEndpoint(state));
 
   elements.detailsIpVerified.textContent =
     state.status === "idle"
-      ? "No route active"
+      ? message("noRoute")
       : state.identity.publicIpVerified
-        ? "Verified via egress query"
-        : "Unverified";
+        ? message("verified")
+        : message("unverified");
 
   elements.detailsFirefoxProxy.textContent = `proxyType=${state.firefoxProxy.proxyType} (${state.firefoxProxy.levelOfControl})`;
 
@@ -214,7 +221,7 @@ function renderDetails(state: RuntimeState): void {
 
   elements.detailsFrames.textContent = state.content.hasShim
     ? `${String(state.content.currentFrameCount)}/${String(state.content.frameCount)} frames synced`
-    : "No open tabs reporting";
+    : message("noTabs");
 
   // Detailed audit checks
   clear(elements.auditChecks);
@@ -226,7 +233,7 @@ function renderDetails(state: RuntimeState): void {
         el("span", {
           className: "audit-item-status",
           attrs: { "data-status": check.status, title: check.detail ?? "" },
-          text: CHECK_STATUS_LABELS[check.status] ?? check.status,
+          text: lt(CHECK_STATUS_LABELS[check.status] ?? check.status),
         }),
       ],
     });
@@ -236,6 +243,7 @@ function renderDetails(state: RuntimeState): void {
 
 function renderState(state: RuntimeState): void {
   if (state.generation < displayedGeneration) return;
+  lastState = state;
   displayedGeneration = state.generation;
   currentStatus = state.status;
   currentActiveId = state.activeProfileId;
@@ -357,10 +365,16 @@ function toggleDetailsVisibility(): void {
   const isHidden = elements.detailsPanel.hidden;
   elements.detailsPanel.hidden = !isHidden;
   elements.toggleDetails.setAttribute("aria-expanded", String(isHidden));
-  elements.toggleDetails.textContent = isHidden ? "Hide details" : "Details";
+  elements.toggleDetails.textContent = isHidden ? message("hideDetails") : message("details");
 }
 
 async function bootstrap(): Promise<void> {
+  await bindLanguageControl(() => {
+    if (lastState) renderState(lastState);
+    elements.toggleDetails.textContent = elements.detailsPanel.hidden
+      ? message("details")
+      : message("hideDetails");
+  });
   const [stateResponse, profilesResponse] = await Promise.all([
     request({ type: "state:get" }, parseStateResponse),
     loadProfiles(),

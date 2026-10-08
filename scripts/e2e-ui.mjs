@@ -932,6 +932,23 @@ async function main() {
 
     await client.send("WebDriver:Navigate", { url: popupUrl });
     await waitFor(`return !!document.querySelector('[data-profile-id="${id}"]');`);
+    const beforeLanguage = (await call({ type: "state:get" })).state;
+    await fill({ "ui-language": "zh_CN" });
+    await waitFor(
+      'return document.documentElement.lang === "zh-CN" && document.getElementById("quick-save").textContent === "保存";',
+    );
+    check(
+      (await call({ type: "state:get" })).state.generation === beforeLanguage.generation,
+      "Changing interface language never reactivates the route",
+    );
+    await client.send("WebDriver:Navigate", { url: popupUrl });
+    await waitFor(
+      'return document.documentElement.lang === "zh-CN" && document.getElementById("ui-language").value === "zh_CN";',
+    );
+    await fill({ "ui-language": "en" });
+    await waitFor(
+      'return document.documentElement.lang === "en" && document.getElementById("quick-save").textContent === "Save";',
+    );
     const beforeQuick = (await call({ type: "state:get" })).state;
     await click("#quick-add-toggle");
     await fill({ "quick-host": "socks5://[::1]:10808", "quick-name": "Quick local fixture" });

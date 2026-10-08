@@ -49,3 +49,18 @@ Use the existing quality and real-Firefox gates. Quick-parser unit tests and a r
 Save regression extend them. Local Firefox absence is not a browser pass. Test narrow
 layouts and scaling before claiming visual completion. Full bilingual coverage and live
 AMO publication are not implemented by this first slice.
+
+### Localization foundation (candidate slice 2)
+
+The production package now includes `_locales/en` and `_locales/zh_CN`, and localized
+manifest name/description. A popup language selector supports Auto, English and 简体中文.
+Auto uses Firefox's UI locale, with English fallback; manual preference is stored under
+`ni.ui.language.v1`, separate from profile state. It updates text and `html lang` without
+reloading the popup or changing the active route. Existing typed values remain untouched.
+The packaged catalogs are also the manual-override source, not parallel translations.
+
+This slice translates static popup/quick-add controls and known status messages. Options,
+onboarding, dynamic audit explanations and the complete backend error presentation remain
+to be localized; the product is **not yet fully bilingual**. Stable machine identifiers,
+proxy hosts, coordinates and IANA timezones are not translated. Unknown diagnostics remain
+visible rather than being replaced with misleading success or an unrelated translation.

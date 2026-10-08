@@ -65,8 +65,9 @@ describe("manifest", () => {
   it("is Manifest V3 with matching version metadata", () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.version).toBe(packageJson.version);
-    expect(manifest.name).toBe("net-identity");
-    expect(manifest.description).toContain("Firefox network identity manager");
+    expect(manifest.name).toBe("__MSG_extensionName__");
+    expect(manifestJson.default_locale).toBe("en");
+    expect(manifest.description).toBe("__MSG_extensionDescription__");
   });
 
   it("uses a Firefox event page instead of a Chrome-style service worker", () => {

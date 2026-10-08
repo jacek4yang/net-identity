@@ -26,7 +26,7 @@ describe("locally packaged map security contract", () => {
     expect(offButton).toContain('class="route-lead" aria-hidden="true"');
     expect(offButton).toContain("<svg");
     expect(offButton).toContain('focusable="false"');
-    expect(offButton).toContain('class="route-name">Off</span>');
+    expect(offButton).toContain('class="route-name" data-i18n="off">Off</span>');
     expect(offButton).not.toContain("⏻");
     expect(offButton).not.toMatch(/(?:href|src)=/);
   });

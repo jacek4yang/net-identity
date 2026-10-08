@@ -1,3 +1,4 @@
+import { localizeKnownText as lt } from "../shared/i18n";
 /** Compact editor using the existing validated save and explicit activation commands. */
 import { parseQuickEndpoint, quickProxyProfile, type QuickProxyType } from "../profile/quick-proxy";
 import { createProfileId } from "../profile/store";
@@ -24,6 +25,14 @@ export function bindQuickAdd(deps: {
   const username = requireElement<HTMLInputElement>("#quick-username");
   const password = requireElement<HTMLInputElement>("#quick-password");
   const status = requireElement<HTMLElement>("#quick-status");
+  let lastStatus = "";
+  function show(text: string): void {
+    lastStatus = text;
+    status.textContent = lt(text);
+  }
+  document.addEventListener("ni:language-changed", () => {
+    status.textContent = lt(lastStatus);
+  });
   let pending = false;
   // Reuse an id after a partial write/transport error rather than creating duplicates on retry.
   let draftId: string | undefined;
@@ -43,7 +52,7 @@ export function bindQuickAdd(deps: {
     if (!["http", "https", "socks4", "socks5"].includes(selected)) return;
     const endpoint = parseQuickEndpoint(host.value, port.value, selected as QuickProxyType);
     if (!endpoint.ok) {
-      status.textContent = endpoint.errors.join(" ");
+      show(endpoint.errors.join(" "));
       return;
     }
     const credentials =
@@ -51,11 +60,11 @@ export function bindQuickAdd(deps: {
         ? parseCredentials({ username: username.value, password: password.value })
         : undefined;
     if (credentials && !credentials.ok) {
-      status.textContent = credentials.errors.join(" ");
+      show(credentials.errors.join(" "));
       return;
     }
     if (credentials && endpoint.value.type === "socks4") {
-      status.textContent = "SOCKS4 cannot authenticate. Choose SOCKS5, HTTP or HTTPS.";
+      show("SOCKS4 cannot authenticate. Choose SOCKS5, HTTP or HTTPS.");
       return;
     }
     draftId ??= createProfileId();
@@ -66,7 +75,7 @@ export function bindQuickAdd(deps: {
       deps.profiles().filter((item) => item.id !== draftId),
     );
     if (!profile.ok) {
-      status.textContent = profile.errors.join(" ");
+      show(profile.errors.join(" "));
       return;
     }
     protocol.value = endpoint.value.type;
@@ -78,7 +87,7 @@ export function bindQuickAdd(deps: {
     fields.disabled = true;
     toggle.disabled = true;
     deps.busy(true);
-    status.textContent = "Saving profile…";
+    show("Saving profile…");
     try {
       const response = await request(
         {
@@ -89,9 +98,7 @@ export function bindQuickAdd(deps: {
         parseMutationResponse,
       );
       if (!response.ok || !response.value.ok) {
-        status.textContent = response.ok
-          ? response.value.errors.join(" ")
-          : response.errors.join(" ");
+        show(response.ok ? response.value.errors.join(" ") : response.errors.join(" "));
         return;
       }
       const id = draftId;
@@ -100,16 +107,15 @@ export function bindQuickAdd(deps: {
       username.value = "";
       password.value = "";
       await deps.reload();
-      status.textContent = "Saved. Saving does not verify connectivity or change the active route.";
+      show("Saved. Saving does not verify connectivity or change the active route.");
       if (activate) {
-        status.textContent = "Saved. Applying route; identity lookup may finish separately…";
+        show("Saved. Applying route; identity lookup may finish separately…");
         await deps.activate(id);
-        status.textContent =
-          "Saved. See the current route and identity status for the activation result.";
+        show("Saved. See the current route and identity status for the activation result.");
       }
     } catch {
       // Do not expose exception text: a browser/transport error might contain pasted credentials.
-      status.textContent = "Could not confirm the operation. Check the profile list and retry.";
+      show("Could not confirm the operation. Check the profile list and retry.");
     } finally {
       pending = false;
       fields.disabled = false;

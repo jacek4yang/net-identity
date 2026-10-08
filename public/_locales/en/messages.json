@@ -1,0 +1,284 @@
+{
+  "extensionName": {
+    "message": "Net Identity"
+  },
+  "extensionDescription": {
+    "message": "Firefox proxy profiles with page-visible location, timezone and WebRTC controls."
+  },
+  "language": {
+    "message": "Language / 语言"
+  },
+  "languageAuto": {
+    "message": "Auto"
+  },
+  "addProxy": {
+    "message": "+ Add Proxy"
+  },
+  "addProxyLegend": {
+    "message": "Add a proxy"
+  },
+  "protocol": {
+    "message": "Protocol"
+  },
+  "host": {
+    "message": "Host or proxy address"
+  },
+  "port": {
+    "message": "Port (when not included above)"
+  },
+  "profileNameOptional": {
+    "message": "Profile name (optional)"
+  },
+  "sessionAuth": {
+    "message": "Session-only authentication"
+  },
+  "username": {
+    "message": "Username"
+  },
+  "password": {
+    "message": "Password"
+  },
+  "authNotice": {
+    "message": "Credentials are lost when Firefox exits. SOCKS4 does not support authentication."
+  },
+  "pasteNotice": {
+    "message": "Explicit URL schemes take precedence. No automatic protocol detection. Enter credentials separately, not in a URL."
+  },
+  "save": {
+    "message": "Save"
+  },
+  "saveActivate": {
+    "message": "Save & Activate"
+  },
+  "manageProfiles": {
+    "message": "Settings / Manage profiles"
+  },
+  "currentIdentity": {
+    "message": "Current identity"
+  },
+  "route": {
+    "message": "Route"
+  },
+  "location": {
+    "message": "Location"
+  },
+  "zone": {
+    "message": "Timezone"
+  },
+  "refresh": {
+    "message": "Refresh"
+  },
+  "details": {
+    "message": "Details"
+  },
+  "hideDetails": {
+    "message": "Hide details"
+  },
+  "diagnostics": {
+    "message": "Diagnostics & Details"
+  },
+  "routing": {
+    "message": "Routing"
+  },
+  "endpoint": {
+    "message": "Endpoint"
+  },
+  "ipVerification": {
+    "message": "IP Verification"
+  },
+  "firefoxProxy": {
+    "message": "Firefox Proxy"
+  },
+  "identityProtection": {
+    "message": "Spoofing & Protection"
+  },
+  "coordinates": {
+    "message": "Coordinates"
+  },
+  "webrtcPolicy": {
+    "message": "WebRTC Policy"
+  },
+  "frameShim": {
+    "message": "Frame Shim"
+  },
+  "consistencyChecks": {
+    "message": "Consistency Checks"
+  },
+  "off": {
+    "message": "Off"
+  },
+  "offDescription": {
+    "message": "Relinquish WebRTC & synthetic identity"
+  },
+  "detailsNotice": {
+    "message": "Direct route uses Firefox and system routing without configuring an extension proxy. Session proxy credentials are kept only in memory until Firefox exits."
+  },
+  "availableRoutes": {
+    "message": "Available routes"
+  },
+  "networkRoutes": {
+    "message": "Network routes"
+  },
+  "quickAddLabel": {
+    "message": "Quick add proxy"
+  },
+  "diagnosticsLabel": {
+    "message": "Details and diagnostics"
+  },
+  "inactive": {
+    "message": "Inactive"
+  },
+  "consistent": {
+    "message": "✓ Consistent"
+  },
+  "partial": {
+    "message": "Partial"
+  },
+  "error": {
+    "message": "Error"
+  },
+  "activating": {
+    "message": "Activating…"
+  },
+  "resolving": {
+    "message": "Resolving…"
+  },
+  "active": {
+    "message": "Active"
+  },
+  "proxyUnavailable": {
+    "message": "Proxy unavailable"
+  },
+  "credentialsRequired": {
+    "message": "Credentials required"
+  },
+  "routingBlocked": {
+    "message": "Routing blocked"
+  },
+  "proxyUncertain": {
+    "message": "Proxy connection uncertain"
+  },
+  "browserRouting": {
+    "message": "Browser / system routing"
+  },
+  "noProxy": {
+    "message": "No proxy active"
+  },
+  "directDetail": {
+    "message": "Direct (Firefox / system routing)"
+  },
+  "noRoute": {
+    "message": "No route active"
+  },
+  "noneOff": {
+    "message": "None (Off)"
+  },
+  "verified": {
+    "message": "Verified via egress query"
+  },
+  "unverified": {
+    "message": "Unverified"
+  },
+  "noTabs": {
+    "message": "No open tabs reporting"
+  },
+  "saving": {
+    "message": "Saving profile…"
+  },
+  "saved": {
+    "message": "Saved. Saving does not verify connectivity or change the active route."
+  },
+  "applying": {
+    "message": "Saved. Applying route; identity lookup may finish separately…"
+  },
+  "appliedSeeStatus": {
+    "message": "Saved. See the current route and identity status for the activation result."
+  },
+  "operationUnconfirmed": {
+    "message": "Could not confirm the operation. Check the profile list and retry."
+  },
+  "socks4NoAuth": {
+    "message": "SOCKS4 cannot authenticate. Choose SOCKS5, HTTP or HTTPS."
+  },
+  "endpointTooLong": {
+    "message": "Endpoint is too long."
+  },
+  "hostWhitespace": {
+    "message": "Enter a host without whitespace."
+  },
+  "uriCredentials": {
+    "message": "Remove credentials from the address and use the session-only authentication fields."
+  },
+  "percentEndpoint": {
+    "message": "Percent-encoded endpoints are not supported. Enter the host directly."
+  },
+  "chooseProtocol": {
+    "message": "Choose HTTP, HTTPS, SOCKS4 or SOCKS5."
+  },
+  "endpointOnly": {
+    "message": "Enter only a proxy host and port, without a path or query."
+  },
+  "ipv6Close": {
+    "message": "Close the IPv6 address with ]."
+  },
+  "ipv6Port": {
+    "message": "Use [IPv6]:port."
+  },
+  "validHost": {
+    "message": "Enter a valid hostname, IPv4 or bracketed IPv6 address."
+  },
+  "validPort": {
+    "message": "Enter a port from 1 to 65535."
+  },
+  "ipv6Brackets": {
+    "message": "Wrap an IPv6 address in brackets, for example [::1]:1080."
+  },
+  "profileLimit": {
+    "message": "The profile limit has been reached."
+  },
+  "nameTooLong": {
+    "message": "Profile name is too long."
+  },
+  "nameUsed": {
+    "message": "That profile name is already used. Choose another name."
+  },
+  "ok": {
+    "message": "ok"
+  },
+  "notConfigured": {
+    "message": "not configured"
+  },
+  "unavailable": {
+    "message": "unavailable"
+  },
+  "manual": {
+    "message": "manual"
+  },
+  "providerError": {
+    "message": "provider error"
+  },
+  "controlledOther": {
+    "message": "controlled by another extension"
+  },
+  "stale": {
+    "message": "stale"
+  },
+  "pending": {
+    "message": "pending"
+  },
+  "errorLower": {
+    "message": "error"
+  },
+  "credentialsTraffic": {
+    "message": "Proxy credentials are required. Traffic remains restricted to this profile."
+  },
+  "blockedTraffic": {
+    "message": "Traffic is blocked rather than sent directly. Retry this profile after the proxy returns."
+  },
+  "refreshConsent": {
+    "message": "Refreshing a direct profile sends your public IP to the GeoIP provider. Allow collection to continue."
+  },
+  "languageSaveFailed": {
+    "message": "Could not save language preference. Try again."
+  }
+}
