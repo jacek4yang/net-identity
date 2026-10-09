@@ -452,7 +452,8 @@ function assertSameRoute(state, initial, phase) {
     state.desiredRoute !== "proxy" ||
     state.appliedRoute !== "proxy" ||
     JSON.stringify(state.identity) !== JSON.stringify(initial.identity) ||
-    JSON.stringify(state.proxy) !== JSON.stringify(initial.proxy)
+    JSON.stringify(state.proxy) !== JSON.stringify(initial.proxy) ||
+    JSON.stringify(state.webrtc) !== JSON.stringify(initial.webrtc)
   ) {
     throw new Error(
       `${phase} changed selected route/generation/identity: ${JSON.stringify(state)}`,

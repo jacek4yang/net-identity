@@ -1007,17 +1007,56 @@ describe("background restart", () => {
     }
   });
 
-  it.each(["socks5", "socks4", "http", "https"] as const)(
-    "%s correlates suspect health, preserves identity and recovers only with sustained success",
-    async (type) => {
+  it.each(
+    (["socks5", "socks4", "http", "https"] as const).flatMap((type) =>
+      (["auto", "manual"] as const).map((mode) => [type, mode] as const),
+    ),
+  )(
+    "%s/%s recovery preserves applied and saved settings without replay or reconfiguration",
+    async (type, mode) => {
       let now = 0;
       const harness = createHarness({ now: () => now });
       const profile = makeProfile({
         id: "health-proxy",
         proxy: { type, host: "proxy.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
+        identity:
+          mode === "auto"
+            ? { mode }
+            : {
+                mode,
+                geoIpPolicy: "disabled",
+                latitude: 48.8566,
+                longitude: 2.3522,
+                accuracy: 500,
+                timezone: "Europe/Paris",
+              },
+        webrtcPolicy: mode === "auto" ? "proxy_only" : "default",
       });
       await harness.saveProfile(profile);
       const activated = await harness.controller.activate(profile.id);
+      // Save a different endpoint/policy without Apply. Recovery must not apply it
+      // or discard it while preserving the independently committed active target.
+      await harness.saveProfile({
+        ...profile,
+        revision: 2,
+        proxy: { ...profile.proxy, host: "saved-not-applied.invalid", port: 8081, proxyDNS: false },
+        webrtcPolicy: "default",
+        identity: { mode: "manual", latitude: 1, longitude: 2, accuracy: 1000, timezone: "UTC" },
+      });
+      const target = structuredClone(harness.controller.getTarget());
+      const local = harness.localArea.snapshot();
+      const session = harness.sessionArea.snapshot();
+      const assertConfigurationUnchanged = () => {
+        const state = harness.controller.getState();
+        expect(state.identity).toEqual(activated.identity);
+        expect(state.proxy).toEqual(activated.proxy);
+        expect(state.webrtc).toEqual(activated.webrtc);
+        expect(state.generation).toBe(activated.generation);
+        expect(state.appliedRevision).toBe(activated.appliedRevision);
+        expect(harness.controller.getTarget()).toEqual(target);
+        expect(harness.localArea.snapshot()).toEqual(local);
+        expect(harness.sessionArea.snapshot()).toEqual(session);
+      };
       const providerCalls = harness.providerResolveCount();
       const webRtcSets = harness.webrtcSetting.setCalls;
       const webRtcClears = harness.webrtcSetting.clearCalls;
@@ -1051,6 +1090,7 @@ describe("background restart", () => {
       expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
       expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
       expect(harness.envelopes).toEqual(envelopes);
+      assertConfigurationUnchanged();
       for (const details of observations.slice(3)) {
         harness.controller.recordNetworkSuccess(details);
         now += 600;
@@ -1061,6 +1101,7 @@ describe("background restart", () => {
       expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
       expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
       expect(harness.envelopes).toEqual(envelopes);
+      assertConfigurationUnchanged();
     },
   );
 
