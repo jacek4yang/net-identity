@@ -1346,7 +1346,9 @@ async function main() {
     );
     await click("#deactivate");
     // WebDriver click completion does not await the async runtime mutation.
-    await waitFor('return document.getElementById("deactivate").disabled;');
+    await waitFor(`return (document.getElementById("profile-form").hidden
+      ? document.getElementById("direct-deactivate")
+      : document.getElementById("deactivate")).disabled;`);
     check(
       (await call({ type: "state:get" })).state.activeProfileId === null,
       "Final Off releases the test profile",
