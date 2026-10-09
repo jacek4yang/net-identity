@@ -159,13 +159,13 @@
     "message": "代理连接状态待确认"
   },
   "browserRouting": {
-    "message": "浏览器／系统路由"
+    "message": "使用 Firefox 原有网络设置"
   },
   "noProxy": {
     "message": "未启用代理"
   },
   "directDetail": {
-    "message": "浏览器／系统路由"
+    "message": "遵循 Firefox 原有网络设置"
   },
   "noRoute": {
     "message": "未启用路由"
@@ -309,7 +309,7 @@
     "message": "还没有代理配置。点击“+ 添加代理”开始。"
   },
   "directLabel": {
-    "message": "浏览器／系统路由"
+    "message": "使用 Firefox 原有网络设置"
   },
   "builtIn": {
     "message": "内置"
@@ -324,7 +324,7 @@
     "message": "代理"
   },
   "directValue": {
-    "message": "浏览器／系统路由"
+    "message": "使用 Firefox 原有网络设置"
   },
   "directHint": {
     "message": "不会覆盖 Firefox 设置中的代理"
@@ -645,7 +645,7 @@
     "message": "内置"
   },
   "browserAutomaticIdentity": {
-    "message": "浏览器／系统路由 · 自动身份"
+    "message": "沿用 Firefox 网络 · 自动身份"
   },
   "profilesListAria": {
     "message": "配置列表"
@@ -916,5 +916,26 @@
   },
   "privacyDiagnostic9": {
     "message": "Firefox 已清除扩展的 WebRTC 策略，但尚未报告恢复后的值。"
+  },
+  "consentDiagnostic0": {
+    "message": "Firefox 尚未确认安装时的数据收集同意，因此没有进行 GeoIP 查询。"
+  },
+  "consentDiagnostic1": {
+    "message": "直连配置会将你的真实公网 IP 发送给 GeoIP 服务商。查询前需要你允许这项可选的数据收集。"
+  },
+  "consentDiagnostic2": {
+    "message": "地图资源未获允许。"
+  },
+  "consentDiagnostic3": {
+    "message": "地图请求已取消。"
+  },
+  "consentDiagnostic4": {
+    "message": "地图数据不可用。"
+  },
+  "consentDiagnostic5": {
+    "message": "时区必须是有效的 IANA 标识符，例如 Asia/Shanghai。"
+  },
+  "browserRoutingExplanation": {
+    "message": "可能直连，也可能使用浏览器或系统代理。"
   }
 }

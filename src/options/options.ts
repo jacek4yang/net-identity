@@ -1063,6 +1063,7 @@ void (async () => {
     renderProfileList();
     setMapStatus(mapStatusText);
     mapLoad.textContent = message(onlineMap ? "reloadOnlineMap" : "loadOnlineMap");
+    if (!onlineMap) mapAttribution.textContent = message("localGrid");
     renderSaveStatus();
     if (runtimeState) renderRuntimeRows(runtimeState);
     if (selectedProfile() === null) ui.formTitle.textContent = message("newProfile");

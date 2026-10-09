@@ -159,7 +159,7 @@
     "message": "Proxy connection uncertain"
   },
   "browserRouting": {
-    "message": "Browser / system routing"
+    "message": "Use Firefox network settings"
   },
   "noProxy": {
     "message": "No proxy active"
@@ -441,7 +441,7 @@
     "message": "Manual IANA timezone"
   },
   "localGrid": {
-    "message": "Local coordinate grid ? No map imagery"
+    "message": "Local coordinate grid · No map imagery"
   },
   "mapUnavailable": {
     "message": "Map imagery unavailable — coordinates still work."
@@ -916,5 +916,26 @@
   },
   "privacyDiagnostic9": {
     "message": "Firefox cleared the WebRTC policy but did not report the restored value."
+  },
+  "consentDiagnostic0": {
+    "message": "Firefox has not confirmed install-time data-collection consent, so no GeoIP lookup was made."
+  },
+  "consentDiagnostic1": {
+    "message": "A direct profile would send your own public IP to the GeoIP provider. Allow optional personal-data collection before that lookup."
+  },
+  "consentDiagnostic2": {
+    "message": "Unapproved map resource."
+  },
+  "consentDiagnostic3": {
+    "message": "Map request cancelled."
+  },
+  "consentDiagnostic4": {
+    "message": "Map data unavailable."
+  },
+  "consentDiagnostic5": {
+    "message": "timezone must be a valid IANA timezone identifier (for example America/Los_Angeles)"
+  },
+  "browserRoutingExplanation": {
+    "message": "May connect directly or use Firefox/system proxies."
   }
 }

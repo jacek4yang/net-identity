@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createBuiltinDirectProfile } from "../src/profile/schema";
 import { filterProfiles } from "../src/popup/profile-search";
 import { quickProxyProfile } from "../src/profile/quick-proxy";
 
@@ -26,4 +27,13 @@ describe("display-only profile search", () => {
     filterProfiles(profiles, "a".repeat(100000));
     expect(JSON.stringify(profiles)).toBe(before);
   });
+});
+
+it("finds the built-in route by its displayed language without renaming stored profiles", () => {
+  const direct = createBuiltinDirectProfile();
+  const all = [direct, ...profiles];
+  const before = JSON.stringify(all);
+  expect(filterProfiles(all, "原有网络", "使用 Firefox 原有网络设置")).toEqual([direct]);
+  expect(filterProfiles(all, "原有网络", "Use Firefox network settings")).toEqual([]);
+  expect(JSON.stringify(all)).toBe(before);
 });

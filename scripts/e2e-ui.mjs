@@ -33,6 +33,7 @@ const { values } = parseArgs({
     timeout: { type: "string", default: "90" },
     screenshots: { type: "string" },
     light: { type: "boolean", default: false },
+    scale: { type: "string", default: "1" },
     "live-map": { type: "boolean", default: false },
   },
 });
@@ -40,6 +41,9 @@ const { values } = parseArgs({
 const firefoxPath =
   values.firefox ?? (existsSync(WINDOWS_DEVELOPER_EDITION) ? WINDOWS_DEVELOPER_EDITION : undefined);
 const timeoutMs = Number(values.timeout) * 1000;
+if (!["1", "1.25", "1.5", "2"].includes(values.scale)) throw new Error("Unsupported UI scale");
+if (values.screenshots && values.scale !== "1")
+  throw new Error("Store captures require native scale");
 
 const redact = (value) =>
   String(value).replace(/moz-extension:\/\/[a-z0-9-]+/gi, "moz-extension://<extension>");
@@ -334,6 +338,7 @@ async function main() {
         "--no-input",
         "--no-reload",
         `--pref=marionette.port=${marionettePort}`,
+        `--pref=layout.css.devPixelsPerPx=${values.scale}`,
         ...(values.screenshots ? [`--pref=ui.systemUsesDarkTheme=${values.light ? 0 : 1}`] : []),
         "--arg=--marionette",
         "--arg=-remote-allow-system-access",
@@ -720,6 +725,10 @@ async function main() {
         'return document.getElementById("form-title").textContent === "Tokyo · Local demo";',
       );
       await capture("07-options-chinese.png");
+      await capture("08-help-community-chinese.png", ".page-footer", 16);
+      await execute('document.getElementById("section-identity").open = true;');
+      await capture("09-identity-controls-chinese.png", "#section-identity", 16);
+
       const userAgent = await execute("return navigator.userAgent;");
       const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));
       const sourceHashes = {};
@@ -1324,6 +1333,19 @@ async function main() {
       (await call({ type: "state:get" })).state.activeProfileId === null,
       "Final Off releases the test profile",
     );
+    await client.send("WebDriver:SetWindowRect", { width: 600, height: 800 });
+    for (const language of ["zh_CN", "en"]) {
+      await fill({ "ui-language": language });
+      await waitFor(
+        `return document.documentElement.lang === ${JSON.stringify(language === "zh_CN" ? "zh-CN" : "en")};`,
+      );
+      check(
+        await execute(
+          "return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1;",
+        ),
+        `Options remain horizontally contained in a narrow window (${language})`,
+      );
+    }
   } finally {
     if (client !== null) client.close();
     let stopped = false;

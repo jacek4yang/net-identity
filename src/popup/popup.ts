@@ -121,7 +121,11 @@ function renderRoutes(): void {
   elements.routeOff.disabled = quickAddBusy;
   clear(elements.routeList);
 
-  const matches = filterProfiles(knownProfiles, elements.routeSearch.value);
+  const matches = filterProfiles(
+    knownProfiles,
+    elements.routeSearch.value,
+    message("browserRouting"),
+  );
   elements.routeEmpty.hidden = matches.length > 0;
   for (const profile of matches) {
     const isDirect = isBuiltinDirectProfile(profile.id);
@@ -129,7 +133,7 @@ function renderRoutes(): void {
     const isThisActivating = profile.id === activatingProfileId;
 
     const secondaryText = isDirect
-      ? "Browser / system routing"
+      ? message("browserRoutingExplanation")
       : `${profile.proxy.type.toUpperCase()} · ${profile.proxy.host ?? ""}:${String(profile.proxy.port ?? "")}`;
 
     const leadIcon = isDirect ? "🌐" : "🛡️";

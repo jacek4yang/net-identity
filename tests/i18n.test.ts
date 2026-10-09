@@ -10,6 +10,9 @@ import {
   setUiLocale,
 } from "../src/shared/i18n";
 import { readFileSync } from "node:fs";
+import { NO_TILES } from "../src/options/tile-provider";
+import { proxyFieldHints } from "../src/options/form";
+import { decideGeoIpConsent } from "../src/background/consent";
 
 describe("single-source Firefox locale catalogs", () => {
   it("has identical nonempty keys with matching placeholder tokens", () => {
@@ -92,5 +95,24 @@ describe("community entry points", () => {
       /<a\s[^>]*href="https:\/\/linux\.do\/"[^>]*rel="noopener noreferrer"[^>]*data-i18n="community(?:Short|Link)"/,
     );
     expect(html).not.toMatch(/<(?:script|img|iframe)[^>]+linux\.do/);
+  });
+});
+
+describe("protection explanations", () => {
+  it("translates every proxy hint and both consent refusal reasons", () => {
+    setUiLocale("zh_CN");
+    const hints = ["socks4", "socks5", "http", "https"].flatMap(proxyFieldHints);
+    hints.push(NO_TILES.attribution);
+    for (const snapshot of [
+      { apiAvailable: false, optionalGranted: [] },
+      { apiAvailable: true, optionalGranted: [] },
+    ]) {
+      const result = decideGeoIpConsent("direct", snapshot);
+      expect(result.allowed).toBe(false);
+      expect(result.message).toBeTruthy();
+      hints.push(result.message ?? "");
+    }
+    for (const text of hints) expect(localizeKnownText(text)).not.toBe(text);
+    setUiLocale("en");
   });
 });
