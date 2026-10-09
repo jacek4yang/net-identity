@@ -613,6 +613,7 @@ async function main() {
       await click("#new-profile");
       await fill({
         "field-name": "Tokyo · Local demo",
+        "field-proxy-type": liveMap ? "http" : "socks5",
         "field-proxy-host": "127.0.0.1",
         "field-proxy-port": String(liveMap?.port ?? 9999),
       });

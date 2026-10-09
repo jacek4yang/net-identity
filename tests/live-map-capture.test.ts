@@ -40,6 +40,13 @@ describe("optional real-provider listing capture", () => {
     );
   });
 
+  it("selects HTTP for the CONNECT-only live fixture instead of the new SOCKS default", () => {
+    expect(readFileSync("scripts/e2e-ui.mjs", "utf8")).toContain(
+      '"field-proxy-type": liveMap ? "http" : "socks5"',
+    );
+    expect(readFileSync("scripts/live-map-proxy.mjs", "utf8")).toContain('server.on("connect"');
+  });
+
   it("exports candidate evidence without replacing or publishing existing assets", () => {
     const source = workflow();
     expect(source).toContain("candidate-real-map-listing");
