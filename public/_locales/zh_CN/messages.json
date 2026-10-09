@@ -676,5 +676,17 @@
   },
   "defaultProtectionNotice": {
     "message": "新代理默认启用 SOCKS 代理 DNS、仅代理 WebRTC，并自动跟随出口位置与时区。部分通话需要 TURN/TCP 支持。已有配置保留原设置。"
+  },
+  "helpLabel": {
+    "message": "帮助"
+  },
+  "supportLink": {
+    "message": "帮助／问题反馈"
+  },
+  "communityLink": {
+    "message": "社区资源 · LINUX DO"
+  },
+  "communityNotice": {
+    "message": "独立社区资源，不表示官方背书或合作关系。"
   }
 }

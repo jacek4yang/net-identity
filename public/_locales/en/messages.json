@@ -676,5 +676,17 @@
   },
   "defaultProtectionNotice": {
     "message": "New proxies use proxy DNS for SOCKS, strict proxy-only WebRTC, and automatic location/timezone. Some calls need TURN over TCP. Existing profiles keep their settings."
+  },
+  "helpLabel": {
+    "message": "Help"
+  },
+  "supportLink": {
+    "message": "Support / Report an issue"
+  },
+  "communityLink": {
+    "message": "Community · LINUX DO"
+  },
+  "communityNotice": {
+    "message": "Independent community resource; no endorsement or affiliation is implied."
   }
 }

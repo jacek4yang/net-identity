@@ -27,7 +27,9 @@ describe("AMO reviewer package", () => {
 
   it("links a homepage and privacy policy a reviewer can open", () => {
     expect(metadata.homepage?.["en-US"]).toContain("github.com/jacek4yang/net-identity");
-    expect(metadata.support_url?.["en-US"]).toContain("docs/PRIVACY.md");
+    expect(metadata.support_url?.["en-US"]).toBe(
+      "https://github.com/jacek4yang/net-identity/issues",
+    );
   });
 
   it("does not claim anonymity, undetectability or guarantees in the listing copy", () => {
