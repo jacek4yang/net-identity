@@ -1,5 +1,5 @@
 import { bindLanguageControl } from "../shared/language-control";
-import { localizeKnownText as lt, message } from "../shared/i18n";
+import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n";
 /**
  * Options page: profile CRUD and management.
  *
@@ -150,7 +150,7 @@ function stopOnlineMap(reason = "Online map off. Coordinates work offline."): vo
   mapLoad.textContent = message("loadOnlineMap");
   mapLoad.hidden = false;
   mapUnload.hidden = true;
-  mapAttribution.textContent = NO_TILES.attribution;
+  mapAttribution.textContent = lt(NO_TILES.attribution);
   setMapStatus(reason);
   ui.mapSurface.dataset.online = "off";
 }
@@ -325,14 +325,16 @@ function writeForm(values: ProfileFormValues): void {
   updateVisibility();
 }
 
+let lastErrors: readonly string[] = [];
 function showErrors(errors: readonly string[]): void {
+  lastErrors = [...errors];
   if (errors.length === 0) {
     ui.errors.hidden = true;
     ui.errors.textContent = "";
     return;
   }
   ui.errors.hidden = false;
-  ui.errors.textContent = errors.join(" • ");
+  ui.errors.textContent = errors.map(lt).join(" • ");
 }
 
 function selectedProfile(): IdentityProfile | null {
@@ -372,7 +374,11 @@ function renderLocationMap(): void {
 
   onlineMap?.update(viewport);
   ui.mapNotice.hidden = false;
-  ui.mapNotice.textContent = `Center ${viewport.center.latitude.toFixed(3)}, ${viewport.center.longitude.toFixed(3)} · Zoom ${viewport.zoom}`;
+  ui.mapNotice.textContent = formatMessage("mapCamera", {
+    latitude: viewport.center.latitude.toFixed(3),
+    longitude: viewport.center.longitude.toFixed(3),
+    zoom: viewport.zoom,
+  });
   ui.mapSurface.dataset.zoom = String(viewport.zoom);
   ui.mapSurface.dataset.center = `${viewport.center.latitude},${viewport.center.longitude}`;
   ui.mapSurface.style.backgroundPosition = `${-viewport.center.longitude * 2 ** viewport.zoom}px ${viewport.center.latitude * 2 ** viewport.zoom}px`;
@@ -480,7 +486,7 @@ function renderProfileList(): void {
 
     const subtitle = isDirect
       ? "Browser / system routing · Automatic identity"
-      : `${describeProxy(profile.proxy)} · ${profile.identity.mode} identity · WebRTC ${profile.webrtcPolicy}`;
+      : `${describeProxy(profile.proxy)} · ${profile.identity.mode === "auto" ? message("automaticLabel") : message("manualLabel")} · WebRTC ${profile.webrtcPolicy}`;
 
     const item = el("li", {
       attrs: {
@@ -494,7 +500,10 @@ function renderProfileList(): void {
       children: [
         el("div", {
           className: "name",
-          children: [el("span", { text: profile.name }), ...badges],
+          children: [
+            el("span", { text: isDirect ? message("browserRouting") : profile.name }),
+            ...badges,
+          ],
         }),
         el("div", {
           className: "meta",
@@ -658,7 +667,7 @@ function renderRuntimeRows(state: RuntimeState): void {
   );
 
   for (const check of state.audit.checks) {
-    addRow(check.label, check.detail ?? "", check.status);
+    addRow(check.label, lt(check.detail ?? ""), check.status);
   }
 
   if (state.lastError !== undefined) {
@@ -772,7 +781,9 @@ async function deleteSelected(): Promise<void> {
   if (profile === null || profile.id === BUILTIN_DIRECT_PROFILE_ID) return;
   if (
     !window.confirm(
-      `Delete${profile.id === activeProfileId ? " and deactivate" : ""} the profile “${profile.name}”?`,
+      formatMessage(profile.id === activeProfileId ? "deleteActiveProfile" : "deleteProfile", {
+        name: profile.name,
+      }),
     )
   )
     return;
@@ -1048,6 +1059,7 @@ onRuntimeMessage((message) => {
 void (async () => {
   await bindLanguageControl(() => {
     renderGuide();
+    showErrors(lastErrors);
     renderProfileList();
     setMapStatus(mapStatusText);
     mapLoad.textContent = message(onlineMap ? "reloadOnlineMap" : "loadOnlineMap");

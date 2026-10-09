@@ -20,6 +20,15 @@ export function setUiLocale(value: Locale): void {
 export function message(key: MessageKey, selected: Locale = locale): string {
   return (selected === "zh_CN" ? zh[key] : en[key]).message;
 }
+/** Text-only substitution: callers must assign textContent/attributes, never HTML. */
+export function formatMessage(
+  key: MessageKey,
+  values: Readonly<Record<string, string | number>>,
+): string {
+  return message(key).replace(/\{([a-z]+)\}/g, (token: string, name: string) =>
+    Object.hasOwn(values, name) ? String(values[name]) : token,
+  );
+}
 // Transitional boundary for existing stable English diagnostics; never inspects DOM/user content.
 const diagnosticKeys = new Map<string, MessageKey>(
   (Object.keys(en) as MessageKey[]).map((key) => [en[key].message, key]),

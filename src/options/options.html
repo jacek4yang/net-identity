@@ -305,23 +305,38 @@
                       −
                     </button>
                   </div>
-                  <div class="location-map-attribution">Local coordinate grid ? No map imagery</div>
-                  <div class="location-map-notice" id="location-map-notice" hidden>
+                  <div class="location-map-attribution" data-i18n="localGrid">
+                    Local coordinate grid ? No map imagery
+                  </div>
+                  <div
+                    class="location-map-notice"
+                    id="location-map-notice"
+                    hidden
+                    data-i18n="mapUnavailable"
+                  >
                     Map imagery unavailable — coordinates still work.
                   </div>
                 </div>
                 <p class="hint map-privacy">
-                  Load online map sends your connection’s public IP and viewed map area to
+                  <span data-i18n="mapPrivacyBefore"
+                    >Load online map sends your connection’s public IP and viewed map area to</span
+                  >
                   <a
                     href="https://openfreemap.org/privacy/"
                     target="_blank"
                     rel="noopener noreferrer"
                     >OpenFreeMap</a
-                  >, which may use Cloudflare and keep incident IP logs for up to 30 days. Requests
-                  use the currently applied route, not unsaved proxy edits. Direct or Off also
-                  requires Firefox’s optional public-IP permission. No map requests are made until
-                  you load it.
-                  <a href="https://openfreemap.org/tos/" target="_blank" rel="noopener noreferrer"
+                  ><span data-i18n="mapPrivacyAfter"
+                    >, which may use Cloudflare and keep incident IP logs for up to 30 days.
+                    Requests use the currently applied route, not unsaved proxy edits. Direct or Off
+                    also requires Firefox’s optional public-IP permission. No map requests are made
+                    until you load it.</span
+                  >
+                  <a
+                    href="https://openfreemap.org/tos/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-i18n="providerTerms"
                     >Provider terms</a
                   >
                 </p>

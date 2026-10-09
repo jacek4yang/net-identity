@@ -3,6 +3,7 @@ import en from "../public/_locales/en/messages.json";
 import zh from "../public/_locales/zh_CN/messages.json";
 import {
   message,
+  formatMessage,
   parseLanguage,
   resolveLocale,
   localizeKnownText,
@@ -16,6 +17,9 @@ describe("single-source Firefox locale catalogs", () => {
     for (const key of Object.keys(en) as (keyof typeof en)[]) {
       expect(en[key].message.trim()).not.toBe("");
       expect(zh[key].message.trim()).not.toBe("");
+      expect(zh[key].message.match(/\{[a-z]+\}/g)?.sort() ?? []).toEqual(
+        en[key].message.match(/\{[a-z]+\}/g)?.sort() ?? [],
+      );
       expect(zh[key].message.match(/\$[A-Za-z0-9_]+\$/g) ?? []).toEqual(
         en[key].message.match(/\$[A-Za-z0-9_]+\$/g) ?? [],
       );
@@ -62,5 +66,31 @@ describe("single-source Firefox locale catalogs", () => {
       "utf8",
     );
     expect(control).not.toMatch(/profiles:|identity:refresh|proxy\.settings|sendMessage/);
+  });
+});
+
+describe("localized text-only diagnostics", () => {
+  it("retains placeholder values literally without interpreting them as markup", () => {
+    setUiLocale("zh_CN");
+    expect(formatMessage("deleteProfile", { name: "<img src=x>" })).toBe("删除配置“<img src=x>”？");
+    expect(formatMessage("framesSynced", { current: 2, total: 3 })).toBe("2/3 个框架已同步");
+    expect(localizeKnownText("proxy port must be an integer between 1 and 65535")).toBe(
+      "代理端口必须是 1 至 65535 之间的整数。",
+    );
+    setUiLocale("en");
+    expect(formatMessage("framesSynced", { current: 2, total: 3 })).toBe("2/3 frames synced");
+  });
+});
+
+describe("community entry points", () => {
+  it.each(["popup", "options"])("keeps %s community links explicit and safe", (surface) => {
+    const html = readFileSync(
+      new URL(`../src/${surface}/${surface}.html`, import.meta.url),
+      "utf8",
+    );
+    expect(html).toMatch(
+      /<a\s[^>]*href="https:\/\/linux\.do\/"[^>]*rel="noopener noreferrer"[^>]*data-i18n="community(?:Short|Link)"/,
+    );
+    expect(html).not.toMatch(/<(?:script|img|iframe)[^>]+linux\.do/);
   });
 });

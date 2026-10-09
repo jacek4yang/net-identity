@@ -1,5 +1,5 @@
 import { bindLanguageControl } from "../shared/language-control";
-import { localizeKnownText as lt, message } from "../shared/i18n";
+import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n";
 import { filterProfiles } from "./profile-search";
 import { bindQuickAdd } from "./quick-add";
 /**
@@ -215,17 +215,27 @@ function renderDetails(state: RuntimeState): void {
         ? message("verified")
         : message("unverified");
 
-  elements.detailsFirefoxProxy.textContent = `proxyType=${state.firefoxProxy.proxyType} (${state.firefoxProxy.levelOfControl})`;
+  elements.detailsFirefoxProxy.textContent = formatMessage("firefoxProxyDetail", {
+    type: state.firefoxProxy.proxyType,
+    control: state.firefoxProxy.levelOfControl,
+  });
 
   elements.detailsCoordinates.textContent =
     state.identity.latitude !== undefined && state.identity.longitude !== undefined
       ? `${formatCoordinates(state.identity.latitude, state.identity.longitude)} (${formatAccuracy(state.identity.accuracy)})`
       : "—";
 
-  elements.detailsWebrtcDetail.textContent = `desired=${state.webrtc.desired}, actual=${state.webrtc.actual ?? "default"} (${state.webrtc.status})`;
+  elements.detailsWebrtcDetail.textContent = formatMessage("webrtcDetail", {
+    desired: state.webrtc.desired,
+    actual: state.webrtc.actual ?? "default",
+    status: state.webrtc.status,
+  });
 
   elements.detailsFrames.textContent = state.content.hasShim
-    ? `${String(state.content.currentFrameCount)}/${String(state.content.frameCount)} frames synced`
+    ? formatMessage("framesSynced", {
+        current: state.content.currentFrameCount ?? "?",
+        total: state.content.frameCount ?? "?",
+      })
     : message("noTabs");
 
   // Detailed audit checks
@@ -234,10 +244,10 @@ function renderDetails(state: RuntimeState): void {
     const item = el("li", {
       className: "audit-item",
       children: [
-        el("span", { className: "audit-item-label", text: check.label }),
+        el("span", { className: "audit-item-label", text: lt(check.label) }),
         el("span", {
           className: "audit-item-status",
-          attrs: { "data-status": check.status, title: check.detail ?? "" },
+          attrs: { "data-status": check.status, title: lt(check.detail ?? "") },
           text: lt(CHECK_STATUS_LABELS[check.status] ?? check.status),
         }),
       ],
@@ -280,14 +290,14 @@ function applyMutation(result: MutationResponse, profiles: ProfilesResponse | nu
     renderRoutes();
   }
   if (!result.ok && result.errors.length > 0) {
-    renderError(result.errors.join("; "));
+    renderError(result.errors.map(lt).join("; "));
   }
 }
 
 async function loadProfiles(): Promise<ProfilesResponse | null> {
   const response = await request({ type: "profiles:list" }, parseProfilesResponse);
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     return null;
   }
   knownProfiles = response.value.profiles;
@@ -306,7 +316,7 @@ async function activateRoute(profileId: string): Promise<void> {
 
   const response = await request({ type: "profiles:activate", profileId }, parseMutationResponse);
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     activatingProfileId = null;
     setStatusPill(currentStatus);
     renderRoutes();
@@ -329,7 +339,7 @@ async function deactivateRoute(): Promise<void> {
 
   const response = await request({ type: "profiles:deactivate" }, parseMutationResponse);
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     isDeactivating = false;
     setStatusPill(currentStatus);
     renderRoutes();
@@ -358,7 +368,7 @@ async function refreshIdentity(): Promise<void> {
   elements.refreshButton.disabled = false;
 
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     setStatusPill(currentStatus);
     return;
   }

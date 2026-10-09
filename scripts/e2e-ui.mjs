@@ -32,6 +32,7 @@ const { values } = parseArgs({
     firefox: { type: "string" },
     timeout: { type: "string", default: "90" },
     screenshots: { type: "string" },
+    light: { type: "boolean", default: false },
     "live-map": { type: "boolean", default: false },
   },
 });
@@ -333,7 +334,7 @@ async function main() {
         "--no-input",
         "--no-reload",
         `--pref=marionette.port=${marionettePort}`,
-        ...(values.screenshots ? ["--pref=ui.systemUsesDarkTheme=1"] : []),
+        ...(values.screenshots ? [`--pref=ui.systemUsesDarkTheme=${values.light ? 0 : 1}`] : []),
         "--arg=--marionette",
         "--arg=-remote-allow-system-access",
         ...(liveMap
@@ -1011,6 +1012,12 @@ async function main() {
     await fill({ "ui-language": "en" });
     await waitFor(
       'return document.documentElement.lang === "en" && document.getElementById("quick-save").textContent === "Save";',
+    );
+    check(
+      await execute(
+        'return Array.from(document.querySelectorAll("a")).some(a => a.href === "https://linux.do/" && a.rel.includes("noopener") && a.rel.includes("noreferrer"));',
+      ),
+      "Community link is visible and isolates its external browsing context",
     );
     const beforeSearch = (await call({ type: "state:get" })).state;
     await fill({ "route-search": "does-not-match-any-profile" });

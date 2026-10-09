@@ -97,3 +97,23 @@ DNS/WebRTC overrides and runtime diagnostics are expandable rather than a prereq
 for saving a normal proxy. Collapsing Identity & Privacy unloads an enabled online map;
 reopening does not silently opt in again. Real-Firefox tests explicitly open advanced
 panels before pointer interactions, while separately asserting the collapsed defaults.
+
+## Owner acceptance before publication
+
+The owner requires a complete review of the final pages before publication (2026-10-09).
+Do not tag, submit/sign a new AMO version, finalize a release, update the live listing,
+or publish a Linux DO announcement before explicit owner approval of that final candidate.
+A green CI run or approval of an earlier screenshot is not publication approval.
+
+The review set must identify its exact source commit and include English/Simplified
+Chinese, light/dark presentation, quick setup, profile management, advanced protection,
+validation feedback, and community/help entry points. Capture actual Firefox UI using
+synthetic local fixtures; keep screenshots out of the runtime package. Credentials,
+provider failures, unsupported settings and unverified results must remain distinguishable.
+
+Current incremental localization covers common validation messages, consent/protection
+explanations, profile deletion confirmation, frame counts, map camera coordinates and
+runtime labels. Technical policy identifiers and user-entered names are preserved.
+Unknown diagnostic text remains visible rather than being hidden or reported as success.
+LINUX DO links in the popup, settings and documentation are explicit external links;
+there are no embedded remote assets, tracking calls or claims of endorsement.

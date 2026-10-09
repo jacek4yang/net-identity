@@ -24,7 +24,7 @@
     "message": "Host or proxy address"
   },
   "port": {
-    "message": "Port (optional in URL)"
+    "message": "Port"
   },
   "profileNameOptional": {
     "message": "Profile name (optional)"
@@ -42,7 +42,7 @@
     "message": "Credentials are lost when Firefox exits. SOCKS4 does not support authentication."
   },
   "pasteNotice": {
-    "message": "Explicit URL schemes take precedence. No automatic protocol detection. Enter credentials separately, not in a URL."
+    "message": "An address containing a port can leave Port blank. Explicit URL schemes take precedence. Enter credentials separately; protocols are not auto-detected."
   },
   "save": {
     "message": "Save"
@@ -688,5 +688,233 @@
   },
   "communityNotice": {
     "message": "Independent community resource; no endorsement or affiliation is implied."
+  },
+  "manualLabel": {
+    "message": "Manual"
+  },
+  "mapCamera": {
+    "message": "Center {latitude}, {longitude} · Zoom {zoom}"
+  },
+  "framesSynced": {
+    "message": "{current}/{total} frames synced"
+  },
+  "deleteProfile": {
+    "message": "Delete the profile “{name}”?"
+  },
+  "deleteActiveProfile": {
+    "message": "Delete and deactivate the profile “{name}”?"
+  },
+  "mapPrivacyBefore": {
+    "message": "Load online map sends your connection’s public IP and viewed map area to"
+  },
+  "mapPrivacyAfter": {
+    "message": ", which may use Cloudflare and keep incident IP logs for up to 30 days. Requests use the currently applied route, not unsaved proxy edits. Direct or Off also requires Firefox’s optional public-IP permission. No map requests are made until you load it."
+  },
+  "validationAccuracy": {
+    "message": "accuracy must be a positive number of metres (max 1,000,000)"
+  },
+  "validationCountryText": {
+    "message": "country code must be text"
+  },
+  "validationCountry": {
+    "message": "country code must be two letters (for example US)"
+  },
+  "validationPublicIp": {
+    "message": "public IP must be a valid IPv4 or IPv6 address"
+  },
+  "validationProxyRequired": {
+    "message": "proxy configuration is required"
+  },
+  "validationHost": {
+    "message": "proxy host must be a hostname, IPv4 address or IPv6 address"
+  },
+  "validationPort": {
+    "message": "proxy port must be an integer between 1 and 65535"
+  },
+  "validationProxyUser": {
+    "message": "proxy username is too long or empty"
+  },
+  "validationAuthFlag": {
+    "message": "proxy authentication requirement must be boolean"
+  },
+  "validationIdentity": {
+    "message": "identity configuration is required"
+  },
+  "validationCoordinatePair": {
+    "message": "latitude and longitude must be provided together"
+  },
+  "validationGeoipPolicy": {
+    "message": "invalid GeoIP policy"
+  },
+  "validationGeolocationPolicy": {
+    "message": "invalid geolocation policy"
+  },
+  "validationTimezonePolicy": {
+    "message": "invalid timezone policy"
+  },
+  "validationProvider": {
+    "message": "unsupported GeoIP provider"
+  },
+  "validationLatitude": {
+    "message": "manual mode requires a latitude"
+  },
+  "validationLongitude": {
+    "message": "manual mode requires a longitude"
+  },
+  "validationManualAccuracy": {
+    "message": "manual mode requires an accuracy in metres"
+  },
+  "validationManualZone": {
+    "message": "manual mode requires an IANA timezone"
+  },
+  "validationProfile": {
+    "message": "profile must be an object"
+  },
+  "validationProfileId": {
+    "message": "profile id is missing or malformed"
+  },
+  "validationProfileName": {
+    "message": "profile name is required (maximum 64 characters)"
+  },
+  "validationRevision": {
+    "message": "invalid profile revision"
+  },
+  "validationWebrtcMode": {
+    "message": "invalid WebRTC mode"
+  },
+  "validationProfileInvalid": {
+    "message": "profile is invalid"
+  },
+  "validationCredentialObject": {
+    "message": "credentials must be an object"
+  },
+  "validationCredentialPair": {
+    "message": "credentials must contain a username or a password"
+  },
+  "validationUserText": {
+    "message": "username must be text"
+  },
+  "validationPasswordText": {
+    "message": "password must be text"
+  },
+  "validationUserLength": {
+    "message": "username is too long"
+  },
+  "validationPasswordLength": {
+    "message": "password is too long"
+  },
+  "validationCredentialEmpty": {
+    "message": "credentials must not be empty"
+  },
+  "auditProxyConfigured": {
+    "message": "Proxy configured"
+  },
+  "auditPublicIp": {
+    "message": "Public egress IP resolved"
+  },
+  "auditGeoip": {
+    "message": "GeoIP resolved"
+  },
+  "auditTimezone": {
+    "message": "Timezone available"
+  },
+  "auditLocation": {
+    "message": "Geolocation available"
+  },
+  "auditWebrtc": {
+    "message": "WebRTC policy applied"
+  },
+  "auditPageShim": {
+    "message": "Page shim"
+  },
+  "auditNoProfile": {
+    "message": "No profile is active."
+  },
+  "auditNoIdentity": {
+    "message": "No identity is being applied."
+  },
+  "auditProviderFailed": {
+    "message": "The GeoIP provider failed."
+  },
+  "auditNoPublicIp": {
+    "message": "No public IP is known yet."
+  },
+  "auditUnverifiedIp": {
+    "message": "The configured public IP could not be verified."
+  },
+  "auditNoLocation": {
+    "message": "The provider returned no location data."
+  },
+  "auditNoTimezone": {
+    "message": "No timezone is available."
+  },
+  "auditNoCoordinates": {
+    "message": "No coordinates are available."
+  },
+  "auditNoPageReport": {
+    "message": "No page shim has reported from an open tab."
+  },
+  "validationHosthttp": {
+    "message": "http proxies require a host"
+  },
+  "validationPorthttp": {
+    "message": "http proxies require a port"
+  },
+  "validationHosthttps": {
+    "message": "https proxies require a host"
+  },
+  "validationPorthttps": {
+    "message": "https proxies require a port"
+  },
+  "validationHostsocks4": {
+    "message": "socks4 proxies require a host"
+  },
+  "validationPortsocks4": {
+    "message": "socks4 proxies require a port"
+  },
+  "validationHostsocks5": {
+    "message": "socks5 proxies require a host"
+  },
+  "validationPortsocks5": {
+    "message": "socks5 proxies require a port"
+  },
+  "communityShort": {
+    "message": "LINUX DO community"
+  },
+  "firefoxProxyDetail": {
+    "message": "Type: {type} · control: {control}"
+  },
+  "webrtcDetail": {
+    "message": "Requested: {desired} · effective: {actual} · status: {status}"
+  },
+  "privacyDiagnostic0": {
+    "message": "A page shim is present but has not reported yet."
+  },
+  "privacyDiagnostic1": {
+    "message": "No Firefox-level proxy is configured."
+  },
+  "privacyDiagnostic2": {
+    "message": "Browser routing: Firefox's own connection is used, and a proxy set in Firefox is not overridden."
+  },
+  "privacyDiagnostic3": {
+    "message": "This Firefox build does not allow extensions to change the WebRTC policy."
+  },
+  "privacyDiagnostic4": {
+    "message": "Another extension controls the WebRTC policy; net-identity did not change it."
+  },
+  "privacyDiagnostic5": {
+    "message": "The WebRTC policy could not be read on this Firefox build."
+  },
+  "privacyDiagnostic6": {
+    "message": "Firefox refused the WebRTC policy change."
+  },
+  "privacyDiagnostic7": {
+    "message": "Firefox accepted the change but did not report the resulting policy."
+  },
+  "privacyDiagnostic8": {
+    "message": "Firefox refused to relinquish the WebRTC policy."
+  },
+  "privacyDiagnostic9": {
+    "message": "Firefox cleared the WebRTC policy but did not report the restored value."
   }
 }

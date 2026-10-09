@@ -24,7 +24,7 @@
     "message": "主机或代理地址"
   },
   "port": {
-    "message": "端口（地址已含端口可留空）"
+    "message": "端口"
   },
   "profileNameOptional": {
     "message": "配置名称（可选）"
@@ -42,7 +42,7 @@
     "message": "退出 Firefox 后凭据会丢失。SOCKS4 不支持认证。"
   },
   "pasteNotice": {
-    "message": "地址中明确指定的协议优先，不会自动探测协议。请单独填写凭据，不要放进地址。"
+    "message": "地址已含端口时可留空端口栏。地址中明确指定的协议优先，不会自动探测；账号密码请单独填写。"
   },
   "save": {
     "message": "保存"
@@ -688,5 +688,233 @@
   },
   "communityNotice": {
     "message": "独立社区资源，不表示官方背书或合作关系。"
+  },
+  "manualLabel": {
+    "message": "手动"
+  },
+  "mapCamera": {
+    "message": "中心 {latitude}, {longitude} · 缩放 {zoom}"
+  },
+  "framesSynced": {
+    "message": "{current}/{total} 个框架已同步"
+  },
+  "deleteProfile": {
+    "message": "删除配置“{name}”？"
+  },
+  "deleteActiveProfile": {
+    "message": "停用并删除配置“{name}”？"
+  },
+  "mapPrivacyBefore": {
+    "message": "加载在线地图会把当前连接的公网 IP 和查看区域发送给"
+  },
+  "mapPrivacyAfter": {
+    "message": "，它可能使用 Cloudflare，并将安全事件 IP 日志保留最多 30 天。请求使用已应用的线路，不采用尚未保存的代理编辑。浏览器路由或关闭状态还需要 Firefox 的可选公网 IP 权限。加载前不会请求地图。"
+  },
+  "validationAccuracy": {
+    "message": "精度必须是正数，单位为米，最大 1,000,000。"
+  },
+  "validationCountryText": {
+    "message": "国家代码必须为文本。"
+  },
+  "validationCountry": {
+    "message": "国家代码必须为两个字母，例如 US。"
+  },
+  "validationPublicIp": {
+    "message": "公网 IP 必须是有效的 IPv4 或 IPv6 地址。"
+  },
+  "validationProxyRequired": {
+    "message": "需要提供代理配置。"
+  },
+  "validationHost": {
+    "message": "代理主机必须是域名、IPv4 或 IPv6 地址。"
+  },
+  "validationPort": {
+    "message": "代理端口必须是 1 至 65535 之间的整数。"
+  },
+  "validationProxyUser": {
+    "message": "代理用户名为空或过长。"
+  },
+  "validationAuthFlag": {
+    "message": "代理认证要求必须是布尔值。"
+  },
+  "validationIdentity": {
+    "message": "需要提供身份配置。"
+  },
+  "validationCoordinatePair": {
+    "message": "纬度和经度必须同时填写。"
+  },
+  "validationGeoipPolicy": {
+    "message": "GeoIP 策略无效。"
+  },
+  "validationGeolocationPolicy": {
+    "message": "地理位置策略无效。"
+  },
+  "validationTimezonePolicy": {
+    "message": "时区策略无效。"
+  },
+  "validationProvider": {
+    "message": "不支持此 GeoIP 服务商。"
+  },
+  "validationLatitude": {
+    "message": "手动模式需要填写纬度。"
+  },
+  "validationLongitude": {
+    "message": "手动模式需要填写经度。"
+  },
+  "validationManualAccuracy": {
+    "message": "手动模式需要填写精度，单位为米。"
+  },
+  "validationManualZone": {
+    "message": "手动模式需要填写 IANA 时区。"
+  },
+  "validationProfile": {
+    "message": "配置必须是对象。"
+  },
+  "validationProfileId": {
+    "message": "配置标识缺失或格式错误。"
+  },
+  "validationProfileName": {
+    "message": "请填写配置名称，最多 64 个字符。"
+  },
+  "validationRevision": {
+    "message": "配置修订号无效。"
+  },
+  "validationWebrtcMode": {
+    "message": "WebRTC 模式无效。"
+  },
+  "validationProfileInvalid": {
+    "message": "配置无效。"
+  },
+  "validationCredentialObject": {
+    "message": "认证信息必须是对象。"
+  },
+  "validationCredentialPair": {
+    "message": "请填写用户名或密码。"
+  },
+  "validationUserText": {
+    "message": "用户名必须为文本。"
+  },
+  "validationPasswordText": {
+    "message": "密码必须为文本。"
+  },
+  "validationUserLength": {
+    "message": "用户名过长。"
+  },
+  "validationPasswordLength": {
+    "message": "密码过长。"
+  },
+  "validationCredentialEmpty": {
+    "message": "认证信息不能为空。"
+  },
+  "auditProxyConfigured": {
+    "message": "代理已配置"
+  },
+  "auditPublicIp": {
+    "message": "公网出口 IP 解析"
+  },
+  "auditGeoip": {
+    "message": "GeoIP 解析"
+  },
+  "auditTimezone": {
+    "message": "时区可用性"
+  },
+  "auditLocation": {
+    "message": "位置可用性"
+  },
+  "auditWebrtc": {
+    "message": "WebRTC 策略应用"
+  },
+  "auditPageShim": {
+    "message": "网页兼容层"
+  },
+  "auditNoProfile": {
+    "message": "当前未启用任何配置。"
+  },
+  "auditNoIdentity": {
+    "message": "当前未应用身份。"
+  },
+  "auditProviderFailed": {
+    "message": "GeoIP 服务商请求失败。"
+  },
+  "auditNoPublicIp": {
+    "message": "尚未获取公网 IP。"
+  },
+  "auditUnverifiedIp": {
+    "message": "无法核实配置中的公网 IP。"
+  },
+  "auditNoLocation": {
+    "message": "服务商未返回位置数据。"
+  },
+  "auditNoTimezone": {
+    "message": "没有可用时区。"
+  },
+  "auditNoCoordinates": {
+    "message": "没有可用坐标。"
+  },
+  "auditNoPageReport": {
+    "message": "尚未收到已打开标签页的兼容层报告。"
+  },
+  "validationHosthttp": {
+    "message": "http 代理需要填写主机。"
+  },
+  "validationPorthttp": {
+    "message": "http 代理需要填写端口。"
+  },
+  "validationHosthttps": {
+    "message": "https 代理需要填写主机。"
+  },
+  "validationPorthttps": {
+    "message": "https 代理需要填写端口。"
+  },
+  "validationHostsocks4": {
+    "message": "socks4 代理需要填写主机。"
+  },
+  "validationPortsocks4": {
+    "message": "socks4 代理需要填写端口。"
+  },
+  "validationHostsocks5": {
+    "message": "socks5 代理需要填写主机。"
+  },
+  "validationPortsocks5": {
+    "message": "socks5 代理需要填写端口。"
+  },
+  "communityShort": {
+    "message": "LINUX DO 社区"
+  },
+  "firefoxProxyDetail": {
+    "message": "类型：{type} · 控制权：{control}"
+  },
+  "webrtcDetail": {
+    "message": "要求：{desired} · 实际：{actual} · 状态：{status}"
+  },
+  "privacyDiagnostic0": {
+    "message": "页面适配已加载，但尚未报告状态。"
+  },
+  "privacyDiagnostic1": {
+    "message": "Firefox 未配置浏览器级代理。"
+  },
+  "privacyDiagnostic2": {
+    "message": "使用 Firefox 自身的连接设置，不覆盖 Firefox 已配置的代理。"
+  },
+  "privacyDiagnostic3": {
+    "message": "当前 Firefox 版本不允许扩展修改 WebRTC 策略。"
+  },
+  "privacyDiagnostic4": {
+    "message": "WebRTC 策略由其他扩展控制；Net Identity 未修改它。"
+  },
+  "privacyDiagnostic5": {
+    "message": "无法读取当前 Firefox 的 WebRTC 策略。"
+  },
+  "privacyDiagnostic6": {
+    "message": "Firefox 拒绝了 WebRTC 策略变更。"
+  },
+  "privacyDiagnostic7": {
+    "message": "Firefox 接受了变更，但尚未报告实际生效的策略。"
+  },
+  "privacyDiagnostic8": {
+    "message": "Firefox 拒绝释放 WebRTC 策略控制权。"
+  },
+  "privacyDiagnostic9": {
+    "message": "Firefox 已清除扩展的 WebRTC 策略，但尚未报告恢复后的值。"
   }
 }

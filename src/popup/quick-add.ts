@@ -25,13 +25,13 @@ export function bindQuickAdd(deps: {
   const username = requireElement<HTMLInputElement>("#quick-username");
   const password = requireElement<HTMLInputElement>("#quick-password");
   const status = requireElement<HTMLElement>("#quick-status");
-  let lastStatus = "";
-  function show(text: string): void {
-    lastStatus = text;
-    status.textContent = lt(text);
+  let lastStatus: readonly string[] = [];
+  function show(text: string | readonly string[]): void {
+    lastStatus = typeof text === "string" ? [text] : [...text];
+    status.textContent = lastStatus.map(lt).join(" ");
   }
   document.addEventListener("ni:language-changed", () => {
-    status.textContent = lt(lastStatus);
+    status.textContent = lastStatus.map(lt).join(" ");
     toggle.textContent = message(panel.hidden ? "addProxy" : "backToRoutes");
   });
   let pending = false;
@@ -57,7 +57,7 @@ export function bindQuickAdd(deps: {
     if (!["http", "https", "socks4", "socks5"].includes(selected)) return;
     const endpoint = parseQuickEndpoint(host.value, port.value, selected as QuickProxyType);
     if (!endpoint.ok) {
-      show(endpoint.errors.join(" "));
+      show(endpoint.errors);
       return;
     }
     const credentials =
@@ -65,7 +65,7 @@ export function bindQuickAdd(deps: {
         ? parseCredentials({ username: username.value, password: password.value })
         : undefined;
     if (credentials && !credentials.ok) {
-      show(credentials.errors.join(" "));
+      show(credentials.errors);
       return;
     }
     if (credentials && endpoint.value.type === "socks4") {
@@ -80,7 +80,7 @@ export function bindQuickAdd(deps: {
       deps.profiles().filter((item) => item.id !== draftId),
     );
     if (!profile.ok) {
-      show(profile.errors.join(" "));
+      show(profile.errors);
       return;
     }
     protocol.value = endpoint.value.type;
@@ -103,7 +103,7 @@ export function bindQuickAdd(deps: {
         parseMutationResponse,
       );
       if (!response.ok || !response.value.ok) {
-        show(response.ok ? response.value.errors.join(" ") : response.errors.join(" "));
+        show(response.ok ? response.value.errors : response.errors);
         return;
       }
       const id = draftId;
