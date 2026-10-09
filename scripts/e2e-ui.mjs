@@ -1,3 +1,4 @@
+import { DELAYED_OPTIONS_STARTUP } from "./delayed-options-startup.mjs";
 import { createDraftFixture } from "./draft-probe-fixture.mjs";
 import { runDraftChecks } from "./run-draft-checks.mjs";
 /**
@@ -16,7 +17,7 @@ import { runDraftChecks } from "./run-draft-checks.mjs";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, readdir, writeFile, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import net from "node:net";
 import path from "node:path";
@@ -39,6 +40,7 @@ const { values } = parseArgs({
     scale: { type: "string", default: "1" },
     "live-map": { type: "boolean", default: false },
     "draft-check": { type: "boolean", default: false },
+    "delayed-init": { type: "boolean", default: false },
     "draft-evidence": { type: "string" },
   },
 });
@@ -281,6 +283,9 @@ async function main() {
     process.exit(2);
   }
 
+  if (values["delayed-init"] && !values["draft-check"])
+    throw new Error("Delayed startup requires the isolated draft fixture");
+  let sourceDirectory = path.join(root, "dist");
   const failures = [];
   let client = null,
     liveMap = null,
@@ -339,6 +344,12 @@ async function main() {
       await mkdir(profile);
       draftFixture = await createDraftFixture(directory, profile);
       profileArgs = ["--firefox-profile", profile, "--keep-profile-changes"];
+      if (values["delayed-init"]) {
+        sourceDirectory = path.join(directory, "instrumented-extension");
+        await cp(path.join(root, "dist"), sourceDirectory, { recursive: true });
+        const bundle = path.join(sourceDirectory, "options/options.js");
+        await writeFile(bundle, DELAYED_OPTIONS_STARTUP + (await readFile(bundle, "utf8")));
+      }
     }
     const marionettePort = await freePort();
     const cli = path.join(root, "node_modules", "web-ext", "bin", "web-ext.js");
@@ -348,7 +359,7 @@ async function main() {
         cli,
         "run",
         "--source-dir",
-        path.join(root, "dist"),
+        sourceDirectory,
         ...profileArgs,
         "--no-input",
         "--no-reload",
@@ -556,6 +567,7 @@ async function main() {
     if (draftFixture) {
       try {
         await runDraftChecks({
+          delayedInit: values["delayed-init"],
           capture: values["draft-evidence"]
             ? async (name) => {
                 const output = path.resolve(values["draft-evidence"]);

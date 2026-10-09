@@ -136,7 +136,7 @@ channel, then update README in a separate documentation PR if needed.
       owner accepts the actual final UI before publication.
 - [ ] Reviewer metadata and privacy copy disclose automatic draft lookup and remembered
       map loading; no unchanged-runtime or no-lookup-before-activation claim remains.
-- [ ] `e2e:draft` is green alongside the other ten deterministic Firefox harnesses.
+- [ ] `e2e:draft` and its deterministic `--delayed-init` variant pass alongside the other ten Firefox harnesses.
 
 ## Candidate-specific checks
 
@@ -189,7 +189,7 @@ channel, then update README in a separate documentation PR if needed.
 - [ ] Regenerate any changed store screenshots from actual UI with honest provenance.
       Preserve v1.1.3 publication evidence and do not treat manually uploaded AMO preview IDs
       as a trusted listing-workflow receipt or automatically overwrite/adopt them
-- [ ] After merging the release PR, rerun quality/package, all eleven deterministic Firefox
+- [ ] After merging the release PR, rerun quality/package, all twelve deterministic Firefox
       suites and required CI on the exact clean main commit; create a new immutable tag only
       after these gates pass. Do not change v1.1.3 or any historical submission/assets
 - [ ] Use the existing listed submission/finalizer, then verify permanent signed installation

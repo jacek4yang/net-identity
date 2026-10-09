@@ -15,7 +15,8 @@ and AMO submission are immutable; its tag targets
 
 Before tagging clean, merged main, run `npm ci`, `npm run check`, `npm run package`,
 `npm run e2e:invariants`, `npm run e2e:websocket`, `npm run e2e:proxy-auth`,
-`npm run e2e:ui`, `npm run e2e:map-fallback`, `npm run e2e:map`,
+`npm run e2e:ui`, `npm run e2e:draft`, `npm run e2e:draft -- --delayed-init`,
+`npm run e2e:map-fallback`, `npm run e2e:map`,
 `npm run e2e:fail-closed`, `npm run e2e:restart`,
 `npm run e2e:socks-auth` and `npm run e2e:flap` on the exact commit. The outage, restart, auth-loss and flap checks use Firefox Developer
 Edition for preinstalled unsigned-candidate restart coverage. Wait for both required CI checks. Follow

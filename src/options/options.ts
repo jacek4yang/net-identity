@@ -127,6 +127,8 @@ let runtimeState: RuntimeState | null = null;
 let activeProfileId: string | null = null;
 let credentialProfileIds: string[] = [];
 let selectedId: string | null = null;
+// A late initial storage snapshot must never replace work begun in the editor.
+let editorRevision = 0;
 let manualUserEdited = false;
 let resolvedSeed: LocationSeed | null = null;
 let draftSeed: LocationSeed | null = null;
@@ -637,6 +639,7 @@ function renderProfileList(): void {
 }
 
 function selectProfile(profileId: string | null): void {
+  editorRevision++;
   draftCheck.cancel();
   requireElement<HTMLDetailsElement>("#section-auth").open = false;
   requireElement<HTMLDetailsElement>("#section-identity").open = false;
@@ -789,7 +792,10 @@ function renderRuntimeRows(state: RuntimeState): void {
   }
 }
 
-async function reload(selectAfter: string | null = null): Promise<ProfilesResponse | null> {
+async function reload(
+  selectAfter: string | null = null,
+  initialEditorRevision?: number,
+): Promise<ProfilesResponse | null> {
   const [profilesResponse, stateResponse] = await Promise.all([
     request({ type: "profiles:list" }, parseProfilesResponse),
     request({ type: "state:get" }, parseStateResponse),
@@ -811,7 +817,9 @@ async function reload(selectAfter: string | null = null): Promise<ProfilesRespon
     (selectedId !== null && profiles.some((profile) => profile.id === selectedId)
       ? selectedId
       : BUILTIN_DIRECT_PROFILE_ID);
-  selectProfile(desiredSelection);
+  if (initialEditorRevision === undefined || initialEditorRevision === editorRevision)
+    selectProfile(desiredSelection);
+  else renderProfileList();
   return snapshot;
 }
 
@@ -947,6 +955,9 @@ for (const field of [ui.geoIpPolicy, ui.geolocationPolicy, ui.timezonePolicy])
   field.addEventListener("change", updateVisibility);
 
 // Event Listeners
+ui.form.addEventListener("input", () => {
+  editorRevision++;
+});
 ui.form.addEventListener("submit", (event) => {
   event.preventDefault();
   void saveProfile();
@@ -1185,6 +1196,7 @@ onRuntimeMessage((message) => {
 });
 
 void (async () => {
+  const initialEditorRevision = editorRevision;
   const initialVersion = mapPreferenceVersion;
   try {
     const enabled = await readMapAutoload();
@@ -1204,6 +1216,6 @@ void (async () => {
     if (runtimeState) renderRuntimeRows(runtimeState);
     if (selectedProfile() === null) ui.formTitle.textContent = message("newProfile");
   });
-  await reload();
+  await reload(null, initialEditorRevision);
   renderProfileList();
 })();

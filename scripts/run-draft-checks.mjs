@@ -1,6 +1,7 @@
 /** Actual editor and browser routing assertions, used only by the local fixture harness. */
 export async function runDraftChecks({
   capture,
+  delayedInit = false,
   client,
   execute,
   call,
@@ -14,10 +15,24 @@ export async function runDraftChecks({
 }) {
   await client.send("WebDriver:Navigate", { url: optionsUrl });
   await waitFor('return !!document.getElementById("new-profile");');
+  if (delayedInit) await waitFor('return document.documentElement.dataset.startupGate === "held";');
   await click("#new-profile");
   const before = (await call({ type: "state:get" })).state;
   await fill({ "field-proxy-host": "127.0.0.1", "field-proxy-port": String(fixture.b) });
   await waitFor('return document.getElementById("draft-status").dataset.state === "success";', 300);
+  if (delayedInit) {
+    await execute('document.dispatchEvent(new Event("ni-test-release-startup"));');
+    await waitFor('return document.documentElement.dataset.startupGate === "settled";');
+    const preserved = await execute(
+      `return !document.getElementById("profile-form").hidden &&
+      document.getElementById("field-proxy-host").value === "127.0.0.1" &&
+      document.getElementById("field-proxy-port").value === arguments[0] &&
+      document.getElementById("draft-status").dataset.state === "success";`,
+      [String(fixture.b)],
+    );
+    check(preserved, "Late initialization preserves early proxy input and completed preview");
+    if (!preserved) throw new Error("Late initialization discarded the user's new proxy draft");
+  }
   const preview = await execute(
     'return {text: document.getElementById("draft-status").textContent, zone:document.getElementById("field-timezone").value, latitude:document.getElementById("field-latitude").value};',
   );
