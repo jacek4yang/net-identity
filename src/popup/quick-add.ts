@@ -1,4 +1,3 @@
-import { protectionSummary } from "../shared/protection-summary";
 import { bindDraftCheck } from "../shared/draft-check";
 import { localizeKnownText as lt, message } from "../shared/i18n";
 /** Compact editor using the existing validated save and explicit activation commands. */
@@ -51,19 +50,6 @@ export function bindQuickAdd(deps: {
       };
     },
   });
-  function renderProtection(): void {
-    const endpoint = parseQuickEndpoint(host.value, port.value, protocol.value as QuickProxyType);
-    const type = endpoint.ok ? endpoint.value.type : protocol.value;
-    requireElement<HTMLElement>("#quick-protection-summary").textContent = protectionSummary(
-      type,
-      true,
-      "proxy_only",
-      true,
-    );
-  }
-  for (const field of [protocol, host, port]) field.addEventListener("input", renderProtection);
-  document.addEventListener("ni:language-changed", renderProtection);
-  renderProtection();
   let lastStatus: readonly string[] = [];
   function show(text: string | readonly string[]): void {
     lastStatus = typeof text === "string" ? [text] : [...text];
@@ -150,7 +136,6 @@ export function bindQuickAdd(deps: {
       const id = draftId;
       draftId = undefined;
       form.reset();
-      renderProtection();
       username.value = "";
       password.value = "";
       await deps.reload();

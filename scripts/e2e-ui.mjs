@@ -564,6 +564,12 @@ async function main() {
                   width: name.startsWith("options") ? 1280 : 500,
                   height: 900,
                 });
+                check(
+                  await execute(
+                    'return !document.querySelector("#protection-summary, #quick-protection-summary, [data-i18n=draftShortDisclosure]");',
+                  ),
+                  "Main surfaces omit the owner-rejected summary rows",
+                );
                 for (const language of ["zh_CN", "en"]) {
                   await fill({ "ui-language": language });
                   await waitFor(

@@ -701,14 +701,6 @@ body[data-view="add"] [data-switcher-surface] {
 #quick-add-panel details {
   margin: 10px 0;
 }
-#quick-add-panel .protection-summary {
-  line-height: 1.65;
-  color: var(--fg-dim);
-}
-#quick-add-panel .compact-disclosure {
-  font-size: 11px;
-  margin: 8px 0;
-}
 #quick-draft-status {
   padding: 9px 10px;
   border-radius: 8px;

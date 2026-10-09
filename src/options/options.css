@@ -722,15 +722,6 @@ body {
 .editor-section-collapsible > summary {
   padding: 7px 0;
 }
-.protection-summary {
-  color: var(--fg-dim);
-  font-size: 12px;
-  line-height: 1.7;
-}
-.compact-disclosure {
-  font-size: 12px;
-  margin: 8px 0;
-}
 #draft-status {
   padding: 10px 12px;
   margin: 8px 0;

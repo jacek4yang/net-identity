@@ -1010,9 +1010,6 @@
   "socksDnsHint": {
     "message": "代理 DNS 通过代理解析域名。Firefox 仅对 SOCKS 代理提供此选项。"
   },
-  "draftShortDisclosure": {
-    "message": "通过此代理向 ipwho.is 查询出口位置。"
-  },
   "privacyLimits": {
     "message": "隐私与限制"
   },
@@ -1030,27 +1027,6 @@
   },
   "connectionNotes": {
     "message": "连接说明"
-  },
-  "dnsOn": {
-    "message": "DNS 通过代理"
-  },
-  "dnsOff": {
-    "message": "DNS 本地解析"
-  },
-  "dnsProtocol": {
-    "message": "DNS 随代理协议"
-  },
-  "webrtcOn": {
-    "message": "WebRTC 限制直连"
-  },
-  "webrtcCustom": {
-    "message": "WebRTC 自定义"
-  },
-  "identityOn": {
-    "message": "自动位置与时区"
-  },
-  "identityCustom": {
-    "message": "自定义身份"
   },
   "turningOff": {
     "message": "正在关闭…"

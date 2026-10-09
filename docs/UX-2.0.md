@@ -138,9 +138,9 @@ still available for staging changes. Preview success is never treated as enabled
 The main editor keeps endpoint, draft result and explicit Save / Save and enable actions
 visible. Authentication, identity controls, advanced settings and secondary actions are
 progressively disclosed. Long privacy and compatibility explanations remain available
-under Privacy and limits; the short ipwho.is disclosure stays visible before probing.
-The compact protection summary describes current draft choices, not an active-route
-health guarantee. SOCKS DNS is editable; HTTP/HTTPS do not claim a SOCKS DNS toggle.
+under Privacy and limits; the popup disclosure is inside Customize.
+The owner requested removing the always-visible protection and provider summary
+rows; these are absent on both main surfaces. SOCKS DNS is editable; HTTP/HTTPS do not claim a SOCKS DNS toggle.
 Custom identity and WebRTC choices remain editable and are never migrated to defaults.
 Final interface acceptance and publication remain separate owner decisions.
 
