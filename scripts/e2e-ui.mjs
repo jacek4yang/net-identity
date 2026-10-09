@@ -585,6 +585,14 @@ async function main() {
                     await execute("return document.documentElement.scrollWidth <= innerWidth;"),
                     `Review capture has no horizontal overflow (${language})`,
                   );
+                  if (name.startsWith("options")) {
+                    await client.send("WebDriver:SetWindowRect", { width: 500, height: 900 });
+                    check(
+                      await execute("return document.documentElement.scrollWidth <= innerWidth;"),
+                      `Narrow settings page has no horizontal overflow (${language})`,
+                    );
+                    await client.send("WebDriver:SetWindowRect", { width: 1280, height: 900 });
+                  }
                   await execute("document.activeElement?.blur(); window.scrollTo(0, 0);");
                   const screenshot = await client.send("WebDriver:TakeScreenshot", { full: true });
                   await writeFile(

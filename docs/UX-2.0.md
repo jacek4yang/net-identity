@@ -148,3 +148,14 @@ Off is confirmed only after background teardown commits. The popup uses a locali
 Turning off state while that request is pending; it must not optimistically claim
 Off while the old route is still being released. The real toolbar test verifies
 the committed idle state before testing language-only changes.
+
+### Visual refinement (owner review pending)
+
+The settings page and popup share a slate/mint palette based on the bundled icon.
+Light and dark themes retain tested AA text contrast. A compact header contains
+the language selector; fine separators replace repeated nested disclosure boxes.
+New styling keeps existing labels, native keyboard controls, focus indicators,
+reduced-motion preferences and forced-colors support. No routing, consent,
+default-protection or saved-profile behavior changes. The removed summary rows
+remain absent. Final English/Chinese light/dark screenshots require owner approval
+before publication.
