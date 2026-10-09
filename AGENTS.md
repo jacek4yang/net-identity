@@ -425,3 +425,16 @@ The popup quick-add editor delegates to existing `profiles:save` and explicit
 credential URIs without reflecting their text, and new credentials use session-only
 fields. Duplicate endpoints can represent different accounts/policies; do not reject
 all endpoint duplicates. See `docs/UX-2.0.md` for remaining localization and release work.
+
+## New proxy protection defaults
+
+New proxy profiles now explicitly select `proxy_only` WebRTC, automatic identity,
+and proxy DNS for SOCKS4/SOCKS5. The options editor starts with SOCKS5 and DNS enabled,
+matching quick setup. Strict WebRTC can prevent calls without a TURN-over-TCP path
+through the proxy; it is not a claim that all browser traffic is covered. HTTP/HTTPS
+have no equivalent Firefox `proxyDNS` toggle. Explicit bypasses remain visible.
+
+This is a creation default, not a migration. Saved manual policies, DNS choices and
+the existing automatic recommendation remain unchanged. Built-in browser/system
+routing and Off retain their existing semantics. No new permission or network probe
+is introduced. Save still does not apply these settings.

@@ -673,5 +673,8 @@
   },
   "mapPartial": {
     "message": "Some map data could not load. The displayed map may be incomplete; reload to try again."
+  },
+  "defaultProtectionNotice": {
+    "message": "New proxies use proxy DNS for SOCKS, strict proxy-only WebRTC, and automatic location/timezone. Some calls need TURN over TCP. Existing profiles keep their settings."
   }
 }

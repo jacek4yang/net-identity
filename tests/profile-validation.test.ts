@@ -294,10 +294,8 @@ describe("parseCredentials", () => {
 });
 
 describe("createProfile", () => {
-  it("defaults proxy profiles to the strictest practical WebRTC policy", () => {
-    expect(createProfile("profile-0040", "proxy", "socks5").webrtcPolicy).toBe(
-      "disable_non_proxied_udp",
-    );
+  it("defaults new proxy profiles to strict WebRTC protection", () => {
+    expect(createProfile("profile-0040", "proxy", "socks5").webrtcPolicy).toBe("proxy_only");
     expect(createProfile("profile-0041", "direct", "direct").webrtcPolicy).toBe("default");
     expect(createProfile("profile-0042", "socks5", "socks5").proxy.proxyDNS).toBe(true);
   });

@@ -77,8 +77,10 @@ export interface ProfileState {
 
 export const SCHEMA_VERSION = 4;
 
-/** New proxy profiles default to the strictest practical policy. */
+/** Preserve the existing automatic recommendation for previously saved profiles. */
 export const DEFAULT_PROXY_WEBRTC_POLICY: WebRTCPolicy = "disable_non_proxied_udp";
+/** New proxies explicitly select strict protection without rewriting existing automatic profiles. */
+export const NEW_PROXY_WEBRTC_POLICY: WebRTCPolicy = "proxy_only";
 /** A direct connection has nothing to protect, so the browser default is kept. */
 export const DEFAULT_DIRECT_WEBRTC_POLICY: WebRTCPolicy = "default";
 
@@ -144,12 +146,12 @@ export function createProfile(
     proxy: {
       type: proxyType,
       ...(proxyType === "direct" ? {} : { host: "", port: 8080 }),
-      proxyDNS: proxyType === "socks5",
+      proxyDNS: proxyType === "socks5" || proxyType === "socks4",
       bypassHosts: [...DEFAULT_BYPASS_HOSTS],
     },
     identity: { mode: "auto" },
-    webrtcPolicy: defaultWebRtcPolicyFor(proxyType),
-    webrtcMode: "automatic",
+    webrtcPolicy: proxyType === "direct" ? DEFAULT_DIRECT_WEBRTC_POLICY : NEW_PROXY_WEBRTC_POLICY,
+    webrtcMode: proxyType === "direct" ? "automatic" : "manual",
     revision: 1,
   };
 }

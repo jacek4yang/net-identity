@@ -673,5 +673,8 @@
   },
   "mapPartial": {
     "message": "部分地图数据未加载，当前地图可能不完整，可重新加载重试。"
+  },
+  "defaultProtectionNotice": {
+    "message": "新代理默认启用 SOCKS 代理 DNS、仅代理 WebRTC，并自动跟随出口位置与时区。部分通话需要 TURN/TCP 支持。已有配置保留原设置。"
   }
 }

@@ -698,7 +698,13 @@ async function main() {
       await capture("06-quick-add-chinese.png");
       await client.send("WebDriver:Navigate", { url: optionsUrl });
       await waitFor(
-        'return document.documentElement.lang === "zh-CN" && document.getElementById("form-title").textContent === "Tokyo · Local demo";',
+        'return document.documentElement.lang === "zh-CN" && document.querySelectorAll("#profile-list li").length > 1;',
+      );
+      await execute(
+        'const row = [...document.querySelectorAll("#profile-list li")].find(e => e.querySelector(".name span")?.textContent === "Tokyo · Local demo"); if (!row) throw new Error("Demo profile missing"); row.click();',
+      );
+      await waitFor(
+        'return document.getElementById("form-title").textContent === "Tokyo · Local demo";',
       );
       await capture("07-options-chinese.png");
       const userAgent = await execute("return navigator.userAgent;");
@@ -836,6 +842,12 @@ async function main() {
       "Built-in Direct is read-only",
     );
     await click("#new-profile");
+    check(
+      await execute(
+        'return document.getElementById("field-proxy-type").value === "socks5" && document.getElementById("field-proxy-dns").checked && document.getElementById("field-webrtc").value === "proxy_only" && document.getElementById("field-mode-auto").checked;',
+      ),
+      "New proxy defaults enable SOCKS DNS, strict WebRTC and automatic identity",
+    );
     await fill({
       "field-name": "UI proxy",
       "field-proxy-host": "127.0.0.1",

@@ -83,3 +83,20 @@ describe("local quick proxy parsing", () => {
     expect(JSON.stringify(second.value)).not.toMatch(/password|username/);
   });
 });
+
+describe("new proxy protection defaults", () => {
+  it.each(["socks5", "socks4", "http", "https"] as const)("protects new %s profiles", (type) => {
+    const result = quickProxyProfile(
+      { type, host: "localhost", port: 1080 },
+      "Protected",
+      "protected-0001",
+      [],
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.webrtcPolicy).toBe("proxy_only");
+    expect(result.value.webrtcMode).toBe("manual");
+    expect(result.value.proxy.proxyDNS).toBe(type === "socks4" || type === "socks5");
+    expect(result.value.identity.mode).toBe("auto");
+  });
+});
