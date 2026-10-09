@@ -406,8 +406,12 @@ async function checkTraffic(browser, origin, phase) {
   // measure the actual requests, not a blocked harness-page navigation. This
   // ordinary opaque-origin page uses the same fetch/WebSocket probes and live
   // positive controls before and after locking; no extension-origin exemption.
+  // Keep the HTTP document for other scenarios, especially the mixed HTTP/TLS
+  // flap fixture, whose security context is part of its positive control.
   await browser.client.send("WebDriver:Navigate", {
-    url: "data:text/html,<!doctype html><title>fail-closed probe</title>",
+    url: values.vault
+      ? "data:text/html,<!doctype html><title>fail-closed probe</title>"
+      : `http://127.0.0.1:${origin.pagePort}/`,
   });
   const response = await browser.client.send(
     "WebDriver:ExecuteAsyncScript",
