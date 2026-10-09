@@ -89,3 +89,11 @@ Open UI surfaces observe only the dedicated language preference; profile and cre
 storage changes are not consumed by this listener. Unknown backend diagnostics retain
 their original text. Composite privacy copy, some validation messages and detailed audit
 values still need complete coverage before claiming a fully bilingual product.
+
+### Basic editor first (candidate slice 5)
+
+The options editor starts with basic proxy and authentication fields. Identity/map,
+DNS/WebRTC overrides and runtime diagnostics are expandable rather than a prerequisite
+for saving a normal proxy. Collapsing Identity & Privacy unloads an enabled online map;
+reopening does not silently opt in again. Real-Firefox tests explicitly open advanced
+panels before pointer interactions, while separately asserting the collapsed defaults.

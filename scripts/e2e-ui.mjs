@@ -496,6 +496,9 @@ async function main() {
         return {lat:document.getElementById("field-latitude").value, lng:document.getElementById("field-longitude").value, center:m.dataset.center, zoom:m.dataset.zoom};`);
     }
     async function point(selector, x = 0.5, y = 0.5) {
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       return execute(
         `const e=document.querySelector(arguments[0]); e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:Math.round(r.left+r.width*arguments[1]), y:Math.round(r.top+r.height*arguments[2])};`,
         [selector, x, y],
@@ -606,6 +609,9 @@ async function main() {
         "field-proxy-host": "127.0.0.1",
         "field-proxy-port": String(liveMap?.port ?? 9999),
       });
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       await click("#field-mode-manual");
       await fill({
         "field-geoip-policy": "disabled",
@@ -623,8 +629,14 @@ async function main() {
         'return document.getElementById("options-status").textContent.includes("Asia/Tokyo");',
       );
       await capture("02-profile-management.png");
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       if (liveMap) {
         await startMapRequestEvidence();
+        if (!(await execute('return document.getElementById("section-identity").open;'))) {
+          await click("#section-identity > summary");
+        }
         await click("#load-online-map");
         await waitFor(
           `return document.getElementById("location-map-surface").dataset.online === "ready";`,
@@ -844,6 +856,12 @@ async function main() {
     await click("#new-profile");
     check(
       await execute(
+        'return !document.getElementById("section-identity").open && !document.getElementById("section-advanced").open;',
+      ),
+      "New proxy keeps identity and advanced configuration collapsed",
+    );
+    check(
+      await execute(
         'return document.getElementById("field-proxy-type").value === "socks5" && document.getElementById("field-proxy-dns").checked && document.getElementById("field-webrtc").value === "proxy_only" && document.getElementById("field-mode-auto").checked;',
       ),
       "New proxy defaults enable SOCKS DNS, strict WebRTC and automatic identity",
@@ -853,6 +871,9 @@ async function main() {
       "field-proxy-host": "127.0.0.1",
       "field-proxy-port": "9999",
     });
+    if (!(await execute('return document.getElementById("section-identity").open;'))) {
+      await click("#section-identity > summary");
+    }
     await click("#field-mode-manual");
     await fill({
       "field-geoip-policy": "disabled",

@@ -514,6 +514,7 @@ function renderProfileList(): void {
 }
 
 function selectProfile(profileId: string | null): void {
+  requireElement<HTMLDetailsElement>("#section-identity").open = false;
   stopOnlineMap();
   cancelMapInteraction();
   wheelDelta = 0;
@@ -867,6 +868,13 @@ ui.directDeactivate.addEventListener("click", () => {
 
 ui.refreshIdentity.addEventListener("click", () => {
   void refreshIdentity();
+});
+
+requireElement<HTMLDetailsElement>("#section-identity").addEventListener("toggle", (event) => {
+  if (!(event.currentTarget as HTMLDetailsElement).open) {
+    stopOnlineMap();
+    cancelMapInteraction();
+  }
 });
 
 ui.proxyType.addEventListener("change", () => {

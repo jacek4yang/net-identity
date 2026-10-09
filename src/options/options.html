@@ -213,172 +213,183 @@
             </label>
           </fieldset>
 
-          <!-- Section C: Identity -->
-          <fieldset class="editor-section">
-            <legend class="section-title" data-i18n="identityPrivacy">
-              Identity &amp; Privacy
-            </legend>
-            <div class="identity-mode-group">
-              <label class="radio">
-                <input type="radio" name="identityMode" value="auto" id="field-mode-auto" />
-                <span data-i18n="automaticMode"
-                  >Automatic — observe public egress IP through the proxy</span
-                >
-              </label>
-              <label class="radio">
-                <input type="radio" name="identityMode" value="manual" id="field-mode-manual" />
-                <span data-i18n="manualMode"
-                  >Manual — set custom coordinates, accuracy, and timezone</span
-                >
-              </label>
-            </div>
+          <!-- Advanced identity controls do not obstruct basic proxy setup. -->
+          <details class="editor-section-collapsible" id="section-identity">
+            <summary data-i18n="identityPrivacy">Identity &amp; Privacy</summary>
+            <fieldset class="editor-section">
+              <legend class="section-title" data-i18n="identityPrivacy">
+                Identity &amp; Privacy
+              </legend>
+              <div class="identity-mode-group">
+                <label class="radio">
+                  <input type="radio" name="identityMode" value="auto" id="field-mode-auto" />
+                  <span data-i18n="automaticMode"
+                    >Automatic — observe public egress IP through the proxy</span
+                  >
+                </label>
+                <label class="radio">
+                  <input type="radio" name="identityMode" value="manual" id="field-mode-manual" />
+                  <span data-i18n="manualMode"
+                    >Manual — set custom coordinates, accuracy, and timezone</span
+                  >
+                </label>
+              </div>
 
-            <div id="identity-policies" class="grid" hidden>
-              <label class="field"
-                ><span data-i18n="publicGeoip">Public IP / GeoIP</span
-                ><select id="field-geoip-policy">
-                  <option value="automatic" data-i18n="automaticIpwho">Automatic (ipwho.is)</option>
-                  <option value="disabled" data-i18n="disabledLookup">Disabled (no lookup)</option>
-                </select></label
-              >
-              <label class="field"
-                ><span data-i18n="geolocationLabel">Geolocation</span
-                ><select id="field-geolocation-policy">
-                  <option value="follow" data-i18n="followGeoip">Follow GeoIP</option>
-                  <option value="manual" data-i18n="manualCoordinates">Manual coordinates</option>
-                  <option value="disabled" data-i18n="unavailableNative">
-                    Unavailable (never native)
-                  </option>
-                </select></label
-              >
-              <label class="field"
-                ><span data-i18n="zone">Timezone</span
-                ><select id="field-timezone-policy">
-                  <option value="follow" data-i18n="followLocation">
-                    Follow resolved location
-                  </option>
-                  <option value="manual" data-i18n="manualTimezone">Manual IANA timezone</option>
-                </select></label
-              >
-            </div>
-            <p id="identity-warning" class="hint" role="status" hidden></p>
-            <div class="location-map" id="location-map">
-              <div
-                class="location-map-surface"
-                id="location-map-surface"
-                role="application"
-                aria-label="Location picker; arrow keys pan, marker arrow keys move selection"
-                data-i18n-aria="locationPickerAria"
-                tabindex="0"
-              >
-                <div class="location-map-tiles" id="location-map-tiles"></div>
-                <div class="location-map-accuracy" id="location-map-accuracy" hidden></div>
+              <div id="identity-policies" class="grid" hidden>
+                <label class="field"
+                  ><span data-i18n="publicGeoip">Public IP / GeoIP</span
+                  ><select id="field-geoip-policy">
+                    <option value="automatic" data-i18n="automaticIpwho">
+                      Automatic (ipwho.is)
+                    </option>
+                    <option value="disabled" data-i18n="disabledLookup">
+                      Disabled (no lookup)
+                    </option>
+                  </select></label
+                >
+                <label class="field"
+                  ><span data-i18n="geolocationLabel">Geolocation</span
+                  ><select id="field-geolocation-policy">
+                    <option value="follow" data-i18n="followGeoip">Follow GeoIP</option>
+                    <option value="manual" data-i18n="manualCoordinates">Manual coordinates</option>
+                    <option value="disabled" data-i18n="unavailableNative">
+                      Unavailable (never native)
+                    </option>
+                  </select></label
+                >
+                <label class="field"
+                  ><span data-i18n="zone">Timezone</span
+                  ><select id="field-timezone-policy">
+                    <option value="follow" data-i18n="followLocation">
+                      Follow resolved location
+                    </option>
+                    <option value="manual" data-i18n="manualTimezone">Manual IANA timezone</option>
+                  </select></label
+                >
+              </div>
+              <p id="identity-warning" class="hint" role="status" hidden></p>
+              <div class="location-map" id="location-map">
                 <div
-                  class="location-map-marker"
-                  id="location-map-marker"
-                  role="button"
-                  aria-label="Selected location marker"
-                  data-i18n-aria="selectedLocationAria"
+                  class="location-map-surface"
+                  id="location-map-surface"
+                  role="application"
+                  aria-label="Location picker; arrow keys pan, marker arrow keys move selection"
+                  data-i18n-aria="locationPickerAria"
                   tabindex="0"
-                ></div>
-                <div class="location-map-zoom">
-                  <button
-                    id="map-zoom-in"
-                    type="button"
-                    aria-label="Zoom in"
-                    data-i18n-aria="zoomInAria"
+                >
+                  <div class="location-map-tiles" id="location-map-tiles"></div>
+                  <div class="location-map-accuracy" id="location-map-accuracy" hidden></div>
+                  <div
+                    class="location-map-marker"
+                    id="location-map-marker"
+                    role="button"
+                    aria-label="Selected location marker"
+                    data-i18n-aria="selectedLocationAria"
+                    tabindex="0"
+                  ></div>
+                  <div class="location-map-zoom">
+                    <button
+                      id="map-zoom-in"
+                      type="button"
+                      aria-label="Zoom in"
+                      data-i18n-aria="zoomInAria"
+                    >
+                      +
+                    </button>
+                    <button
+                      id="map-zoom-out"
+                      type="button"
+                      aria-label="Zoom out"
+                      data-i18n-aria="zoomOutAria"
+                    >
+                      −
+                    </button>
+                  </div>
+                  <div class="location-map-attribution">Local coordinate grid ? No map imagery</div>
+                  <div class="location-map-notice" id="location-map-notice" hidden>
+                    Map imagery unavailable — coordinates still work.
+                  </div>
+                </div>
+                <p class="hint map-privacy">
+                  Load online map sends your connection’s public IP and viewed map area to
+                  <a
+                    href="https://openfreemap.org/privacy/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >OpenFreeMap</a
+                  >, which may use Cloudflare and keep incident IP logs for up to 30 days. Requests
+                  use the currently applied route, not unsaved proxy edits. Direct or Off also
+                  requires Firefox’s optional public-IP permission. No map requests are made until
+                  you load it.
+                  <a href="https://openfreemap.org/tos/" target="_blank" rel="noopener noreferrer"
+                    >Provider terms</a
                   >
-                    +
+                </p>
+                <div class="map-toolbar">
+                  <button id="load-online-map" type="button" class="btn-sm">Load online map</button>
+                  <button
+                    id="unload-online-map"
+                    type="button"
+                    class="btn-sm"
+                    hidden
+                    data-i18n="unloadOnlineMap"
+                  >
+                    Unload online map
                   </button>
                   <button
-                    id="map-zoom-out"
+                    id="use-geoip-location"
                     type="button"
-                    aria-label="Zoom out"
-                    data-i18n-aria="zoomOutAria"
+                    class="btn-sm"
+                    data-i18n="useGeoipLocation"
                   >
-                    −
+                    Use GeoIP location
                   </button>
+                  <span class="hint map-mode-hint" data-i18n="mapInteractionHint"
+                    >In manual mode, drag map to pan, click map to place marker, or drag
+                    marker.</span
+                  >
                 </div>
-                <div class="location-map-attribution">Local coordinate grid ? No map imagery</div>
-                <div class="location-map-notice" id="location-map-notice" hidden>
-                  Map imagery unavailable — coordinates still work.
-                </div>
+                <p id="map-online-status" class="hint" role="status">
+                  Online map off. Coordinates work offline.
+                </p>
               </div>
-              <p class="hint map-privacy">
-                Load online map sends your connection’s public IP and viewed map area to
-                <a href="https://openfreemap.org/privacy/" target="_blank" rel="noopener noreferrer"
-                  >OpenFreeMap</a
-                >, which may use Cloudflare and keep incident IP logs for up to 30 days. Requests
-                use the currently applied route, not unsaved proxy edits. Direct or Off also
-                requires Firefox’s optional public-IP permission. No map requests are made until you
-                load it.
-                <a href="https://openfreemap.org/tos/" target="_blank" rel="noopener noreferrer"
-                  >Provider terms</a
-                >
-              </p>
-              <div class="map-toolbar">
-                <button id="load-online-map" type="button" class="btn-sm">Load online map</button>
-                <button
-                  id="unload-online-map"
-                  type="button"
-                  class="btn-sm"
-                  hidden
-                  data-i18n="unloadOnlineMap"
-                >
-                  Unload online map
-                </button>
-                <button
-                  id="use-geoip-location"
-                  type="button"
-                  class="btn-sm"
-                  data-i18n="useGeoipLocation"
-                >
-                  Use GeoIP location
-                </button>
-                <span class="hint map-mode-hint" data-i18n="mapInteractionHint"
-                  >In manual mode, drag map to pan, click map to place marker, or drag marker.</span
-                >
-              </div>
-              <p id="map-online-status" class="hint" role="status">
-                Online map off. Coordinates work offline.
-              </p>
-            </div>
 
-            <div id="manual-fields">
-              <div class="grid">
-                <label class="field">
-                  <span class="field-label" data-i18n="latitude">Latitude</span>
-                  <input
-                    id="field-latitude"
-                    type="number"
-                    step="any"
-                    min="-90"
-                    max="90"
-                    placeholder="e.g. 37.7749"
-                  />
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="longitude">Longitude</span>
-                  <input
-                    id="field-longitude"
-                    type="number"
-                    step="any"
-                    min="-180"
-                    max="180"
-                    placeholder="e.g. -122.4194"
-                  />
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="accuracyMetres">Accuracy (metres)</span>
-                  <input id="field-accuracy" type="number" min="1" step="1" placeholder="1000" />
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="ianaTimezone">Timezone (IANA)</span>
-                  <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
-                </label>
+              <div id="manual-fields">
+                <div class="grid">
+                  <label class="field">
+                    <span class="field-label" data-i18n="latitude">Latitude</span>
+                    <input
+                      id="field-latitude"
+                      type="number"
+                      step="any"
+                      min="-90"
+                      max="90"
+                      placeholder="e.g. 37.7749"
+                    />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="longitude">Longitude</span>
+                    <input
+                      id="field-longitude"
+                      type="number"
+                      step="any"
+                      min="-180"
+                      max="180"
+                      placeholder="e.g. -122.4194"
+                    />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="accuracyMetres">Accuracy (metres)</span>
+                    <input id="field-accuracy" type="number" min="1" step="1" placeholder="1000" />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="ianaTimezone">Timezone (IANA)</span>
+                    <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
+                  </label>
+                </div>
               </div>
-            </div>
-          </fieldset>
+            </fieldset>
+          </details>
 
           <!-- Section D: Advanced (collapsed by default) -->
           <details class="editor-section-collapsible" id="section-advanced">

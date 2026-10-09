@@ -238,6 +238,15 @@ async function main() {
         [message],
       );
     const click = async (selector) => {
+      if (
+        (selector.startsWith("#map-") ||
+          selector.startsWith("#field-mode-") ||
+          selector === "#load-online-map" ||
+          selector === "#unload-online-map") &&
+        !(await execute('return document.getElementById("section-identity").open;'))
+      ) {
+        await click("#section-identity > summary");
+      }
       const element = (
         await client.send("WebDriver:FindElement", { using: "css selector", value: selector })
       ).value;
@@ -392,6 +401,9 @@ async function main() {
     );
     // The production renderer and pixel assertions below prove WebGL support.
     // Do not allocate a disposable probe context before testing its real lifecycle.
+    if (!(await execute('return document.getElementById("section-identity").open;'))) {
+      await click("#section-identity > summary");
+    }
     await click("#load-online-map");
 
     if (values["no-webgl"]) {
@@ -542,6 +554,9 @@ async function main() {
           "window.__reloadCanvas = document.querySelector('#location-map-tiles canvas');",
         );
         fixture.setFailRaster(false);
+        if (!(await execute('return document.getElementById("section-identity").open;'))) {
+          await click("#section-identity > summary");
+        }
         await click("#load-online-map");
         await waitFor(
           `return document.getElementById('location-map-surface').dataset.online==='ready';`,
@@ -623,6 +638,9 @@ async function main() {
         afterReadOnly.lat === readOnly.lat && afterReadOnly.lng === readOnly.lng,
         "Automatic preview remains read-only over loaded geographic imagery",
       );
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       await click("#field-mode-manual");
       await click("#unload-online-map");
       await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===0;`);
@@ -632,6 +650,22 @@ async function main() {
       check(
         fixture.requests.length === afterUnload,
         "Unload removes canvas and stops subsequent viewport requests",
+      );
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
+      await click("#load-online-map");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      await click("#section-identity > summary");
+      await waitFor(
+        `return document.querySelectorAll('#location-map-tiles canvas').length===0 && document.getElementById('location-map-surface').dataset.online==='off';`,
+      );
+      await click("#section-identity > summary");
+      check(
+        await execute(
+          `return document.querySelectorAll('#location-map-tiles canvas').length===0 && document.getElementById('location-map-surface').dataset.online==='off';`,
+        ),
+        "Collapsing identity unloads the map; reopening does not silently enable it",
       );
       await click("#load-online-map");
       await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
