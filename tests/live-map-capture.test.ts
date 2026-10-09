@@ -24,6 +24,13 @@ describe("optional real-provider listing capture", () => {
     expect(source).not.toMatch(/pull_request_target:|push:|schedule:|secrets\./);
   });
 
+  it("requires installed Chinese fonts and bounds external package setup", () => {
+    expect(workflow()).toContain("fonts-noto-cjk");
+    expect(workflow()).toContain("fc-list :lang=zh family");
+    expect(workflow()).toContain("timeout-minutes: 8");
+    expect(workflow()).toContain("Acquire::https::Timeout=30");
+  });
+
   it("requires deterministic actual rendering before requesting public map data", () => {
     const source = workflow();
     const build = source.indexOf("npm run build:prod");

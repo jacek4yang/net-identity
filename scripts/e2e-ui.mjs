@@ -537,6 +537,19 @@ async function main() {
       const images = [];
       let mapRequestEvidence = null;
       const capture = async (name, selector, offset = 24, frame = null) => {
+        // Every visible auto-loaded map must finish, including after reopening the
+        // editor in Chinese. An earlier ready canvas does not qualify a new session.
+        if (
+          liveMap &&
+          (await execute(`return !!document.getElementById("section-identity")?.open
+            && !document.getElementById("profile-form")?.hidden
+            && !!document.getElementById("map-autoload")?.checked;`))
+        ) {
+          await waitFor(
+            'return document.getElementById("location-map-surface").dataset.online === "ready";',
+            2400,
+          );
+        }
         if (frame === "picker") {
           await execute(
             `document.getElementById("location-map").closest("fieldset").scrollIntoView({block:"start"}); window.scrollBy(0, -16);`,
