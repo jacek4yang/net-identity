@@ -84,6 +84,7 @@ export async function runDraftChecks({
   );
   await client.send("WebDriver:CloseWindow");
   await client.send("WebDriver:SwitchToWindow", { handle: originalWindow });
+  await click("#section-auth > summary");
   await fill({
     "field-proxy-port": String(fixture.auth),
     "field-proxy-username": "fixture-user",

@@ -692,3 +692,37 @@ body[data-view="add"] [data-switcher-surface] {
 .language-row p {
   flex-basis: 100%;
 }
+
+/* Keep the quick flow focused; explanations stay in explicit disclosures. */
+#quick-add-panel fieldset {
+  border-radius: 12px;
+  padding: 12px;
+}
+#quick-add-panel details {
+  margin: 10px 0;
+}
+#quick-add-panel .protection-summary {
+  line-height: 1.65;
+  color: var(--fg-dim);
+}
+#quick-add-panel .compact-disclosure {
+  font-size: 11px;
+  margin: 8px 0;
+}
+#quick-draft-status {
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+#quick-draft-status[data-state="success"] {
+  color: var(--ok);
+}
+#quick-draft-status[data-state="error"] {
+  color: var(--warn);
+}
+#quick-draft-retry {
+  min-height: 28px;
+  font-size: 11px;
+  margin-bottom: 6px;
+}

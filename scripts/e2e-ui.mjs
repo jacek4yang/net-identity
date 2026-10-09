@@ -495,6 +495,11 @@ async function main() {
       );
     }
     async function click(selector) {
+      if (
+        ["#duplicate", "#delete", "#deactivate"].includes(selector) &&
+        (await execute('return !!document.querySelector(".more-actions:not([open])");'))
+      )
+        await click(".more-actions > summary");
       const found = (
         await client.send("WebDriver:FindElement", { using: "css selector", value: selector })
       )?.value;

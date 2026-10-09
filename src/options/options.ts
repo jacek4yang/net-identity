@@ -1,3 +1,4 @@
+import { protectionSummary } from "../shared/protection-summary";
 import { bindDraftCheck } from "../shared/draft-check";
 import { parseDraftRequest } from "../shared/draft-probe";
 import { bindLanguageControl } from "../shared/language-control";
@@ -557,6 +558,20 @@ function updateVisibility(): void {
   ui.removeCredentialsRow.hidden = !hasCredentials;
 
   renderHints();
+  renderProtectionSummary();
+}
+
+function renderProtectionSummary(): void {
+  requireElement<HTMLElement>("#protection-summary").textContent = protectionSummary(
+    ui.proxyType.value,
+    ui.proxyDns.checked,
+    ui.webrtc.value,
+    ui.modeAuto.checked &&
+      ui.geoIpPolicy.value === "automatic" &&
+      ui.geolocationPolicy.value === "follow" &&
+      ui.timezonePolicy.value === "follow",
+  );
+  ui.proxyDns.disabled = !["socks4", "socks5"].includes(ui.proxyType.value);
 }
 
 function renderHints(): void {
@@ -637,6 +652,7 @@ function renderProfileList(): void {
 
 function selectProfile(profileId: string | null): void {
   draftCheck.cancel();
+  requireElement<HTMLDetailsElement>("#section-auth").open = false;
   requireElement<HTMLDetailsElement>("#section-identity").open = false;
   stopOnlineMap();
   cancelMapInteraction();
@@ -944,6 +960,9 @@ async function refreshIdentity(): Promise<void> {
 for (const field of [ui.geoIpPolicy, ui.geolocationPolicy, ui.timezonePolicy])
   field.addEventListener("change", updateVisibility);
 
+for (const field of [ui.proxyDns, ui.webrtc])
+  field.addEventListener("change", renderProtectionSummary);
+
 // Event Listeners
 ui.form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -1193,6 +1212,7 @@ void (async () => {
   await bindLanguageControl(() => {
     renderGuide();
     renderHints();
+    renderProtectionSummary();
     showErrors(lastErrors);
     renderProfileList();
     setMapStatus(mapStatusText);

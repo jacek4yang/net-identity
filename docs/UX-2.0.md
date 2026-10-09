@@ -132,3 +132,14 @@ The options primary action is Save and enable, available for a new draft as well
 existing profile. It saves the visible form, then activates that saved revision, so a
 previously saved port cannot silently override the one currently shown. Save alone is
 still available for staging changes. Preview success is never treated as enabled state.
+
+### Minimal editor refinement (unreleased)
+
+The main editor keeps endpoint, draft result and explicit Save / Save and enable actions
+visible. Authentication, identity controls, advanced settings and secondary actions are
+progressively disclosed. Long privacy and compatibility explanations remain available
+under Privacy and limits; the short ipwho.is disclosure stays visible before probing.
+The compact protection summary describes current draft choices, not an active-route
+health guarantee. SOCKS DNS is editable; HTTP/HTTPS do not claim a SOCKS DNS toggle.
+Custom identity and WebRTC choices remain editable and are never migrated to defaults.
+Final interface acceptance and publication remain separate owner decisions.

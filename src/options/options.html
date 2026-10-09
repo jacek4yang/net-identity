@@ -12,11 +12,6 @@
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
-    <details class="panel" id="guide">
-      <summary data-i18n="profilesGuide">How profiles work</summary>
-      <div id="guide-body"></div>
-    </details>
-
     <header class="page-header">
       <div class="header-content">
         <h1 data-i18n="profilesPage">Net Identity — Profiles</h1>
@@ -138,18 +133,6 @@
           <!-- Section A: Basic Configuration -->
           <fieldset class="editor-section">
             <legend class="section-title" data-i18n="basicSection">Basic</legend>
-            <label class="field">
-              <span class="field-label" data-i18n="profileName">Profile name</span>
-              <input
-                id="field-name"
-                type="text"
-                maxlength="64"
-                autocomplete="off"
-                placeholder="e.g. Home Proxy, Lab"
-                data-i18n-placeholder="profileNameExample"
-              />
-            </label>
-
             <div class="grid">
               <label class="field">
                 <span class="field-label" data-i18n="proxyProtocol">Proxy protocol</span>
@@ -187,34 +170,38 @@
             </div>
           </fieldset>
 
-          <p class="hint" data-i18n="draftDisclosure"></p>
+          <p class="hint compact-disclosure" data-i18n="draftShortDisclosure"></p>
           <p id="draft-status" role="status" aria-live="polite"></p>
           <button id="draft-retry" type="button" data-i18n="draftRetry">Check again</button>
           <!-- Section B: Authentication -->
-          <fieldset class="editor-section" id="section-auth">
-            <legend class="section-title" data-i18n="authentication">Authentication</legend>
-            <div class="grid">
-              <label class="field">
-                <span class="field-label" data-i18n="proxyUsername">Proxy username</span>
-                <input id="field-proxy-username" type="text" autocomplete="off" />
-              </label>
-              <label class="field">
-                <span class="field-label" data-i18n="proxyPassword">Proxy password</span>
-                <input id="field-password" type="password" autocomplete="new-password" />
+          <details class="editor-section-collapsible" id="section-auth">
+            <summary data-i18n="authenticationOptional">Authentication (optional)</summary>
+            <div class="collapsible-content">
+              <div class="grid">
+                <label class="field">
+                  <span class="field-label" data-i18n="proxyUsername">Proxy username</span>
+                  <input id="field-proxy-username" type="text" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="proxyPassword">Proxy password</span>
+                  <input id="field-password" type="password" autocomplete="new-password" />
+                </label>
+              </div>
+              <p class="hint" data-i18n="sessionCredentialsHint">
+                Usernames and passwords are kept for this Firefox session only. Leave both blank to
+                keep existing credentials. Enter either field to replace the pair; enter the
+                username again when changing the password.
+              </p>
+              <label class="checkbox" id="remove-credentials-row">
+                <input id="field-remove-credentials" type="checkbox" />
+                <span data-i18n="clearCredentials"
+                  >Clear credentials on Save (Apply to remove from the active route)</span
+                >
               </label>
             </div>
-            <p class="hint" data-i18n="sessionCredentialsHint">
-              Usernames and passwords are kept for this Firefox session only. Leave both blank to
-              keep existing credentials. Enter either field to replace the pair; enter the username
-              again when changing the password.
-            </p>
-            <label class="checkbox" id="remove-credentials-row">
-              <input id="field-remove-credentials" type="checkbox" />
-              <span data-i18n="clearCredentials"
-                >Clear credentials on Save (Apply to remove from the active route)</span
-              >
-            </label>
-          </fieldset>
+          </details>
+
+          <p id="protection-summary" class="protection-summary" aria-live="polite"></p>
 
           <!-- Advanced identity controls do not obstruct basic proxy setup. -->
           <details class="editor-section-collapsible" id="section-identity">
@@ -421,6 +408,18 @@
           <details class="editor-section-collapsible" id="section-advanced">
             <summary data-i18n="advanced">Advanced</summary>
             <div class="collapsible-content">
+              <label class="field">
+                <span class="field-label" data-i18n="profileName">Profile name</span>
+                <input
+                  id="field-name"
+                  type="text"
+                  maxlength="64"
+                  autocomplete="off"
+                  placeholder="e.g. Home Proxy, Lab"
+                  data-i18n-placeholder="profileNameExample"
+                />
+              </label>
+
               <p class="hint" data-i18n="defaultProtectionNotice">
                 New proxies use proxy DNS for SOCKS, strict proxy-only WebRTC, and automatic
                 location/timezone. Some calls need TURN over TCP. Existing profiles keep their
@@ -500,12 +499,22 @@
             <button id="save-activate" type="button" class="primary" data-i18n="enableDraft">
               Apply
             </button>
-            <button id="duplicate" type="button" data-i18n="duplicate">Duplicate</button>
-            <button id="delete" type="button" class="danger" data-i18n="delete">Delete</button>
-            <button id="deactivate" type="button" data-i18n="deactivateLabel">Deactivate</button>
+            <details class="more-actions">
+              <summary data-i18n="moreActions">More</summary>
+              <div class="secondary-actions">
+                <button id="duplicate" type="button" data-i18n="duplicate">Duplicate</button>
+                <button id="delete" type="button" class="danger" data-i18n="delete">Delete</button>
+                <button id="deactivate" type="button" data-i18n="deactivateLabel">
+                  Deactivate
+                </button>
+              </div>
+            </details>
           </div>
 
-          <ul id="hints" class="hints"></ul>
+          <details class="technical-notes">
+            <summary data-i18n="connectionNotes">Connection notes</summary>
+            <ul id="hints" class="hints"></ul>
+          </details>
         </form>
       </section>
     </main>
@@ -528,20 +537,29 @@
           >Community · LINUX DO</a
         >
       </nav>
-      <p data-i18n="communityNotice">
-        Independent community resource; no endorsement or affiliation is implied.
-      </p>
-      <p data-i18n="collectionNotice">
-        Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that
-        provider the proxy address. A direct profile shows it your own public IP, and only after you
-        allow that collection. The location picker starts offline. Loading the online map shares
-        your connection’s public IP and viewed area with OpenFreeMap after explicit consent.
-        Coordinates and all map interactions work offline. No telemetry and no remotely loaded code.
-      </p>
-      <p data-i18n="shimLimitNotice">
-        Page-level geolocation and timezone changes are compatibility shims. They are observable by
-        sophisticated page scripts and are not a claim of fingerprinting invisibility.
-      </p>
+      <details class="footer-disclosure" id="privacy-info">
+        <summary data-i18n="privacyLimits">Privacy &amp; limits</summary>
+        <p data-i18n="communityNotice">
+          Independent community resource; no endorsement or affiliation is implied.
+        </p>
+        <p data-i18n="collectionNotice">
+          Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that
+          provider the proxy address. A direct profile shows it your own public IP, and only after
+          you allow that collection. The location picker starts offline. Loading the online map
+          shares your connection’s public IP and viewed area with OpenFreeMap after explicit
+          consent. Coordinates and all map interactions work offline. No telemetry and no remotely
+          loaded code.
+        </p>
+        <p data-i18n="shimLimitNotice">
+          Page-level geolocation and timezone changes are compatibility shims. They are observable
+          by sophisticated page scripts and are not a claim of fingerprinting invisibility.
+        </p>
+        <p data-i18n="draftDisclosure"></p>
+      </details>
+      <details class="footer-disclosure" id="guide">
+        <summary data-i18n="profilesGuide">How profiles work</summary>
+        <div id="guide-body"></div>
+      </details>
     </footer>
 
     <script type="module" src="options.js"></script>

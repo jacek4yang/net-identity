@@ -297,7 +297,7 @@
     "message": "配置如何工作"
   },
   "profilesIntro": {
-    "message": "管理代理线路、网页可见的位置与时区，以及 WebRTC 策略。仅支持 Firefox。"
+    "message": "添加代理，自动检测，随时切换。"
   },
   "profiles": {
     "message": "配置"
@@ -957,16 +957,16 @@
     "message": "已读取 Firefox 原有代理设置。未被绕过的网页请求使用选中的代理；明确配置的绕过规则仍遵循 Firefox 设置。"
   },
   "draftIdle": {
-    "message": "填好代理地址和端口后，自动检测草稿。"
+    "message": "填写地址和端口，自动检测。"
   },
   "draftWaiting": {
-    "message": "等待输入完成…"
+    "message": "准备检测…"
   },
   "draftChecking": {
-    "message": "正在通过草稿中的代理检测…当前浏览器线路不变。"
+    "message": "检测中…当前线路不变。"
   },
   "draftSuccess": {
-    "message": "草稿检测成功，尚未启用。实测出口："
+    "message": "可启用 ·"
   },
   "draftNetwork": {
     "message": "草稿未验证成功。请检查地址、端口、认证和网络后重试，当前线路不变。"
@@ -996,7 +996,7 @@
     "message": "保存并启用"
   },
   "enableDraftHint": {
-    "message": "保存仅记录修改，不切换线路。「保存并启用」使用当前表单，并重新验证实际启用的身份。"
+    "message": "检测不切换线路，启用后生效。"
   },
   "draftConsent": {
     "message": "Firefox 尚未确认必需的数据授权，未发送草稿检测请求。"
@@ -1009,5 +1009,47 @@
   },
   "socksDnsHint": {
     "message": "代理 DNS 通过代理解析域名。Firefox 仅对 SOCKS 代理提供此选项。"
+  },
+  "draftShortDisclosure": {
+    "message": "通过此代理向 ipwho.is 查询出口位置。"
+  },
+  "privacyLimits": {
+    "message": "隐私与限制"
+  },
+  "authenticationOptional": {
+    "message": "认证 · 可选"
+  },
+  "customSettings": {
+    "message": "自定义设置"
+  },
+  "quickCustomizeHint": {
+    "message": "保存后可在配置页调整 DNS、WebRTC、位置和时区。"
+  },
+  "moreActions": {
+    "message": "更多操作"
+  },
+  "connectionNotes": {
+    "message": "连接说明"
+  },
+  "dnsOn": {
+    "message": "DNS 通过代理"
+  },
+  "dnsOff": {
+    "message": "DNS 本地解析"
+  },
+  "dnsProtocol": {
+    "message": "DNS 随代理协议"
+  },
+  "webrtcOn": {
+    "message": "WebRTC 限制直连"
+  },
+  "webrtcCustom": {
+    "message": "WebRTC 自定义"
+  },
+  "identityOn": {
+    "message": "自动位置与时区"
+  },
+  "identityCustom": {
+    "message": "自定义身份"
   }
 }

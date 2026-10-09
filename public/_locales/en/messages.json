@@ -297,7 +297,7 @@
     "message": "How profiles work"
   },
   "profilesIntro": {
-    "message": "Manage routing profiles, identity spoofing (geolocation & timezone), and WebRTC policies. Firefox only."
+    "message": "Add a proxy. Preview its identity. Enable when ready."
   },
   "profiles": {
     "message": "Profiles"
@@ -957,16 +957,16 @@
     "message": "Firefox's existing proxy settings were read. Non-bypassed web requests use the selected profile; explicit bypasses still follow Firefox settings."
   },
   "draftIdle": {
-    "message": "Fill in the proxy address and port to check the draft automatically."
+    "message": "Enter an address and port to start."
   },
   "draftWaiting": {
-    "message": "Waiting for you to finish typing…"
+    "message": "Preparing check…"
   },
   "draftChecking": {
-    "message": "Checking this draft through its proxy… Current browsing route is unchanged."
+    "message": "Checking… Your current route stays active."
   },
   "draftSuccess": {
-    "message": "Draft check succeeded. Not enabled yet. Observed egress:"
+    "message": "Ready to enable ·"
   },
   "draftNetwork": {
     "message": "Could not verify the draft. Check address, port, authentication and network; then retry. The current route is unchanged."
@@ -996,7 +996,7 @@
     "message": "Save and enable"
   },
   "enableDraftHint": {
-    "message": "Save keeps edits without switching. Save and enable uses the current form and verifies the active identity again."
+    "message": "Check first. Enable when ready."
   },
   "draftConsent": {
     "message": "Firefox has not confirmed the required data consent. No draft request was sent."
@@ -1009,5 +1009,47 @@
   },
   "socksDnsHint": {
     "message": "Proxy DNS routes name resolution through the proxy. Firefox applies this to SOCKS proxies only."
+  },
+  "draftShortDisclosure": {
+    "message": "IP/location check via ipwho.is, through this proxy only."
+  },
+  "privacyLimits": {
+    "message": "Privacy & limits"
+  },
+  "authenticationOptional": {
+    "message": "Authentication · optional"
+  },
+  "customSettings": {
+    "message": "Customize"
+  },
+  "quickCustomizeHint": {
+    "message": "Save, then use Settings to adjust DNS, WebRTC, location and timezone."
+  },
+  "moreActions": {
+    "message": "More"
+  },
+  "connectionNotes": {
+    "message": "Connection notes"
+  },
+  "dnsOn": {
+    "message": "DNS via proxy"
+  },
+  "dnsOff": {
+    "message": "Local DNS"
+  },
+  "dnsProtocol": {
+    "message": "DNS follows proxy protocol"
+  },
+  "webrtcOn": {
+    "message": "WebRTC proxy-only"
+  },
+  "webrtcCustom": {
+    "message": "WebRTC customized"
+  },
+  "identityOn": {
+    "message": "Auto location & timezone"
+  },
+  "identityCustom": {
+    "message": "Custom identity"
   }
 }

@@ -695,3 +695,112 @@ button.danger:hover:not(:disabled) {
 .options-language p {
   flex-basis: 100%;
 }
+
+/* Quiet default surface: details retain the full controls and disclosures. */
+body {
+  padding: 32px 24px;
+  background: var(--bg);
+}
+.page-header h1 {
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+.panel {
+  border-radius: 14px;
+}
+.editor-panel {
+  background: var(--bg);
+}
+.editor-section {
+  border-radius: 10px;
+  background: var(--panel);
+}
+.editor-section-collapsible {
+  border-radius: 10px;
+  border-color: var(--border-subtle);
+}
+.editor-section-collapsible > summary {
+  padding: 7px 0;
+}
+.protection-summary {
+  color: var(--fg-dim);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.compact-disclosure {
+  font-size: 12px;
+  margin: 8px 0;
+}
+#draft-status {
+  padding: 10px 12px;
+  margin: 8px 0;
+  border-radius: 9px;
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+#draft-status[data-state="success"] {
+  color: var(--ok);
+}
+#draft-status[data-state="error"] {
+  color: var(--warn);
+}
+#draft-retry {
+  margin: 0 0 14px;
+  font-size: 12px;
+}
+.actions {
+  align-items: flex-start;
+}
+.more-actions > summary {
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+}
+.technical-notes {
+  color: var(--fg-dim);
+  font-size: 12px;
+  margin-top: 12px;
+}
+.page-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px 20px;
+  max-width: none;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.page-footer a {
+  color: var(--fg-dim);
+  text-decoration: none;
+}
+.page-footer a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.footer-disclosure {
+  flex: 1 1 180px;
+}
+.footer-disclosure > summary {
+  font-weight: 400;
+}
+.footer-disclosure[open] {
+  flex-basis: 100%;
+}
+.footer-disclosure[open] > summary {
+  margin-bottom: 12px;
+}
+#guide {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  body {
+    padding: 16px 12px;
+  }
+}
