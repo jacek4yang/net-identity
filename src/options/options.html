@@ -187,6 +187,9 @@
             </div>
           </fieldset>
 
+          <p class="hint" data-i18n="draftDisclosure"></p>
+          <p id="draft-status" role="status" aria-live="polite"></p>
+          <button id="draft-retry" type="button" data-i18n="draftRetry">Check again</button>
           <!-- Section B: Authentication -->
           <fieldset class="editor-section" id="section-auth">
             <legend class="section-title" data-i18n="authentication">Authentication</legend>
@@ -493,8 +496,8 @@
 
           <!-- Actions -->
           <div class="actions">
-            <button id="save" type="submit" class="primary" data-i18n="save">Save</button>
-            <button id="save-activate" type="button" class="accent" disabled data-i18n="apply">
+            <button id="save" type="submit" data-i18n="save">Save</button>
+            <button id="save-activate" type="button" class="primary" data-i18n="enableDraft">
               Apply
             </button>
             <button id="duplicate" type="button" data-i18n="duplicate">Duplicate</button>

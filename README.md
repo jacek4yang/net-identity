@@ -47,8 +47,9 @@ separate attention. The extension addresses these distinct concerns:
 - **One-click routes:** Off, built-in Direct and user profiles in a compact popup.
   Direct uses Firefox/system routing; Off releases synthetic identity and WebRTC control.
   Direct needs no setup or GeoIP consent to switch routing.
-- **Save / Apply:** Save stores edits without changing runtime. Saved changes remain
-  pending until Apply. Refresh keeps the applied configuration.
+- **Draft check / enable:** Typing a complete proxy endpoint previews its exit identity
+  without changing the active route. Save only stages edits; Save and enable commits
+  the current form. Refresh keeps the applied configuration.
 - **Independent identity policies:** GeoIP automatic/disabled, geolocation follow/manual/
   unavailable, timezone follow/manual, and WebRTC automatic or an explicit Firefox policy.
 
@@ -226,7 +227,7 @@ npm run e2e:websocket
    - **Automatic** – the proxy's observed egress identity is resolved and applied.
    - **Manual** – enter latitude, longitude, accuracy and an IANA timezone.
 6. Pick a WebRTC policy and **Save**.
-7. Click **Save**, then **Apply**, or click the saved profile row in the popup. The popup shows the resulting identity, the audit and the state of
+7. Click **Save and enable**, or save for later and click the saved profile row in the popup. The popup shows the resulting identity, the audit and the state of
    open pages.
 
 ## Proxy support
@@ -344,7 +345,7 @@ tests/            vitest unit tests (no browser required)
   local CONNECT fixture and checks that a correct password is accepted without a 407
   loop, and a wrong password is challenged only a bounded number of times. No public
   provider or upstream service is contacted.
-- `npm run e2e:ui` – checks the real popup, profile Save/Apply and offline map interactions.
+- `npm run e2e:ui` – checks the real popup, profile Save/enable and offline map interactions.
 - `npm run e2e:map-fallback` – checks explicitly disabled WebGL, editable fallback,
   map-broker consent, route-generation cancellation and blocked unbrokered requests.
 - `LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox /path/to/firefox`
@@ -459,3 +460,5 @@ hashes and pixels. These remain unsigned-candidate UI evidence, not signing or l
 
 Community resource: [LINUX DO](https://linux.do/). This is an independent community
 link, not an endorsement, sponsorship, security audit or reciprocal partnership.
+
+- `npm run e2e:draft` checks isolated automatic draft detection with local SOCKS/HTTP and verified fixture TLS.

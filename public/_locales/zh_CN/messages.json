@@ -573,13 +573,13 @@
     "message": "手动坐标会按你提供的精度原样应用到网页。"
   },
   "socks4AuthHint": {
-    "message": "Firefox 不支持 SOCKS4 代理认证，用户名和密码会被忽略。"
+    "message": "Firefox 不支持 SOCKS4 认证，填写的用户名和密码不会生效。"
   },
   "httpAuthHint": {
-    "message": "HTTP／HTTPS 代理凭据通过预先发送的 Basic 认证头提供；代理发起认证挑战时，仅向该代理作答。"
+    "message": "HTTP/HTTPS 代理使用 Basic 认证；若代理发出认证挑战，仅向匹配的代理提供凭据。"
   },
   "socks5AuthHint": {
-    "message": "SOCKS5 凭据通过 Firefox 的 SOCKS 认证传递。"
+    "message": "SOCKS5 用户名和密码交由 Firefox 用于 SOCKS 认证。"
   },
   "proxyDnsExplanation": {
     "message": "代理 DNS 通过代理解析域名；Firefox 仅对 SOCKS 代理应用此设置。"
@@ -955,5 +955,59 @@
   },
   "firefoxSettingsRecorded": {
     "message": "已读取 Firefox 原有代理设置。未被绕过的网页请求使用选中的代理；明确配置的绕过规则仍遵循 Firefox 设置。"
+  },
+  "draftIdle": {
+    "message": "填好代理地址和端口后，自动检测草稿。"
+  },
+  "draftWaiting": {
+    "message": "等待输入完成…"
+  },
+  "draftChecking": {
+    "message": "正在通过草稿中的代理检测…当前浏览器线路不变。"
+  },
+  "draftSuccess": {
+    "message": "草稿检测成功，尚未启用。实测出口："
+  },
+  "draftNetwork": {
+    "message": "草稿未验证成功。请检查地址、端口、认证和网络后重试，当前线路不变。"
+  },
+  "draftTimeout": {
+    "message": "草稿检测超时，代理或查询服务可能暂时不可用。输入已保留，可重新检测。"
+  },
+  "draftCredentials": {
+    "message": "此配置需要先填写本次会话的用户名和密码。"
+  },
+  "draftBusy": {
+    "message": "其他草稿正在检测，请稍后重试。"
+  },
+  "draftCancelled": {
+    "message": "已取消草稿检测。"
+  },
+  "draftProvider": {
+    "message": "位置服务未返回可用结果，不代表代理一定故障。"
+  },
+  "draftDisclosure": {
+    "message": "自动检测仅通过填写的代理访问 ipwho.is，预览出口 IP、大致位置和时区，不保存或启用配置，也不会无限重试。"
+  },
+  "draftRetry": {
+    "message": "重新检测"
+  },
+  "enableDraft": {
+    "message": "保存并启用"
+  },
+  "enableDraftHint": {
+    "message": "保存仅记录修改，不切换线路。「保存并启用」使用当前表单，并重新验证实际启用的身份。"
+  },
+  "draftConsent": {
+    "message": "Firefox 尚未确认必需的数据授权，未发送草稿检测请求。"
+  },
+  "pendingDraftChanges": {
+    "message": "已保存的修改尚未启用。"
+  },
+  "draftPartial": {
+    "message": "代理有响应，但查询服务缺少部分位置或时区信息。尚未启用，实测出口："
+  },
+  "socksDnsHint": {
+    "message": "代理 DNS 通过代理解析域名。Firefox 仅对 SOCKS 代理提供此选项。"
   }
 }

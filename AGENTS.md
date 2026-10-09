@@ -465,3 +465,21 @@ remain warnings. Do not turn those into success or modify Firefox settings to cl
 Passive successes restore route health only after sustained matching non-cached requests.
 No request replay, direct fallback, or new public probe is introduced; HTTP health observation
 does not introduce SOCKS-specific cooldown scheduling. A recovery diagnostic is not an error.
+
+## Draft detection and single-click enable (unreleased owner request)
+
+The owner now requires automatic endpoint preview without activation. `draft-probe.ts`
+validates this separate UI-only contract; the broker in background/draft-probe.ts
+routes only the marked, extension-origin, request-ID-bound GeoIP request through the
+draft proxy. Preserve terminal-null/no-redirect/consent/body/lifetime/parallel limits.
+Never replace this with temporarily switching the global target or ordinary traffic.
+The options primary button is now Save and enable: save the visible valid form, then
+activate it. The separate Save and profiles:save commands remain non-activating.
+Older descriptions of the options Apply button preserving unsaved form edits are
+superseded by this user-requested UI change; profiles:activate still takes a saved id.
+Both editors use draft-check.ts for debounce, cancellation and stale-result suppression.
+Do not save credentials or leak exceptions in status text. Do not derive exit IP from
+proxy hostname. Provider failure must remain distinct from proof of proxy failure.
+Run e2e:draft for real SOCKS/HTTP, auth rejection/recovery, unchanged active routing,
+preview fields and current-form enable. Its CA is only in a disposable Firefox profile.
+Publication remains pending the owner's updated UI acceptance.

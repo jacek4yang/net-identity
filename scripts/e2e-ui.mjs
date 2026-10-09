@@ -1,3 +1,5 @@
+import { createDraftFixture } from "./draft-probe-fixture.mjs";
+import { runDraftChecks } from "./run-draft-checks.mjs";
 /**
  * End-to-end UI tests against real Firefox.
  *
@@ -36,6 +38,8 @@ const { values } = parseArgs({
     review: { type: "boolean", default: false },
     scale: { type: "string", default: "1" },
     "live-map": { type: "boolean", default: false },
+    "draft-check": { type: "boolean", default: false },
+    "draft-evidence": { type: "string" },
   },
 });
 
@@ -280,6 +284,7 @@ async function main() {
   const failures = [];
   let client = null,
     liveMap = null,
+    draftFixture = null,
     firefox = null,
     directory = null;
   const check = (ok, label) => {
@@ -325,6 +330,15 @@ async function main() {
         "--keep-profile-changes",
       ];
       liveMap = await createLiveMapProxy(9999);
+    }
+    if (values["draft-check"]) {
+      if (values["live-map"] || values.screenshots)
+        throw new Error("Draft tests require their own isolated profile");
+      directory = await mkdtemp(path.join(tmpdir(), "ni-draft-check-"));
+      const profile = path.join(directory, "profile");
+      await mkdir(profile);
+      draftFixture = await createDraftFixture(directory, profile);
+      profileArgs = ["--firefox-profile", profile, "--keep-profile-changes"];
     }
     const marionettePort = await freePort();
     const cli = path.join(root, "node_modules", "web-ext", "bin", "web-ext.js");
@@ -376,7 +390,7 @@ async function main() {
       capabilities: {
         alwaysMatch: {
           browserName: "firefox",
-          acceptInsecureCerts: liveMap === null,
+          acceptInsecureCerts: liveMap === null && draftFixture === null,
           unhandledPromptBehavior: "dismiss",
         },
       },
@@ -529,6 +543,52 @@ async function main() {
       });
     }
 
+    if (draftFixture) {
+      try {
+        await runDraftChecks({
+          capture: values["draft-evidence"]
+            ? async (name) => {
+                const output = path.resolve(values["draft-evidence"]);
+                await mkdir(output, { recursive: true });
+                await client.send("WebDriver:SetWindowRect", {
+                  width: name.startsWith("options") ? 1280 : 500,
+                  height: 900,
+                });
+                await fill({ "ui-language": "zh_CN" });
+                await waitFor('return document.documentElement.lang === "zh-CN";');
+                await execute("document.activeElement?.blur(); window.scrollTo(0, 0);");
+                const screenshot = await client.send("WebDriver:TakeScreenshot", { full: true });
+                await writeFile(
+                  path.join(output, `${name}.png`),
+                  Buffer.from(screenshot.value, "base64"),
+                  { flag: "wx" },
+                );
+                await fill({ "ui-language": "en" });
+                await waitFor('return document.documentElement.lang === "en";');
+              }
+            : undefined,
+          client,
+          execute,
+          call,
+          click,
+          fill,
+          waitFor,
+          check,
+          fixture: draftFixture,
+          optionsUrl,
+          popupUrl,
+        });
+      } catch (error) {
+        log(`Draft fixture observations: ${JSON.stringify(draftFixture.seen)}`);
+        log(
+          `Draft UI diagnostic: ${JSON.stringify(await execute('return {status: document.getElementById("draft-status")?.textContent, state: document.getElementById("draft-status")?.dataset.state, geo: document.getElementById("field-geoip-policy")?.value};'))}`,
+        );
+        throw error;
+      }
+      if (failures.length) throw new Error(failures.join("; "));
+      log("PASSED: isolated draft checks in real Firefox, local TLS with verification enabled.");
+      return;
+    }
     // Store images use this same real-Firefox fixture and shipped UI. Only
     // synthetic local proxy coordinates are entered; GeoIP is explicitly off.
     if (values.screenshots) {
@@ -1171,21 +1231,21 @@ async function main() {
     await fill({ "field-proxy-port": "9997", "field-timezone": "America/New_York" });
     await click("#save-activate");
     await waitFor(
-      'return document.getElementById("options-status").textContent.includes("Europe/Paris");',
+      'return document.getElementById("options-status").textContent.includes("America/New_York");',
     );
     const applied = (await call({ type: "state:get" })).state;
     check(
       applied.generation > saved.generation &&
-        applied.proxy.port === 9998 &&
-        applied.identity.timezone === "Europe/Paris" &&
-        applied.appliedRevision === savedRevision,
-      "Apply commits saved routing and identity together",
+        applied.proxy.port === 9997 &&
+        applied.identity.timezone === "America/New_York" &&
+        applied.appliedRevision > savedRevision,
+      "Save and enable commits the current form routing and identity together",
     );
     check(
       (await execute('return document.getElementById("field-proxy-port").value === "9997";')) &&
         (await call({ type: "profiles:list" })).profiles.find((p) => p.id === id).revision ===
-          savedRevision,
-      "Apply neither saves nor discards unsaved form edits",
+          applied.appliedRevision,
+      "Save and enable saves the visible form rather than an older revision",
     );
 
     await fill({ "field-latitude": "35", "field-longitude": "139" });
@@ -1388,6 +1448,7 @@ async function main() {
     } finally {
       try {
         if (liveMap) await liveMap.close();
+        if (draftFixture) await draftFixture.close();
       } finally {
         if (directory && stopped) await rm(directory, { recursive: true, force: true });
         else if (directory)

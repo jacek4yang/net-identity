@@ -34,7 +34,8 @@
     "typecheck": "tsc --noEmit",
     "e2e:flap": "node scripts/e2e-fail-closed.mjs --flap",
     "e2e:map": "node scripts/e2e-map.mjs",
-    "e2e:map-fallback": "node scripts/e2e-map.mjs --no-webgl"
+    "e2e:map-fallback": "node scripts/e2e-map.mjs --no-webgl",
+    "e2e:draft": "node scripts/e2e-ui.mjs --draft-check"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

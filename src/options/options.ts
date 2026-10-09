@@ -1,3 +1,5 @@
+import { bindDraftCheck } from "../shared/draft-check";
+import { parseDraftRequest } from "../shared/draft-probe";
 import { bindLanguageControl } from "../shared/language-control";
 import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n";
 /**
@@ -127,6 +129,77 @@ let credentialProfileIds: string[] = [];
 let selectedId: string | null = null;
 let manualUserEdited = false;
 let resolvedSeed: LocationSeed | null = null;
+let draftSeed: LocationSeed | null = null;
+
+const draftCheck = bindDraftCheck({
+  fields: [
+    ui.proxyType,
+    ui.proxyHost,
+    ui.proxyPort,
+    ui.proxyUsername,
+    ui.password,
+    ui.removeCredentials,
+    ui.proxyDns,
+    ui.geoIpPolicy,
+  ],
+  status: requireElement<HTMLElement>("#draft-status"),
+  retry: requireElement<HTMLButtonElement>("#draft-retry"),
+  read: () => {
+    if (ui.form.hidden || ui.geoIpPolicy.value === "disabled") return null;
+    const values = readForm();
+    const intent = credentialsIntentFrom(values);
+    const proxy = {
+      type: values.proxyType,
+      host: values.proxyHost,
+      port: Number(values.proxyPort),
+      proxyDNS: values.proxyDns,
+      bypassHosts: [],
+      authenticationRequired:
+        !values.removeCredentials && selectedProfile()?.proxy.authenticationRequired === true,
+    };
+    const parsed = parseDraftRequest({
+      type: "draft:probe",
+      owner: "ui-draft-validation",
+      input: {
+        proxy,
+        ...(selectedId ? { profileId: selectedId } : {}),
+        ...(intent.action === "clear"
+          ? { credentials: null }
+          : intent.action === "set"
+            ? { credentials: { username: intent.username, password: intent.password } }
+            : {}),
+      },
+    });
+    return parsed.ok && parsed.value.type === "draft:probe" ? parsed.value.input : null;
+  },
+  invalidated: () => {
+    draftSeed = null;
+    resolvedSeed = null;
+    if (!ui.form.hidden && ui.modeAuto.checked) {
+      if (ui.geolocationPolicy.value === "follow") {
+        ui.latitude.value = "";
+        ui.longitude.value = "";
+        syncMapSelection(true);
+        renderLocationMap();
+      }
+      if (ui.timezonePolicy.value === "follow") ui.timezone.value = "";
+    }
+  },
+  resolved: (identity) => {
+    draftSeed = { ...identity, accuracy: 20000 };
+    resolvedSeed = draftSeed;
+    if (ui.modeAuto.checked && ui.timezonePolicy.value === "follow")
+      ui.timezone.value = identity.timezone ?? "";
+    // A preview must never overwrite the user's manual location or policies.
+    if (ui.modeAuto.checked && ui.geolocationPolicy.value === "follow") {
+      ui.latitude.value = identity.latitude === undefined ? "" : String(identity.latitude);
+      ui.longitude.value = identity.longitude === undefined ? "" : String(identity.longitude);
+      ui.accuracy.value = "20000";
+      syncMapSelection(true);
+      renderLocationMap();
+    }
+  },
+});
 
 const map = new LocationMapModel();
 let onlineMap: OnlineMap | null = null;
@@ -559,6 +632,7 @@ function renderProfileList(): void {
 }
 
 function selectProfile(profileId: string | null): void {
+  draftCheck.cancel();
   requireElement<HTMLDetailsElement>("#section-identity").open = false;
   stopOnlineMap();
   cancelMapInteraction();
@@ -584,7 +658,7 @@ function selectProfile(profileId: string | null): void {
     const hasSelection = profile !== null;
     ui.delete.disabled = !hasSelection;
     ui.duplicate.disabled = !hasSelection;
-    ui.saveActivate.disabled = !hasSelection;
+    ui.saveActivate.disabled = false;
     ui.deactivate.disabled = activeProfileId === null;
 
     syncMapSelection();
@@ -608,12 +682,8 @@ function renderSaveStatus(): void {
     profile !== null &&
     profile.id === runtimeState?.activeProfileId &&
     (profile.revision ?? 1) !== runtimeState.appliedRevision;
-  ui.saveStatus.textContent = lt(
-    pending
-      ? "Saved changes are pending. Apply to update the active route."
-      : "Save stores edits. Apply activates the saved configuration; unsaved edits stay in the form.",
-  );
-  ui.saveActivate.textContent = message("apply");
+  ui.saveStatus.textContent = `${pending ? message("pendingDraftChanges") + " · " : ""}${message("enableDraftHint")}`;
+  ui.saveActivate.textContent = message("enableDraft");
 }
 
 function renderStatus(state: RuntimeState): void {
@@ -622,7 +692,9 @@ function renderStatus(state: RuntimeState): void {
   runtimeState = state;
   activeProfileId = state.activeProfileId;
   renderSaveStatus();
-  resolvedSeed = state.identity.geoIpLocation ?? null;
+  resolvedSeed =
+    draftSeed ??
+    (state.activeProfileId === selectedId ? (state.identity.geoIpLocation ?? null) : null);
   ui.useGeoIpLocation.disabled =
     resolvedSeed?.latitude === undefined || resolvedSeed.longitude === undefined;
   renderRuntimeRows(state);
@@ -739,6 +811,8 @@ async function reload(selectAfter: string | null = null): Promise<ProfilesRespon
 
 async function saveProfile(): Promise<IdentityProfile | null> {
   const values = readForm();
+  if (values.name.trim() === "")
+    values.name = `${values.proxyType.toUpperCase()} ${values.proxyHost}:${values.proxyPort}`;
   const id = values.id ?? createProfileId();
   const parsed = parseProfile(toProfileInput({ ...values, id }, id));
 
@@ -878,9 +952,19 @@ ui.newProfile.addEventListener("click", () => {
 });
 
 async function applySelected(): Promise<void> {
-  const profile = selectedProfile();
-  if (profile === null) return;
-  await activateProfileById(profile.id, true);
+  if (ui.form.inert) return;
+  draftCheck.cancel();
+  ui.form.inert = true;
+  ui.list.inert = true;
+  ui.newProfile.disabled = true;
+  try {
+    const profile = await saveProfile();
+    if (profile !== null) await activateProfileById(profile.id);
+  } finally {
+    ui.form.inert = false;
+    ui.list.inert = false;
+    ui.newProfile.disabled = false;
+  }
 }
 
 ui.saveActivate.addEventListener("click", () => {

@@ -117,3 +117,18 @@ runtime labels. Technical policy identifiers and user-entered names are preserve
 Unknown diagnostic text remains visible rather than being hidden or reported as success.
 LINUX DO links in the popup, settings and documentation are explicit external links;
 there are no embedded remote assets, tracking calls or claims of endorsement.
+
+### Unreleased draft preview refinement
+
+Options and popup quick-add automatically check a complete endpoint after typing
+settles. The disclosed check sends one ipwho.is request through only the draft proxy,
+shows observed exit IP/location/timezone, and leaves the current browsing route alone.
+Editing invalidates the prior result; failure keeps the input and offers Check again.
+Automatic fields are previewed; manual choices stay intact. Missing provider fields
+remain visibly incomplete. An existing profile does not trigger a request just because
+its editor opens, and GeoIP-disabled settings suppress automatic provider access.
+
+The options primary action is Save and enable, available for a new draft as well as an
+existing profile. It saves the visible form, then activates that saved revision, so a
+previously saved port cannot silently override the one currently shown. Save alone is
+still available for staging changes. Preview success is never treated as enabled state.

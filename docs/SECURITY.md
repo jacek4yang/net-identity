@@ -220,8 +220,9 @@ follow/manual, and WebRTC automatic/manual. Automatic WebRTC uses the route reco
 Expert overrides are preserved. Follow-timezone uses the provider's resolved timezone;
 manual coordinates alone do not imply a locally inferred timezone.
 
-Save increments the configuration revision and does not alter runtime. Apply activates
-the saved revision without saving or discarding unsaved form edits. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
+Save increments the configuration revision and does not alter runtime. The options
+Save and enable action validates and saves the visible form before explicitly activating
+that revision. The low-level profiles:activate command still activates a saved revision. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
 configuration; Refresh uses that applied configuration, including its session credentials.
 Both credential fields start blank. Leaving both blank retains saved session credentials; entering either replaces the pair. Clear changes the saved session credentials;
 Apply removes them from a currently active target. Duplicate does not copy usernames or passwords.
@@ -361,3 +362,35 @@ the old renderer/session. Unload or unchecking automatic loading clears the reme
 choice and stops the current map. No hidden retry loop runs after an error.
 
 Publication remains blocked until the owner accepts the updated final pages.
+
+## Isolated draft checks (unreleased)
+
+Typing a valid proxy endpoint in the options or quick-add editor starts one debounced
+check after 700 ms without further edits. The UI discloses that ipwho.is receives the
+proxy exit IP; the same required install-time data-consent check applies. Direct
+profiles and disabled GeoIP never trigger this check. There is no background polling
+or automatic retry loop. The user can retry explicitly. A timeout or GeoIP provider
+failure is not proof that the proxy is broken.
+
+A short-lived broker owns at most four editor requests. It constructs the fixed HTTPS
+provider URL with a fresh random marker, binds the request to this extension's origin
+and one browser request ID, and returns only the chosen draft proxy followed by null.
+The request gate rejects missing, cancelled and stale markers even after event-page
+suspension. Redirects are errors, cookies/referrers/cache are disabled, the response
+body is limited to 64 KiB and the lifetime to 12 seconds. Provider input is parsed.
+No draft credentials, profiles, preview identity or route state are persisted.
+HTTP challenges must match the exact draft request and proxy host/port, are answered
+at most once, and never fall through to credentials for the active route.
+
+Ordinary requests continue through the committed target; the narrow draft capability
+neither changes WebRTC nor broadcasts identity nor alters the active generation or
+health counters. Editing, closing or changing the selected profile cancels the UI's
+preview and rejects late results. The deadline also bounds abandoned requests.
+A successful preview is not activation: explicit Save and enable commits the current
+form and resolves the active identity again. Manual policies are not overwritten.
+
+Firefox retains ownership of connection pooling and proxy-authentication caches.
+The draft check is not a fresh-authentication guarantee for a server reusing an already
+authenticated tunnel at the same endpoint. Servers must enforce their account policy.
+The deterministic local test uses a private disposable profile with its own fixture CA;
+TLS validation stays enabled and neither OS trust nor a user's profile is modified.

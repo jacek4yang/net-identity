@@ -1,3 +1,4 @@
+import { bindDraftCheck } from "../shared/draft-check";
 import { localizeKnownText as lt, message } from "../shared/i18n";
 /** Compact editor using the existing validated save and explicit activation commands. */
 import { parseQuickEndpoint, quickProxyProfile, type QuickProxyType } from "../profile/quick-proxy";
@@ -25,6 +26,30 @@ export function bindQuickAdd(deps: {
   const username = requireElement<HTMLInputElement>("#quick-username");
   const password = requireElement<HTMLInputElement>("#quick-password");
   const status = requireElement<HTMLElement>("#quick-status");
+  const draftCheck = bindDraftCheck({
+    fields: [protocol, host, port, username, password],
+    status: requireElement<HTMLElement>("#quick-draft-status"),
+    retry: requireElement<HTMLButtonElement>("#quick-draft-retry"),
+    read: () => {
+      if (
+        panel.hidden ||
+        pending ||
+        !["http", "https", "socks4", "socks5"].includes(protocol.value)
+      )
+        return null;
+      const endpoint = parseQuickEndpoint(host.value, port.value, protocol.value as QuickProxyType);
+      if (!endpoint.ok) return null;
+      const credentials =
+        username.value !== "" || password.value !== ""
+          ? parseCredentials({ username: username.value, password: password.value })
+          : null;
+      if (credentials && (!credentials.ok || endpoint.value.type === "socks4")) return null;
+      return {
+        proxy: { ...endpoint.value, proxyDNS: true, bypassHosts: [] },
+        ...(credentials?.ok ? { credentials: credentials.value } : {}),
+      };
+    },
+  });
   let lastStatus: readonly string[] = [];
   function show(text: string | readonly string[]): void {
     lastStatus = typeof text === "string" ? [text] : [...text];
@@ -39,6 +64,7 @@ export function bindQuickAdd(deps: {
   let draftId: string | undefined;
   toggle.addEventListener("click", () => {
     if (pending) return;
+    draftCheck.cancel();
     panel.hidden = !panel.hidden;
     document.body.dataset.view = panel.hidden ? "routes" : "add";
     toggle.dataset.i18n = panel.hidden ? "addProxy" : "backToRoutes";
@@ -88,6 +114,7 @@ export function bindQuickAdd(deps: {
       ? `[${endpoint.value.host}]`
       : endpoint.value.host;
     port.value = String(endpoint.value.port);
+    draftCheck.cancel();
     pending = true;
     fields.disabled = true;
     toggle.disabled = true;

@@ -148,7 +148,13 @@ test(
         await mkdir(path.join(root, child), { recursive: true });
       await writeFile(path.join(root, "package.json"), '{"type":"module"}');
       await writeFile(path.join(root, "dist/manifest.json"), '{"version":"0.0.0"}');
-      for (const name of ["e2e-ui.mjs", "live-map-proxy.mjs", "capture-frame.mjs"])
+      for (const name of [
+        "e2e-ui.mjs",
+        "live-map-proxy.mjs",
+        "capture-frame.mjs",
+        "draft-probe-fixture.mjs",
+        "run-draft-checks.mjs",
+      ])
         await copyFile(new URL(name, import.meta.url), path.join(root, "scripts", name));
       await writeFile(
         path.join(root, "node_modules/web-ext/bin/web-ext.js"),

@@ -955,5 +955,59 @@
   },
   "firefoxSettingsRecorded": {
     "message": "Firefox's existing proxy settings were read. Non-bypassed web requests use the selected profile; explicit bypasses still follow Firefox settings."
+  },
+  "draftIdle": {
+    "message": "Fill in the proxy address and port to check the draft automatically."
+  },
+  "draftWaiting": {
+    "message": "Waiting for you to finish typing…"
+  },
+  "draftChecking": {
+    "message": "Checking this draft through its proxy… Current browsing route is unchanged."
+  },
+  "draftSuccess": {
+    "message": "Draft check succeeded. Not enabled yet. Observed egress:"
+  },
+  "draftNetwork": {
+    "message": "Could not verify the draft. Check address, port, authentication and network; then retry. The current route is unchanged."
+  },
+  "draftTimeout": {
+    "message": "Draft check timed out. The proxy or provider may be temporarily unavailable. Retry without losing your input."
+  },
+  "draftCredentials": {
+    "message": "This profile needs its session username and password before checking."
+  },
+  "draftBusy": {
+    "message": "Other draft checks are running. Retry shortly."
+  },
+  "draftCancelled": {
+    "message": "Draft check cancelled."
+  },
+  "draftProvider": {
+    "message": "The location service did not return a usable result. This does not prove the proxy is broken."
+  },
+  "draftDisclosure": {
+    "message": "Automatic checks contact ipwho.is through the entered proxy only, to preview its public IP, approximate location and timezone. No profile is saved or enabled. No automatic retry loop."
+  },
+  "draftRetry": {
+    "message": "Check again"
+  },
+  "enableDraft": {
+    "message": "Save and enable"
+  },
+  "enableDraftHint": {
+    "message": "Save keeps edits without switching. Save and enable uses the current form and verifies the active identity again."
+  },
+  "draftConsent": {
+    "message": "Firefox has not confirmed the required data consent. No draft request was sent."
+  },
+  "pendingDraftChanges": {
+    "message": "Saved changes are pending."
+  },
+  "draftPartial": {
+    "message": "Proxy responded, but the provider returned incomplete location/timezone data. Not enabled. Observed egress:"
+  },
+  "socksDnsHint": {
+    "message": "Proxy DNS routes name resolution through the proxy. Firefox applies this to SOCKS proxies only."
   }
 }
