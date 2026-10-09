@@ -696,6 +696,11 @@ async function main() {
       await execute('document.body.style.marginTop = "16px";');
       await fill({ "quick-host": "127.0.0.1", "quick-port": "10808" });
       await capture("06-quick-add-chinese.png");
+      await client.send("WebDriver:Navigate", { url: optionsUrl });
+      await waitFor(
+        'return document.documentElement.lang === "zh-CN" && document.getElementById("form-title").textContent === "Tokyo · Local demo";',
+      );
+      await capture("07-options-chinese.png");
       const userAgent = await execute("return navigator.userAgent;");
       const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));
       const sourceHashes = {};
@@ -938,6 +943,23 @@ async function main() {
       `return document.URL === ${JSON.stringify(optionsUrl)} && document.getElementById("field-name").value === "UI proxy";`,
     );
 
+    const optionsBeforeLanguage = (await call({ type: "state:get" })).state;
+    await fill({ "field-name": "Unsaved bilingual draft", "ui-language": "zh_CN" });
+    await waitFor(
+      'return document.documentElement.lang === "zh-CN" && document.getElementById("save").textContent === "保存";',
+    );
+    check(
+      await execute(
+        'return document.getElementById("field-name").value === "Unsaved bilingual draft" && document.getElementById("guide-body").textContent.includes("配置的作用");',
+      ),
+      "Options language translates guidance without discarding edits",
+    );
+    check(
+      (await call({ type: "state:get" })).state.generation === optionsBeforeLanguage.generation,
+      "Options language does not apply a profile",
+    );
+    await fill({ "ui-language": "en" });
+    await waitFor('return document.documentElement.lang === "en";');
     await client.send("WebDriver:Navigate", { url: popupUrl });
     await waitFor(`return !!document.querySelector('[data-profile-id="${id}"]');`);
     const beforeLanguage = (await call({ type: "state:get" })).state;

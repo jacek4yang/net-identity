@@ -1,3 +1,5 @@
+import { bindLanguageControl } from "../shared/language-control";
+import { localizeKnownText as lt, message } from "../shared/i18n";
 /**
  * Options page: profile CRUD and management.
  *
@@ -47,11 +49,14 @@ import {
 } from "./form";
 
 const guideBody = requireElement<HTMLElement>("#guide-body");
-for (const section of GUIDE) {
-  guideBody.append(
-    el("h3", { text: section.title }),
-    el("p", { className: "hint", text: section.body }),
-  );
+function renderGuide(): void {
+  clear(guideBody);
+  for (const section of GUIDE) {
+    guideBody.append(
+      el("h3", { text: lt(section.title) }),
+      el("p", { className: "hint", text: lt(section.body) }),
+    );
+  }
 }
 
 const ui = {
@@ -127,7 +132,13 @@ const mapUnload = requireElement<HTMLButtonElement>("#unload-online-map");
 const mapOnlineStatus = requireElement<HTMLElement>("#map-online-status");
 const mapAttribution = requireElement<HTMLElement>(".location-map-attribution");
 
-function stopOnlineMap(message = "Online map off. Coordinates work offline."): void {
+let mapStatusText = "Online map off. Coordinates work offline.";
+function setMapStatus(text: string): void {
+  mapStatusText = text;
+  mapOnlineStatus.textContent = lt(text);
+}
+
+function stopOnlineMap(reason = "Online map off. Coordinates work offline."): void {
   ++mapLoadEpoch;
   onlineMap?.remove();
   onlineMap = null;
@@ -136,11 +147,11 @@ function stopOnlineMap(message = "Online map off. Coordinates work offline."): v
     void request({ type: "map:close", sessionId: mapSessionId }, parseMapResponse);
   mapSessionId = null;
   mapLoad.disabled = false;
-  mapLoad.textContent = "Load online map";
+  mapLoad.textContent = message("loadOnlineMap");
   mapLoad.hidden = false;
   mapUnload.hidden = true;
   mapAttribution.textContent = NO_TILES.attribution;
-  mapOnlineStatus.textContent = message;
+  setMapStatus(reason);
   ui.mapSurface.dataset.online = "off";
 }
 
@@ -151,7 +162,7 @@ async function loadOnlineMap(): Promise<void> {
   const epoch = ++mapLoadEpoch;
   const generation = state.generation;
   mapLoad.disabled = true;
-  mapOnlineStatus.textContent = "Checking map consent and the applied route…";
+  setMapStatus("Checking map consent and the applied route…");
   if (!(await ensureDirectIpConsent(state.appliedRoute === "proxy" ? "proxy" : "direct"))) {
     if (epoch === mapLoadEpoch)
       stopOnlineMap("Public-IP permission was not granted. Coordinates still work offline.");
@@ -174,7 +185,7 @@ async function loadOnlineMap(): Promise<void> {
   }
   mapSessionId = opened.value.sessionId;
   onlineGeneration = generation;
-  mapOnlineStatus.textContent = "Loading OpenFreeMap through the applied route…";
+  setMapStatus("Loading OpenFreeMap through the applied route…");
   mapLoad.hidden = true;
   mapUnload.hidden = false;
   ui.mapSurface.dataset.online = "loading";
@@ -192,9 +203,10 @@ async function loadOnlineMap(): Promise<void> {
             );
           else {
             ui.mapSurface.dataset.online = "partial";
-            mapOnlineStatus.textContent =
-              "Some map data could not load. The displayed map may be incomplete; reload to try again.";
-            mapLoad.textContent = "Reload online map";
+            setMapStatus(
+              "Some map data could not load. The displayed map may be incomplete; reload to try again.",
+            );
+            mapLoad.textContent = message("reloadOnlineMap");
             mapLoad.disabled = false;
             mapLoad.hidden = false;
           }
@@ -202,8 +214,7 @@ async function loadOnlineMap(): Promise<void> {
       () => {
         if (epoch !== mapLoadEpoch) return;
         ui.mapSurface.dataset.online = "ready";
-        mapOnlineStatus.textContent =
-          "Online map loaded. Panning and zooming send the viewed area to OpenFreeMap.";
+        setMapStatus("Online map loaded. Panning and zooming send the viewed area to OpenFreeMap.");
       },
     );
     mapAttribution.replaceChildren();
@@ -228,7 +239,7 @@ mapLoad.addEventListener("click", () => {
     mapLoad.disabled = true;
     mapLoad.hidden = true;
     ui.mapSurface.dataset.online = "loading";
-    mapOnlineStatus.textContent = "Reloading map data through the applied route…";
+    setMapStatus("Reloading map data through the applied route…");
     try {
       onlineMap.reload();
     } catch {
@@ -353,9 +364,10 @@ function renderLocationMap(): void {
   const viewport = mapViewport();
   const point = map.selection;
   if (editableLocation() && ui.timezonePolicy.value === "manual") {
-    ui.identityWarning.textContent =
+    ui.identityWarning.textContent = lt(
       locationTimezoneWarning(Number(ui.longitude.value), ui.timezone.value, Date.now()) ??
-      "Custom overrides are applied as entered; they may differ from the observed network location.";
+        "Custom overrides are applied as entered; they may differ from the observed network location.",
+    );
   }
 
   onlineMap?.update(viewport);
@@ -418,8 +430,9 @@ function updateVisibility(): void {
   ui.timezone.disabled = !isManual || ui.timezonePolicy.value !== "manual";
   ui.proxyAddressFields.hidden = ui.proxyType.value === "direct";
   ui.identityWarning.hidden = !isManual;
-  ui.identityWarning.textContent =
-    "Custom overrides are applied as entered. A manual location or timezone may disagree with the observed network location.";
+  ui.identityWarning.textContent = lt(
+    "Custom overrides are applied as entered. A manual location or timezone may disagree with the observed network location.",
+  );
   ui.useGeoIpLocation.disabled =
     resolvedSeed?.latitude === undefined || resolvedSeed.longitude === undefined;
   ui.mapSurface.classList.toggle("is-preview", !editableLocation());
@@ -430,12 +443,12 @@ function updateVisibility(): void {
 
   clear(ui.hints);
   for (const hint of proxyFieldHints(ui.proxyType.value)) {
-    ui.hints.append(el("li", { text: hint }));
+    ui.hints.append(el("li", { text: lt(hint) }));
   }
   if (isManual) {
     ui.hints.append(
       el("li", {
-        text: "Manual coordinates are applied to pages as-is, with the accuracy you provide.",
+        text: message("manualAccuracyNotice"),
       }),
     );
   }
@@ -450,14 +463,18 @@ function renderProfileList(): void {
     const isDirect = profile.id === BUILTIN_DIRECT_PROFILE_ID;
     const badges: Node[] = [];
     if (profile.id === activeProfileId) {
-      badges.push(el("span", { className: "badge", text: "active" }));
+      badges.push(el("span", { className: "badge", text: message("activeBadge") }));
     }
     if (credentialProfileIds.includes(profile.id)) {
-      badges.push(el("span", { className: "badge", text: "session credentials" }));
+      badges.push(el("span", { className: "badge", text: message("sessionCredentialsBadge") }));
     }
     if (isDirect) {
       badges.push(
-        el("span", { className: "badge", attrs: { "data-tone": "ok" }, text: "built-in" }),
+        el("span", {
+          className: "badge",
+          attrs: { "data-tone": "ok" },
+          text: message("builtInBadge"),
+        }),
       );
     }
 
@@ -481,7 +498,7 @@ function renderProfileList(): void {
         }),
         el("div", {
           className: "meta",
-          text: subtitle,
+          text: lt(subtitle),
         }),
       ],
     });
@@ -515,7 +532,7 @@ function selectProfile(profileId: string | null): void {
     const profile = selectedProfile();
     writeForm(toFormValues(profile));
 
-    ui.formTitle.textContent = profile === null ? "New profile" : profile.name;
+    ui.formTitle.textContent = profile === null ? message("newProfile") : profile.name;
     ui.formBadge.hidden = profile === null || profile.id !== activeProfileId;
 
     const hasSelection = profile !== null;
@@ -545,10 +562,12 @@ function renderSaveStatus(): void {
     profile !== null &&
     profile.id === runtimeState?.activeProfileId &&
     (profile.revision ?? 1) !== runtimeState.appliedRevision;
-  ui.saveStatus.textContent = pending
-    ? "Saved changes are pending. Apply to update the active route."
-    : "Save stores edits. Apply activates the saved configuration; unsaved edits stay in the form.";
-  ui.saveActivate.textContent = "Apply";
+  ui.saveStatus.textContent = lt(
+    pending
+      ? "Saved changes are pending. Apply to update the active route."
+      : "Save stores edits. Apply activates the saved configuration; unsaved edits stay in the form.",
+  );
+  ui.saveActivate.textContent = message("apply");
 }
 
 function renderStatus(state: RuntimeState): void {
@@ -560,6 +579,12 @@ function renderStatus(state: RuntimeState): void {
   resolvedSeed = state.identity.geoIpLocation ?? null;
   ui.useGeoIpLocation.disabled =
     resolvedSeed?.latitude === undefined || resolvedSeed.longitude === undefined;
+  renderRuntimeRows(state);
+  syncMapSelection();
+  renderLocationMap();
+}
+
+function renderRuntimeRows(state: RuntimeState): void {
   clear(ui.status);
 
   const addRow = (label: string, value: string, status: string): void => {
@@ -568,7 +593,7 @@ function renderStatus(state: RuntimeState): void {
         className: "row",
         attrs: { "data-status": status },
         children: [
-          el("span", { className: "label", text: label }),
+          el("span", { className: "label", text: lt(label) }),
           el("span", { className: "value", text: value }),
         ],
       }),
@@ -638,8 +663,6 @@ function renderStatus(state: RuntimeState): void {
   if (state.lastError !== undefined) {
     addRow("Last error", state.lastError.message, "error");
   }
-  syncMapSelection();
-  renderLocationMap();
 }
 
 async function reload(selectAfter: string | null = null): Promise<ProfilesResponse | null> {
@@ -1015,6 +1038,15 @@ onRuntimeMessage((message) => {
 });
 
 void (async () => {
+  await bindLanguageControl(() => {
+    renderGuide();
+    renderProfileList();
+    setMapStatus(mapStatusText);
+    mapLoad.textContent = message(onlineMap ? "reloadOnlineMap" : "loadOnlineMap");
+    renderSaveStatus();
+    if (runtimeState) renderRuntimeRows(runtimeState);
+    if (selectedProfile() === null) ui.formTitle.textContent = message("newProfile");
+  });
   await reload();
   renderProfileList();
 })();

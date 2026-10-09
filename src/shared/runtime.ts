@@ -85,3 +85,16 @@ export async function writeUiLanguage(value: "auto" | "en" | "zh_CN"): Promise<v
 export function browserUiLanguage(): string {
   return browser.i18n.getUILanguage();
 }
+
+/** Observe only the UI preference; never inspect or expose profile/credential changes. */
+export function onUiLanguageChanged(handler: (value: unknown) => void): () => void {
+  const listener = (changes: Record<string, browser.storage.StorageChange>, area: string): void => {
+    if (area === "local" && Object.hasOwn(changes, UI_LANGUAGE_KEY)) {
+      handler(changes[UI_LANGUAGE_KEY]?.newValue);
+    }
+  };
+  browser.storage.onChanged.addListener(listener);
+  return () => {
+    browser.storage.onChanged.removeListener(listener);
+  };
+}

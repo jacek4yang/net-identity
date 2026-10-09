@@ -79,3 +79,13 @@ Protocol and port share one row; session authentication remains collapsed. Save 
 Save & Activate retain their existing distinct semantics. Runtime warnings and the header
 remain available during setup. These are popup changes only; options and full localization
 remain work in progress.
+
+### Options localization (candidate slice 4)
+
+Options now reads the same language preference and translates core form controls,
+accessibility labels, onboarding, consent-independent help, and supported runtime/map
+messages. Changing language preserves unsaved field values and does not apply a route.
+Open UI surfaces observe only the dedicated language preference; profile and credential
+storage changes are not consumed by this listener. Unknown backend diagnostics retain
+their original text. Composite privacy copy, some validation messages and detailed audit
+values still need complete coverage before claiming a fully bilingual product.

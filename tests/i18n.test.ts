@@ -48,8 +48,12 @@ describe("single-source Firefox locale catalogs", () => {
     expect(message("save")).toBe("Save");
   });
   it("references only existing static UI keys and packages both locales", () => {
-    const html = readFileSync(new URL("../src/popup/popup.html", import.meta.url), "utf8");
-    for (const match of html.matchAll(/data-i18n(?:-aria)?="([^"]+)"/g))
+    const html = ["popup", "options"]
+      .map((surface) =>
+        readFileSync(new URL(`../src/${surface}/${surface}.html`, import.meta.url), "utf8"),
+      )
+      .join("\n");
+    for (const match of html.matchAll(/data-i18n(?:-aria|-placeholder)?="([^"]+)"/g))
       expect(Object.hasOwn(en, match[1] ?? "")).toBe(true);
     const build = readFileSync(new URL("../scripts/build.mjs", import.meta.url), "utf8");
     expect(build).toContain('path.join(dist, "_locales")');

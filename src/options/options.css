@@ -681,3 +681,17 @@ button.danger:hover:not(:disabled) {
 .location-map-tiles .maplibregl-canvas {
   position: absolute;
 }
+
+.options-language {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.options-language select {
+  width: auto;
+}
+.options-language p {
+  flex-basis: 100%;
+}

@@ -1,4 +1,4 @@
-import { readUiLanguage, writeUiLanguage, browserUiLanguage } from "./runtime";
+import { readUiLanguage, writeUiLanguage, browserUiLanguage, onUiLanguageChanged } from "./runtime";
 /** UI-only preference; never sends a route mutation or alters page timezone shims. */
 import { message, parseLanguage, resolveLocale, setUiLocale, translateDocument } from "./i18n";
 
@@ -22,6 +22,10 @@ export async function bindLanguageControl(render: () => void): Promise<void> {
     document.dispatchEvent(new Event("ni:language-changed"));
   }
   apply(preference);
+  const unsubscribe = onUiLanguageChanged((value) => {
+    if (parseLanguage(value) !== preference) apply(value);
+  });
+  window.addEventListener("pagehide", unsubscribe, { once: true });
   select.addEventListener("change", () => {
     const next = parseLanguage(select.value);
     select.disabled = true;

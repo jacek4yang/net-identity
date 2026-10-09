@@ -34,6 +34,11 @@ export function translateDocument(root: Document): void {
     const key = element.dataset.i18n;
     if (key && Object.hasOwn(en, key)) element.textContent = message(key as MessageKey);
   }
+  for (const element of root.querySelectorAll<HTMLElement>("[data-i18n-placeholder]")) {
+    const key = element.dataset.i18nPlaceholder;
+    if (key && Object.hasOwn(en, key))
+      element.setAttribute("placeholder", message(key as MessageKey));
+  }
   for (const element of root.querySelectorAll<HTMLElement>("[data-i18n-aria]")) {
     const key = element.dataset.i18nAria;
     if (key && Object.hasOwn(en, key))

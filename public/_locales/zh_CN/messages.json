@@ -289,5 +289,389 @@
   },
   "backToRoutes": {
     "message": "← 返回线路"
+  },
+  "profilesPage": {
+    "message": "Net Identity · 配置管理"
+  },
+  "profilesGuide": {
+    "message": "配置如何工作"
+  },
+  "profilesIntro": {
+    "message": "管理代理线路、网页可见的位置与时区，以及 WebRTC 策略。仅支持 Firefox。"
+  },
+  "profiles": {
+    "message": "配置"
+  },
+  "addProxyOption": {
+    "message": "+ 添加代理"
+  },
+  "noProfiles": {
+    "message": "还没有代理配置。点击“+ 添加代理”开始。"
+  },
+  "directLabel": {
+    "message": "浏览器／系统路由"
+  },
+  "builtIn": {
+    "message": "内置"
+  },
+  "activeLabel": {
+    "message": "已启用"
+  },
+  "directLead": {
+    "message": "不设置扩展代理，继续使用 Firefox 和系统的路由设置。"
+  },
+  "proxyLabel": {
+    "message": "代理"
+  },
+  "directValue": {
+    "message": "浏览器／系统路由"
+  },
+  "directHint": {
+    "message": "不会覆盖 Firefox 设置中的代理"
+  },
+  "defaultLabel": {
+    "message": "默认"
+  },
+  "webrtcDefaultHint": {
+    "message": "Firefox 默认的 IP 地址处理策略"
+  },
+  "identityLabel": {
+    "message": "身份"
+  },
+  "automaticLabel": {
+    "message": "自动"
+  },
+  "directConsentHint": {
+    "message": "检测出口 IP；直连查询需要先获得许可"
+  },
+  "directImmutable": {
+    "message": "内置的浏览器路由不能修改、复制或删除。如需完全关闭模拟身份，请点击“停用”，或在弹窗中选择“关闭”。"
+  },
+  "activateDirect": {
+    "message": "启用浏览器路由"
+  },
+  "allowGeoipRefresh": {
+    "message": "允许 GeoIP 查询／刷新"
+  },
+  "deactivateLabel": {
+    "message": "停用"
+  },
+  "newProfile": {
+    "message": "新建配置"
+  },
+  "basicSection": {
+    "message": "基本设置"
+  },
+  "profileName": {
+    "message": "配置名称"
+  },
+  "proxyProtocol": {
+    "message": "代理协议"
+  },
+  "customDirect": {
+    "message": "浏览器路由（自定义身份）"
+  },
+  "httpProxy": {
+    "message": "HTTP 代理"
+  },
+  "httpsProxy": {
+    "message": "HTTPS 代理"
+  },
+  "socks4Proxy": {
+    "message": "SOCKS4 代理"
+  },
+  "socks5Proxy": {
+    "message": "SOCKS5 代理"
+  },
+  "hostShort": {
+    "message": "主机"
+  },
+  "portShort": {
+    "message": "端口"
+  },
+  "authentication": {
+    "message": "认证"
+  },
+  "proxyUsername": {
+    "message": "代理用户名"
+  },
+  "proxyPassword": {
+    "message": "代理密码"
+  },
+  "sessionCredentialsHint": {
+    "message": "用户名和密码仅保留在本次 Firefox 会话中。两项留空可保留已有凭据；填写任意一项会替换整组凭据，修改密码时请同时填写用户名。"
+  },
+  "clearCredentials": {
+    "message": "保存时清除凭据（点击“应用”后才从当前线路移除）"
+  },
+  "identityPrivacy": {
+    "message": "身份与隐私"
+  },
+  "automaticMode": {
+    "message": "自动：通过代理检测公网出口 IP"
+  },
+  "manualMode": {
+    "message": "手动：自定义坐标、精度和时区"
+  },
+  "publicGeoip": {
+    "message": "公网 IP／GeoIP"
+  },
+  "automaticIpwho": {
+    "message": "自动（ipwho.is）"
+  },
+  "disabledLookup": {
+    "message": "停用（不查询）"
+  },
+  "geolocationLabel": {
+    "message": "地理位置"
+  },
+  "followGeoip": {
+    "message": "跟随 GeoIP"
+  },
+  "manualCoordinates": {
+    "message": "手动坐标"
+  },
+  "unavailableNative": {
+    "message": "不可用（不提供真实位置）"
+  },
+  "followLocation": {
+    "message": "跟随解析的位置"
+  },
+  "manualTimezone": {
+    "message": "手动 IANA 时区"
+  },
+  "localGrid": {
+    "message": "本地坐标网格 · 无地图影像"
+  },
+  "mapUnavailable": {
+    "message": "地图影像不可用，坐标功能仍可使用。"
+  },
+  "providerTerms": {
+    "message": "服务商条款"
+  },
+  "loadOnlineMap": {
+    "message": "加载在线地图"
+  },
+  "unloadOnlineMap": {
+    "message": "关闭在线地图"
+  },
+  "useGeoipLocation": {
+    "message": "使用 GeoIP 位置"
+  },
+  "mapInteractionHint": {
+    "message": "手动模式下，拖动地图平移，点击地图放置标记，或直接拖动标记。"
+  },
+  "latitude": {
+    "message": "纬度"
+  },
+  "longitude": {
+    "message": "经度"
+  },
+  "accuracyMetres": {
+    "message": "精度（米）"
+  },
+  "ianaTimezone": {
+    "message": "时区（IANA）"
+  },
+  "advanced": {
+    "message": "高级设置"
+  },
+  "proxyDnsHint": {
+    "message": "通过代理解析 DNS（Firefox 对 SOCKS 代理应用此设置）"
+  },
+  "bypassHosts": {
+    "message": "绕过代理的主机（每行一个，也可用逗号或分号分隔）"
+  },
+  "webrtcHandling": {
+    "message": "WebRTC IP 地址处理策略"
+  },
+  "webrtcAutomatic": {
+    "message": "自动（按线路推荐）"
+  },
+  "webrtcExplicitDefault": {
+    "message": "默认（明确指定）"
+  },
+  "webrtcPublicOnly": {
+    "message": "仅公网地址"
+  },
+  "webrtcPreferProxy": {
+    "message": "UDP 优先使用代理"
+  },
+  "webrtcStrict": {
+    "message": "仅代理（最严格）"
+  },
+  "runtimeDetails": {
+    "message": "运行详情"
+  },
+  "runtimeAuditHint": {
+    "message": "当前身份状态与一致性检查"
+  },
+  "refreshIdentity": {
+    "message": "刷新身份"
+  },
+  "apply": {
+    "message": "应用"
+  },
+  "duplicate": {
+    "message": "复制"
+  },
+  "delete": {
+    "message": "删除"
+  },
+  "collectionNotice": {
+    "message": "启用配置时可能向 ipwho.is 查询出口 IP。使用代理时，服务商看到的是代理地址；使用浏览器路由时，仅在获得许可后发送你自己的公网 IP。位置选择器默认离线；明确同意并加载在线地图后，会向 OpenFreeMap 发送当前连接的公网 IP 和查看区域。坐标及地图交互均可离线使用。没有遥测，也不远程加载代码。"
+  },
+  "shimLimitNotice": {
+    "message": "网页地理位置和时区修改属于兼容层，复杂的网页脚本仍可能识别这些修改，并不保证无法通过浏览器指纹识别。"
+  },
+  "guideText0": {
+    "message": "配置的作用"
+  },
+  "guideText1": {
+    "message": "配置同时控制 Firefox 连接方式、网页可见的位置与时区，以及 WebRTC 地址处理。选择浏览器路由或代理即可启用；关闭可释放身份与 WebRTC 控制。保存仅保存修改，保存并启用会应用配置。"
+  },
+  "guideText2": {
+    "message": "浏览器路由"
+  },
+  "guideText3": {
+    "message": "使用 Firefox 自身的连接方式，不会关闭你在 Firefox 或系统中设置的代理。如需通过指定服务器转发流量，请选择 HTTP、HTTPS 或 SOCKS 代理。"
+  },
+  "guideText4": {
+    "message": "自动或手动位置"
+  },
+  "guideText5": {
+    "message": "自动模式查询连接对外显示的位置，精度约为 20 公里，并非 GPS 定位。使用代理时查询代理出口，使用浏览器路由时会先请求许可，再查询你的公网地址。手动模式支持填写坐标或在地图上选择位置；即使地图影像加载失败，坐标功能仍可用。"
+  },
+  "guideText6": {
+    "message": "WebRTC"
+  },
+  "guideText7": {
+    "message": "WebRTC 策略限制网页可获取的网络地址。如果其他扩展或 Firefox 策略已控制此设置，本扩展不会覆盖，并会提示原因。"
+  },
+  "guideText8": {
+    "message": "出现故障时"
+  },
+  "guideText9": {
+    "message": "代理不可达或缺少密码时，新的身份无法完成，网页继续使用之前的模拟位置，避免暴露真实位置。刷新身份会重试查询。对于 Firefox 不允许注入的框架，网页仍可能看到计算机时区；这个限制会明确报告。"
+  },
+  "savedPending": {
+    "message": "已保存的修改尚未应用。点击“应用”更新当前线路。"
+  },
+  "saveApplyNotice": {
+    "message": "保存用于保存修改；应用用于启用已保存的配置，未保存的编辑仍留在表单中。"
+  },
+  "manualOverrideNotice": {
+    "message": "自定义设置会原样应用；手动位置或时区可能与检测到的网络位置不一致。"
+  },
+  "manualOverrideShort": {
+    "message": "自定义设置会原样应用，可能与检测到的网络位置不同。"
+  },
+  "longitudeTimezoneWarning": {
+    "message": "手动时区与此经度看起来相距较远；仍会按你的选择原样应用。"
+  },
+  "manualAccuracyNotice": {
+    "message": "手动坐标会按你提供的精度原样应用到网页。"
+  },
+  "socks4AuthHint": {
+    "message": "Firefox 不支持 SOCKS4 代理认证，用户名和密码会被忽略。"
+  },
+  "httpAuthHint": {
+    "message": "HTTP／HTTPS 代理凭据通过预先发送的 Basic 认证头提供；代理发起认证挑战时，仅向该代理作答。"
+  },
+  "socks5AuthHint": {
+    "message": "SOCKS5 凭据通过 Firefox 的 SOCKS 认证传递。"
+  },
+  "proxyDnsExplanation": {
+    "message": "代理 DNS 通过代理解析域名；Firefox 仅对 SOCKS 代理应用此设置。"
+  },
+  "mapOff": {
+    "message": "在线地图已关闭，坐标功能可离线使用。"
+  },
+  "mapConsent": {
+    "message": "正在检查地图许可和当前应用的线路…"
+  },
+  "mapDenied": {
+    "message": "未获得公网 IP 权限，坐标功能仍可离线使用。"
+  },
+  "mapUnavailableOffline": {
+    "message": "在线地图不可用，坐标功能仍可离线使用。"
+  },
+  "mapLoading": {
+    "message": "正在通过当前线路加载 OpenFreeMap…"
+  },
+  "mapWebglUnavailable": {
+    "message": "当前线路无法加载地图，或 WebGL 不可用；坐标功能仍可离线使用。"
+  },
+  "mapLoaded": {
+    "message": "在线地图已加载，平移与缩放会向 OpenFreeMap 发送查看区域。"
+  },
+  "mapWebglOffline": {
+    "message": "WebGL 地图不可用，坐标功能仍可离线使用。"
+  },
+  "mapReloading": {
+    "message": "正在通过当前线路重新加载地图数据…"
+  },
+  "reloadOnlineMap": {
+    "message": "重新加载在线地图"
+  },
+  "mapRouteChanged": {
+    "message": "线路已变更，请为当前线路重新加载在线地图。"
+  },
+  "profileRuntime": {
+    "message": "配置"
+  },
+  "networkHealth": {
+    "message": "网络健康状态"
+  },
+  "publicIp": {
+    "message": "公网 IP"
+  },
+  "firefoxProxySettings": {
+    "message": "Firefox 代理设置"
+  },
+  "consistencyLabel": {
+    "message": "一致性"
+  },
+  "lastError": {
+    "message": "最近错误"
+  },
+  "activeBadge": {
+    "message": "已启用"
+  },
+  "sessionCredentialsBadge": {
+    "message": "会话凭据"
+  },
+  "builtInBadge": {
+    "message": "内置"
+  },
+  "browserAutomaticIdentity": {
+    "message": "浏览器／系统路由 · 自动身份"
+  },
+  "profilesListAria": {
+    "message": "配置列表"
+  },
+  "availableProfilesAria": {
+    "message": "可用配置"
+  },
+  "profileEditorAria": {
+    "message": "配置编辑器"
+  },
+  "locationPickerAria": {
+    "message": "位置选择器：方向键平移地图，聚焦标记后用方向键移动选点"
+  },
+  "selectedLocationAria": {
+    "message": "已选位置标记"
+  },
+  "zoomInAria": {
+    "message": "放大"
+  },
+  "zoomOutAria": {
+    "message": "缩小"
+  },
+  "profileNameExample": {
+    "message": "例如：家庭代理、实验室"
+  },
+  "mapPartial": {
+    "message": "部分地图数据未加载，当前地图可能不完整，可重新加载重试。"
   }
 }
