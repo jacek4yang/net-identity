@@ -556,11 +556,15 @@ function updateVisibility(): void {
   renderLocationMap();
   ui.removeCredentialsRow.hidden = !hasCredentials;
 
+  renderHints();
+}
+
+function renderHints(): void {
   clear(ui.hints);
   for (const hint of proxyFieldHints(ui.proxyType.value)) {
     ui.hints.append(el("li", { text: lt(hint) }));
   }
-  if (isManual) {
+  if (ui.modeManual.checked) {
     ui.hints.append(
       el("li", {
         text: message("manualAccuracyNotice"),
@@ -1188,6 +1192,7 @@ void (async () => {
   }
   await bindLanguageControl(() => {
     renderGuide();
+    renderHints();
     showErrors(lastErrors);
     renderProfileList();
     setMapStatus(mapStatusText);

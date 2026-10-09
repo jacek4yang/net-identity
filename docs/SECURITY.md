@@ -379,6 +379,9 @@ The request gate rejects missing, cancelled and stale markers even after event-p
 suspension. Redirects are errors, cookies/referrers/cache are disabled, the response
 body is limited to 64 KiB and the lifetime to 12 seconds. Provider input is parsed.
 No draft credentials, profiles, preview identity or route state are persisted.
+Reusing saved session credentials requires the same saved proxy type, host and port.
+Typing a different endpoint requires explicit re-entry; preview must never send an
+existing hidden password to a newly typed server.
 HTTP challenges must match the exact draft request and proxy host/port, are answered
 at most once, and never fall through to credentials for the active route.
 

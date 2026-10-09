@@ -101,6 +101,32 @@ export async function runDraftChecks({
       fixture.seen.auth.some((entry) => entry.accepted === false),
     "SOCKS5 draft authenticates and recovers after the password is corrected",
   );
+  const authenticatedProfile = {
+    ...saved,
+    id: "fixture-saved-auth",
+    name: "Saved authenticated proxy",
+    proxy: { ...saved.proxy, port: fixture.auth, authenticationRequired: true },
+  };
+  await call({
+    type: "profiles:save",
+    profile: authenticatedProfile,
+    credentials: { username: "fixture-user", password: "fixture-password" },
+  });
+  const authBefore = fixture.seen.auth.length;
+  const changedTarget = await call({
+    type: "draft:probe",
+    owner: "changed-endpoint-test",
+    input: {
+      profileId: authenticatedProfile.id,
+      proxy: { ...authenticatedProfile.proxy, port: fixture.b },
+    },
+  });
+  check(
+    changedTarget.ok === false &&
+      changedTarget.error === "credentials" &&
+      fixture.seen.auth.length === authBefore,
+    "Saved credentials are never reused automatically for a newly typed endpoint",
+  );
   await fill({
     "field-password": "",
     "field-proxy-username": "",

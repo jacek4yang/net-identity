@@ -1,6 +1,7 @@
 /** One short-lived provider request per editor; never changes the active target. */
 import { IPWHOIS_ENDPOINT, parseIpWhoIsResponse } from "../geo/ipwhois";
 import type { DraftInput, DraftResponse } from "../shared/draft-probe";
+import type { ProxyConfig } from "../profile/schema";
 import type { ProxyCredentials } from "../profile/validation";
 import {
   buildProxyInfo,
@@ -30,7 +31,7 @@ export class DraftProbeBroker {
     private readonly deps: {
       extensionUrl: string;
       consent: () => Promise<boolean>;
-      credentials: (id: string) => Promise<ProxyCredentials | null>;
+      credentials: (id: string, proxy: ProxyConfig) => Promise<ProxyCredentials | null>;
       fetch: typeof fetch;
       newId: () => string;
       timeoutMs?: number;
@@ -107,7 +108,7 @@ export class DraftProbeBroker {
       if (job.abort.signal.aborted) return { ok: false, error: timedOut ? "timeout" : "cancelled" };
       const credentials =
         input.credentials === undefined && input.profileId !== undefined
-          ? await this.deps.credentials(input.profileId)
+          ? await this.deps.credentials(input.profileId, input.proxy)
           : (input.credentials ?? null);
       if (job.abort.signal.aborted) return { ok: false, error: timedOut ? "timeout" : "cancelled" };
       if (input.proxy.authenticationRequired && credentials === null)

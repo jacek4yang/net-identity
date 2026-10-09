@@ -54,7 +54,19 @@ const draftBroker = new DraftProbeBroker({
       return false;
     }
   },
-  credentials: (id) => credentialStore.get(id),
+  credentials: async (id, proxy) => {
+    const saved = (await profileStore.load()).profiles.find((profile) => profile.id === id);
+    // Never send a saved secret to a newly typed server. Re-enter credentials to
+    // authorize that new endpoint; unchanged endpoints can reuse this session.
+    if (
+      !saved ||
+      saved.proxy.type !== proxy.type ||
+      saved.proxy.host !== proxy.host ||
+      saved.proxy.port !== proxy.port
+    )
+      return null;
+    return credentialStore.get(id);
+  },
   fetch: (url, init) => fetch(url, init),
   newId: () => crypto.randomUUID(),
 });

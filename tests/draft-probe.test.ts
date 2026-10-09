@@ -153,6 +153,11 @@ describe("draft probe boundary", () => {
     ).toEqual({ ok: false, error: "credentials" });
     expect(h.fetcher).not.toHaveBeenCalled();
   });
+  it("binds saved-credential lookup to the exact draft endpoint", async () => {
+    const h = harness();
+    await h.broker.probe(owner, { ...input, profileId: "saved-profile" });
+    expect(h.credentials).toHaveBeenCalledWith("saved-profile", input.proxy);
+  });
   it("uses explicit clear instead of saved credentials", async () => {
     const h = harness();
     await h.broker.probe(owner, { ...input, profileId: "saved-profile", credentials: null });
