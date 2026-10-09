@@ -354,7 +354,12 @@ async function main() {
         "--no-reload",
         `--pref=marionette.port=${marionettePort}`,
         `--pref=layout.css.devPixelsPerPx=${values.scale}`,
-        ...(values.screenshots ? [`--pref=ui.systemUsesDarkTheme=${values.light ? 0 : 1}`] : []),
+        ...(values.screenshots || values["draft-evidence"]
+          ? [
+              `--pref=ui.systemUsesDarkTheme=${values.light ? 0 : 1}`,
+              `--pref=layout.css.prefers-color-scheme.content-override=${values.light ? 1 : 0}`,
+            ]
+          : []),
         "--arg=--marionette",
         "--arg=-remote-allow-system-access",
         ...(liveMap
@@ -559,15 +564,32 @@ async function main() {
                   width: name.startsWith("options") ? 1280 : 500,
                   height: 900,
                 });
-                await fill({ "ui-language": "zh_CN" });
-                await waitFor('return document.documentElement.lang === "zh-CN";');
-                await execute("document.activeElement?.blur(); window.scrollTo(0, 0);");
-                const screenshot = await client.send("WebDriver:TakeScreenshot", { full: true });
-                await writeFile(
-                  path.join(output, `${name}.png`),
-                  Buffer.from(screenshot.value, "base64"),
-                  { flag: "wx" },
-                );
+                for (const language of ["zh_CN", "en"]) {
+                  await fill({ "ui-language": language });
+                  await waitFor(
+                    `return document.documentElement.lang === ${JSON.stringify(language === "zh_CN" ? "zh-CN" : "en")};`,
+                  );
+                  check(
+                    await execute(
+                      `return matchMedia("(prefers-color-scheme: dark)").matches === ${!values.light};`,
+                    ),
+                    "Review capture uses the requested native color scheme",
+                  );
+                  check(
+                    await execute("return document.documentElement.scrollWidth <= innerWidth;"),
+                    `Review capture has no horizontal overflow (${language})`,
+                  );
+                  await execute("document.activeElement?.blur(); window.scrollTo(0, 0);");
+                  const screenshot = await client.send("WebDriver:TakeScreenshot", { full: true });
+                  await writeFile(
+                    path.join(
+                      output,
+                      `${name.replace(/-zh$/, "")}-${language}-${values.light ? "light" : "dark"}.png`,
+                    ),
+                    Buffer.from(screenshot.value, "base64"),
+                    { flag: "wx" },
+                  );
+                }
                 await fill({ "ui-language": "en" });
                 await waitFor('return document.documentElement.lang === "en";');
               }
