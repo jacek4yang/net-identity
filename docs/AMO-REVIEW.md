@@ -2,7 +2,7 @@
 
 The extension id is `net-identity@jacek4yang.github.io` and does not change between versions.
 
-## Metadata-fix release 1.1.5
+## Historical metadata-fix release 1.1.5
 
 The immutable v1.1.4 submission attempt failed before an AMO version or review existed.
 Its reviewer notes exceeded the official 3,000-character model limit; the hidden API
@@ -10,6 +10,34 @@ response was not retained, so the exact server rejection was not observed. This 
 shortens notes and adds a pre-submission metadata guard without changing runtime behavior.
 The v1.1.4 tag and draft evidence remain intact. Fresh versioned 1.1.5 capture passed
 artifact, runtime-hash and independent visual verification; evidence is linked below.
+
+## Current unreleased quick-setup candidate
+
+This candidate adds English/Chinese UI, proxy entry with isolated automatic draft
+preview, Save and enable, remembered visible-map loading, protection defaults for
+new proxy profiles, passive HTTP(S) health coverage and presentation improvements.
+It is not the unchanged-runtime 1.1.5 metadata fix above. Existing saved settings
+remain unchanged. No new extension permission or runtime dependency is introduced.
+
+Typing a valid endpoint triggers a debounced `ipwho.is` preview through that draft
+proxy before activation. Only the marked, owner/request-bound extension request
+uses the draft; ordinary traffic remains on the active route. The broker enforces
+required data consent, terminal-null routing, no redirects/cookies/referrer,
+a 12-second lifetime and 64 KiB response ceiling, at most four active jobs,
+cancellation and stale-response suppression. No automatic retry loop. Credentials
+stay within this bounded draft request and are never sent to pages or the provider.
+Options GeoIP Disabled suppresses draft checks. Popup quick setup uses preview.
+
+Save remains non-activating. Save and enable saves the current form and activates
+that revision. Loading a saved profile alone does not trigger a draft check.
+New proxy profiles default to proxy-only WebRTC, automatic identity and SOCKS DNS;
+existing explicit settings are not migrated. HTTP(S) has no SOCKS proxyDNS toggle.
+
+First online-map enablement is explicit. It remembers only a boolean preference;
+reopening the visible map may then create a fresh route/generation-bound session,
+with current credentials and previously granted consent rechecked. Automatic loading
+never raises a permission prompt. Unload or unchecking clears the preference.
+The old map-session authorization never survives closure/restart.
 
 ## Permissions
 
@@ -25,12 +53,12 @@ Content scripts run in every frame, including `about:blank`. The MAIN-world scri
 
 A sandboxed frame Firefox refuses to inject can still see the computer's timezone and location. That is a platform limit.
 
-## Map (approved listed 1.1.5)
+## Map implementation and candidate behavior
 
 The historical 1.1.3 package remains the offline-only grid. Approved 1.1.5 adds
 an explicit **Load online map** action using locally bundled MapLibre GL JS and worker;
-OpenFreeMap supplies only data from `https://tiles.openfreemap.org`. No network request
-is made just by installing the extension or opening the editor. No remote JavaScript,
+OpenFreeMap supplies only data from `https://tiles.openfreemap.org`. A fresh install makes no request. With the remembered map preference enabled,
+opening the visible map can fetch provider data after fresh authorization checks. No remote JavaScript,
 RTL plugin or native GeolocateControl is enabled. Coordinate entry and existing gestures
 remain available when WebGL or the network fails.
 
@@ -40,7 +68,7 @@ selected proxy and missing-credential/terminal-null protections. Provider bypass
 map loading. A typed, bounded background broker rejects redirects and unapproved resources,
 omits credentials/cookies/referrers, and cancels stale-generation loads. Closing/switching
 the editor, route changes, permission revocation and background restart require a fresh
-map enable action. The renderer and third-party notices are packaged locally; attribution
+map authorization; a remembered opt-in may request a fresh session on a later visible opening. The renderer and third-party notices are packaged locally; attribution
 links OpenMapTiles and OpenStreetMap. See `docs/TILE-POLICY.md` and `docs/PRIVACY.md`.
 
 CJK ideographs use brokered provider glyph data (`localIdeographFontFamily: false`),
@@ -81,7 +109,7 @@ The built-in Direct route exists virtually on fresh install; it does not trigger
 Direct switches without optional consent and withholds GeoIP until permission is granted.
 Custom policies can disable GeoIP and make geolocation unavailable without native fallback.
 Save persists configuration; Apply changes runtime. Version-1, version-2 and version-3 profiles migrate to schema 4. Legacy usernames become a non-secret authentication-required flag; the value is removed from both saved and applied profiles.
-Apply uses the saved revision without saving unsaved form values. Applied configuration
+The route-activation command uses a saved revision; the Save and enable UI first saves the current form. Applied configuration
 is also recorded without credentials in local storage so a full Firefox restart cannot
 activate a newer unapplied Save. Session credentials survive event-page suspension but
 are removed on full exit. A selected proxy stays selected, and ordinary extension-observable traffic fails,

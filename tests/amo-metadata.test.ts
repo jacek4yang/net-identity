@@ -44,13 +44,29 @@ describe("AMO reviewer package", () => {
     expect(privacy).toContain("no map\nnetwork request");
     expect(privacy).toContain("not private from the map provider");
     expect(privacy).toContain("optional personal-data consent");
-    expect(privacy).toContain("approved listed version **1.1.5**");
+    expect(privacy).toContain("unreleased bilingual/quick-setup");
+    expect(privacy).toContain("Public listed 1.1.5 retains its immutable tagged policy");
     expect(privacy).not.toContain("standard extension Referer");
     expect(privacy).toMatch(/storage\.session|session storage/);
     expect(privacy).toMatch(/does not include telemetry/i);
     expect(review).toContain("proxy.onRequest");
     expect(review).toContain("storage.session");
     expect(review).toMatch(/MAIN-world/i);
+  });
+
+  it("discloses draft preview and remembered map loading before publication", () => {
+    expect(privacy).toContain("before Save or enable");
+    expect(privacy).toContain("existing ordinary-page routing is");
+    expect(privacy).toContain("unchanged");
+    expect(privacy).toContain("remembers automatic loading");
+    expect(privacy).toContain("Unchecking automatic loading");
+    expect(privacy).toContain("Save and enable saves the visible form");
+    expect(privacy).not.toContain("Do not activate a profile, and the extension does not contact");
+    expect(metadata.version?.approval_notes).toContain("before Save/enable");
+    expect(metadata.version?.approval_notes).toContain(
+      "fresh generation/route-bound authorization",
+    );
+    expect(review).toContain("Current unreleased quick-setup candidate");
   });
 
   it("states the shim limitation instead of promising invisibility", () => {
