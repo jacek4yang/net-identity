@@ -424,6 +424,18 @@ async function main() {
         ),
         "WebGL fallback leaves picker interactive",
       );
+      await click("#field-mode-auto");
+      const readOnly = await readMap();
+      await pointer(await point("#location-map-surface"));
+      const afterReadOnly = await readMap();
+      log(
+        `Fallback automatic preview: ${JSON.stringify({ before: readOnly, after: afterReadOnly, mode: await execute("return {auto:document.getElementById('field-mode-auto').checked,manual:document.getElementById('field-mode-manual').checked,preview:document.getElementById('location-map-surface').classList.contains('is-preview')};") })}`,
+      );
+      check(
+        afterReadOnly.lat === readOnly.lat && afterReadOnly.lng === readOnly.lng,
+        "Automatic preview remains read-only without WebGL",
+      );
+      await click("#field-mode-manual");
     } else {
       await waitFor(`return document.querySelector('#location-map-tiles canvas')?.width>0;`);
       await waitFor(
@@ -634,6 +646,9 @@ async function main() {
       const readOnly = await readMap();
       await pointer(await point("#location-map-surface"));
       const afterReadOnly = await readMap();
+      log(
+        `Automatic preview transition: ${JSON.stringify({ before: readOnly, after: afterReadOnly, mode: await execute("return {auto:document.getElementById('field-mode-auto').checked,manual:document.getElementById('field-mode-manual').checked,preview:document.getElementById('location-map-surface').classList.contains('is-preview')};") })}`,
+      );
       check(
         afterReadOnly.lat === readOnly.lat && afterReadOnly.lng === readOnly.lng,
         "Automatic preview remains read-only over loaded geographic imagery",

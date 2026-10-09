@@ -401,7 +401,14 @@ async function popupStatus(browser, profileId, expectedStatus) {
 }
 
 async function checkTraffic(browser, origin, phase) {
-  await browser.client.send("WebDriver:Navigate", { url: `http://127.0.0.1:${origin.pagePort}/` });
+  // A locked vault intentionally blocks even loopback HTTP: its bypass list is
+  // encrypted. Keep the probe document network-independent so cold-start tests
+  // measure the actual requests, not a blocked harness-page navigation. This
+  // ordinary opaque-origin page uses the same fetch/WebSocket probes and live
+  // positive controls before and after locking; no extension-origin exemption.
+  await browser.client.send("WebDriver:Navigate", {
+    url: "data:text/html,<!doctype html><title>fail-closed probe</title>",
+  });
   const response = await browser.client.send(
     "WebDriver:ExecuteAsyncScript",
     {
