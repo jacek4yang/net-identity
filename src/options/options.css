@@ -881,3 +881,40 @@ summary:focus-visible {
     box-shadow: none;
   }
 }
+
+/* Shared compact encrypted-vault surface. */
+.vault-panel {
+  margin: 12px 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--fg);
+  background: var(--bg);
+  font-size: 13px;
+}
+.vault-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.vault-panel form {
+  display: grid;
+  gap: 8px;
+  margin-block: 10px;
+}
+.vault-panel input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.vault-panel button {
+  margin: 4px 8px 4px 0;
+}
+.vault-panel .hint {
+  line-height: 1.6;
+}
+.vault-panel [hidden] {
+  display: none !important;
+}
+#vault-error {
+  color: var(--bad);
+}

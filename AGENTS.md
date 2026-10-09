@@ -483,3 +483,14 @@ proxy hostname. Provider failure must remain distinct from proof of proxy failur
 Run e2e:draft for real SOCKS/HTTP, auth rejection/recovery, unchanged active routing,
 preview fields and current-form enable. Its CA is only in a disposable Firefox profile.
 Publication remains pending the owner's updated UI acceptance.
+
+## Owner-authorized encrypted vault (current candidate)
+
+The session-only persistence descriptions above now describe legacy mode before explicit
+vault setup. VaultStore adapts profile/credential/active-target areas after setup: the
+entire document is encrypted at rest; no plaintext credential or durable decryption key
+may be written locally. Derived keys live only in trusted storage.session. Do not remove
+the separate saved/applied snapshot or let unlock apply newer saved edits. Preserve old
+ciphertext on failed writes and hold unknown formats. Follow docs/ENCRYPTED-VAULT.md,
+including its Off/locked and Firefox-protected-traffic boundaries. The owner authorized
+post-validation merge and release on 2026-10-09; signing and exact-head gates still apply.

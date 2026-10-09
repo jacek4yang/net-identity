@@ -1,3 +1,4 @@
+import { runVaultChecks } from "./run-vault-checks.mjs";
 import { DELAYED_OPTIONS_STARTUP } from "./delayed-options-startup.mjs";
 import { createDraftFixture } from "./draft-probe-fixture.mjs";
 import { runDraftChecks } from "./run-draft-checks.mjs";
@@ -40,6 +41,7 @@ const { values } = parseArgs({
     scale: { type: "string", default: "1" },
     "live-map": { type: "boolean", default: false },
     "draft-check": { type: "boolean", default: false },
+    "vault-check": { type: "boolean", default: false },
     "delayed-init": { type: "boolean", default: false },
     "draft-evidence": { type: "string" },
   },
@@ -564,6 +566,22 @@ async function main() {
       });
     }
 
+    if (values["vault-check"]) {
+      await runVaultChecks({
+        client,
+        call,
+        execute,
+        click,
+        fill,
+        waitFor,
+        check,
+        optionsUrl,
+        popupUrl,
+      });
+      if (failures.length) throw new Error(failures.join("; "));
+      log("PASSED: encrypted vault UI and suspension checks in real Firefox.");
+      return;
+    }
     if (draftFixture) {
       try {
         await runDraftChecks({

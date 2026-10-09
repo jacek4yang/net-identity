@@ -7,6 +7,21 @@ candidate. Public listed 1.1.5 retains its immutable tagged policy and package; 
 [release verification](RELEASING.md#published-115-2026-10-01). The candidate has not
 been submitted, signed or published by preparing this policy.
 
+## Encrypted storage (candidate)
+
+You can explicitly enable a master-password vault in the popup or settings. It encrypts
+profiles, saved and applied proxy credentials and the active snapshot locally. The key
+is kept only in trusted session storage. Full exit, disabling or upgrading may require
+unlocking again; encrypted data remains durable. Passwords and backups never go to a
+password service. Export an encrypted backup: uninstalling or clearing browser data can
+remove local storage. Forgetting the master password cannot be undone. See
+[the complete storage/recovery boundary](ENCRYPTED-VAULT.md).
+
+The following storage table describes the mode **before vault setup**. After setup,
+profiles, credentials and snapshots instead live inside persistent authenticated
+ciphertext; the language preference, map-autoload boolean and vault on/off metadata
+remain unencrypted. Upgrades preserve existing configuration without setting a password.
+
 ## What is stored on this computer
 
 | Data                                                                                                                      | Where                                       | How long                                      |
@@ -78,14 +93,14 @@ The extension makes no claim that the provider collects nothing.
 **Proxy traffic.** Traffic you choose to send through a proxy goes to that proxy. The extension does not add its own analytics to that traffic.
 If a selected proxy fails, ordinary external traffic fails rather than switching to
 Firefox's direct or system route. The selected profile stays selected and can recover
-without a route switch. After a full Firefox exit, session-only usernames and passwords are lost;
+without a route switch. Without an enabled vault, after a full Firefox exit, session-only usernames and passwords are lost;
 if the applied profile requires authentication, non-bypassed ordinary webpage and
 extension-observable GeoIP requests are blocked until you save replacement credentials and Apply them. The request gate prevents those ordinary requests from
 trying that endpoint anonymously, even if the proxy would accept it: anonymous access
 could produce a different egress identity. Profiles intentionally configured without
 authentication and explicit bypasses keep their existing behavior.
 
-**Proxy transport security.** Session-only storage does not encrypt the connection to a proxy.
+**Proxy transport security.** Local storage encryption does not encrypt the connection to a proxy.
 SOCKS5 username/password authentication is plaintext on that connection
 ([RFC 1929](https://www.rfc-editor.org/rfc/rfc1929.html#section-3)); HTTP proxy Basic
 authentication likewise needs a protected transport. HTTPS to a destination does not

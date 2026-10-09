@@ -372,6 +372,7 @@ export class ActivationController {
         return await this.failWith("schema_unsupported", migrationWarning);
       }
       if (stored.activeProfileId === null) {
+        this.routingIntent = "off";
         const idle = await this.composeIdleState(this.generation);
         if (this.generation !== epoch) return this.state;
         return await this.commit(idle, false);
@@ -417,6 +418,7 @@ export class ActivationController {
           credentials: snapshot.credentials,
         };
         this.appliedProfile = profile;
+        this.routingIntent = profile.proxy.type === "direct" ? "direct" : "proxy";
         return await this.commit(restored, false);
       }
 

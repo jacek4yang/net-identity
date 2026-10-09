@@ -1,3 +1,5 @@
+import { VaultStore } from "../vault/store";
+import { createVaultHandler } from "../vault/messages";
 import { DraftProbeBroker } from "./draft-probe";
 import { parseDraftRequest } from "../shared/draft-probe";
 /**
@@ -40,8 +42,12 @@ import {
 
 const now = (): number => Date.now();
 
-const profileStore = createProfileStore(fromBrowserStorageArea(browser.storage.local));
-const sessionArea = fromBrowserStorageArea(browser.storage.session);
+const vault = new VaultStore(
+  fromBrowserStorageArea(browser.storage.local),
+  fromBrowserStorageArea(browser.storage.session),
+);
+const profileStore = createProfileStore(vault.profiles);
+const sessionArea = vault.secrets;
 const credentialStore = createCredentialStore(sessionArea);
 const targetStore = createActiveTargetStore(sessionArea);
 const geoProvider = createDefaultGeoIpProvider();
@@ -333,7 +339,27 @@ const handleMessage = createMessageHandler({
   startupReady: () => startup,
 });
 
+const handleVault = createVaultHandler(vault, async () => {
+  await startup;
+  startup = controller.initialize();
+  await startup;
+});
+
 browser.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (
+    isPlainObject(message) &&
+    typeof message.type === "string" &&
+    message.type.startsWith("vault:")
+  ) {
+    if (
+      sender.id !== browser.runtime.id ||
+      !["options/options.html", "popup/popup.html"].some(
+        (path) => sender.url === browser.runtime.getURL(path),
+      )
+    )
+      return undefined;
+    return handleVault(message);
+  }
   if (
     isPlainObject(message) &&
     typeof message.type === "string" &&

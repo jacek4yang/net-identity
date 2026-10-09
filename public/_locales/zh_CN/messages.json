@@ -30,7 +30,7 @@
     "message": "配置名称（可选）"
   },
   "sessionAuth": {
-    "message": "仅当前会话保存认证"
+    "message": "代理认证"
   },
   "username": {
     "message": "用户名"
@@ -39,7 +39,7 @@
     "message": "密码"
   },
   "authNotice": {
-    "message": "退出 Firefox 后凭据会丢失。SOCKS4 不支持认证。"
+    "message": "未启用保险库时，退出 Firefox 后凭据会丢失。SOCKS4 不支持认证。"
   },
   "pasteNotice": {
     "message": "地址已含端口时可留空端口栏。地址中明确指定的协议优先，不会自动探测；账号密码请单独填写。"
@@ -111,7 +111,7 @@
     "message": "释放 WebRTC 与模拟身份控制"
   },
   "detailsNotice": {
-    "message": "浏览器／系统路由不设置扩展代理，仍遵循 Firefox 和系统配置。代理凭据只保存在当前会话中，退出 Firefox 后清除。"
+    "message": "浏览器／系统路由不设置扩展代理，仍遵循 Firefox 和系统配置。启用保险库可加密保存代理凭据，否则仅保留当前会话。"
   },
   "availableRoutes": {
     "message": "可用路由"
@@ -207,7 +207,7 @@
     "message": "请输入不含空白字符的主机地址。"
   },
   "uriCredentials": {
-    "message": "请移除地址中的凭据，在仅限当前会话的认证字段中填写。"
+    "message": "请移除地址中的凭据，在单独的认证字段中填写。"
   },
   "percentEndpoint": {
     "message": "不支持百分号编码的代理地址，请直接填写主机地址。"
@@ -399,7 +399,7 @@
     "message": "代理密码"
   },
   "sessionCredentialsHint": {
-    "message": "用户名和密码仅保留在本次 Firefox 会话中。两项留空可保留已有凭据；填写任意一项会替换整组凭据，修改密码时请同时填写用户名。"
+    "message": "启用保险库可加密保存凭据并在重启后保留，否则仅保留本次会话。两项留空保留已有凭据，填写任意一项替换整组。"
   },
   "clearCredentials": {
     "message": "保存时清除凭据（点击“应用”后才从当前线路移除）"
@@ -639,7 +639,7 @@
     "message": "已启用"
   },
   "sessionCredentialsBadge": {
-    "message": "会话凭据"
+    "message": "已保存凭据"
   },
   "builtInBadge": {
     "message": "内置"
@@ -975,7 +975,7 @@
     "message": "草稿检测超时，代理或查询服务可能暂时不可用。输入已保留，可重新检测。"
   },
   "draftCredentials": {
-    "message": "此配置需要先填写本次会话的用户名和密码。"
+    "message": "此配置需要先填写已保存的用户名和密码。"
   },
   "draftBusy": {
     "message": "其他草稿正在检测，请稍后重试。"
@@ -1030,5 +1030,56 @@
   },
   "turningOff": {
     "message": "正在关闭…"
+  },
+  "vaultPassword": {
+    "message": "主密码"
+  },
+  "vaultConfirm": {
+    "message": "再次输入主密码"
+  },
+  "vaultSetupTitle": {
+    "message": "加密保存配置"
+  },
+  "vaultLockedTitle": {
+    "message": "解锁你的配置"
+  },
+  "vaultUnlockedTitle": {
+    "message": "加密保险库 · 已解锁"
+  },
+  "vaultDamagedTitle": {
+    "message": "保险库需要处理"
+  },
+  "vaultSetupHint": {
+    "message": "在此设备上加密保存配置和代理密码。请使用至少 12 个字符的强主密码。重启 Firefox 后解锁一次，忘记密码无法找回。启用前配置未加密，代理密码仅在本次会话保存。"
+  },
+  "vaultUnlockedHint": {
+    "message": "配置和凭据已加密保存。请保留加密备份。退出浏览器、停用或升级插件后可能需要重新解锁。这不能保护已被入侵且已解锁的设备。"
+  },
+  "vaultLockedHint": {
+    "message": "保存的数据仍然保留。解锁后继续使用。之前启用的路由在解锁前保持阻断；之前关闭的路由保持关闭。"
+  },
+  "vaultEnable": {
+    "message": "启用加密"
+  },
+  "vaultUnlock": {
+    "message": "解锁"
+  },
+  "vaultExport": {
+    "message": "下载加密备份"
+  },
+  "vaultExportPrevious": {
+    "message": "上一份加密修订"
+  },
+  "vaultRestore": {
+    "message": "恢复加密备份"
+  },
+  "vaultRestoreHint": {
+    "message": "仅适用于空白安装。选择备份文件，并在上方输入备份的主密码。恢复后将继续备份中保存的路由。不会覆盖现有配置。"
+  },
+  "vaultOperationFailed": {
+    "message": "操作未完成。请检查主密码（至少 12 个字符）、备份和可用存储空间。现有数据已保留，恢复备份需要空白安装。"
+  },
+  "vaultMismatch": {
+    "message": "两次输入的主密码不一致。"
   }
 }

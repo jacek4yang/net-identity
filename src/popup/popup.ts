@@ -1,3 +1,4 @@
+import { bindVaultControls } from "../shared/vault-ui";
 import { bindLanguageControl } from "../shared/language-control";
 import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n";
 import { filterProfiles } from "./profile-search";
@@ -395,6 +396,7 @@ async function bootstrap(): Promise<void> {
       ? message("details")
       : message("hideDetails");
   });
+  if (!(await bindVaultControls())) return;
   const [stateResponse, profilesResponse] = await Promise.all([
     request({ type: "state:get" }, parseStateResponse),
     loadProfiles(),

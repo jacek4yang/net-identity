@@ -1,3 +1,4 @@
+import { bindVaultControls } from "../shared/vault-ui";
 import { bindDraftCheck } from "../shared/draft-check";
 import { parseDraftRequest } from "../shared/draft-probe";
 import { bindLanguageControl } from "../shared/language-control";
@@ -1216,6 +1217,7 @@ void (async () => {
     if (runtimeState) renderRuntimeRows(runtimeState);
     if (selectedProfile() === null) ui.formTitle.textContent = message("newProfile");
   });
+  if (!(await bindVaultControls())) return;
   await reload(null, initialEditorRevision);
   renderProfileList();
 })();

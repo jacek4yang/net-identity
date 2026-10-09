@@ -57,8 +57,10 @@ separate attention. The extension addresses these distinct concerns:
   (create, edit, duplicate, delete, activate).
 - **Proxy support** for `direct`, `http`, `https`, `socks4` and `socks5`, with bypass
   lists (hosts, `*.domain`, IP literals, IPv4 CIDR) and loopback always bypassed.
-- **Proxy authentication** with session-only usernames and passwords:
-  session-only credentials, preemptive Basic for HTTP/HTTPS, strict challenge matching
+- **Encrypted local vault (candidate):** save profiles and proxy passwords behind a master
+  password, with encrypted backups and upgrade-safe migration. [Storage boundaries](docs/ENCRYPTED-VAULT.md).
+- **Proxy authentication:** session-only before vault setup; persistent ciphertext after setup.
+  Preemptive Basic for HTTP/HTTPS, strict challenge matching
   for proxies that demand `407`.
 - **Automatic identity**: the public egress IP is observed through the active proxy and
   the derived country/region/city/timezone/coordinates are applied everywhere.

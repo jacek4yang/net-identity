@@ -189,8 +189,16 @@ channel, then update README in a separate documentation PR if needed.
 - [ ] Regenerate any changed store screenshots from actual UI with honest provenance.
       Preserve v1.1.3 publication evidence and do not treat manually uploaded AMO preview IDs
       as a trusted listing-workflow receipt or automatically overwrite/adopt them
-- [ ] After merging the release PR, rerun quality/package, all twelve deterministic Firefox
+- [ ] After merging the release PR, rerun quality/package, all fourteen deterministic Firefox
       suites and required CI on the exact clean main commit; create a new immutable tag only
       after these gates pass. Do not change v1.1.3 or any historical submission/assets
 - [ ] Use the existing listed submission/finalizer, then verify permanent signed installation
       and public AMO/GitHub release evidence. Update current-release docs only after publication
+
+### Encrypted vault
+
+- [ ] Enable from actual UI with matching master passwords; wrong confirmation writes nothing.
+- [ ] Full Firefox exit locks active traffic; wrong password preserves data; unlock restores only applied configuration.
+- [ ] Event-page suspension does not require re-entry. A previously Off route remains Off.
+- [ ] Inspect durable storage for ciphertext only, and test encrypted backup on an empty installation.
+- [ ] Keep historical failures and run vault UI + vault authenticated full-restart harnesses on the release head.

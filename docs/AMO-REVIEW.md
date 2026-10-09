@@ -44,7 +44,7 @@ The old map-session authorization never survives closure/restart.
 - `proxy` and `<all_urls>`: `proxy.onRequest` decides the proxy for `http`, `https`, `ws`, and `wss`. Host permission is required for that listener. Other schemes stay direct.
 - `webRequest` and `webRequestBlocking`: HTTP/HTTPS proxy passwords and fail-closed routing. The extension answers a challenge only when Firefox reports a proxy challenge whose host and port both match the active proxy, and only once per request. SOCKS passwords use `ProxyInfo` and are not sent through `onAuthRequired`. During startup, the blocking request listener cancels external requests if a committed proxy route cannot be reconstructed safely.
 - `privacy`: read and set `webRTCIPHandlingPolicy`, then `clear()` on deactivation so Firefox restores the previous value. If another extension or policy controls the setting, this extension does not overwrite it.
-- `storage`: profiles in `storage.local` (never proxy usernames or passwords) and session-only secrets in `storage.session`.
+- `storage`: legacy profiles in local storage and session-only credentials; optional master-password vault persists only encrypted profiles/credentials, with a memory-only session key. See [vault review contract](ENCRYPTED-VAULT.md).
 - Data collection: required `locationInfo` for the egress lookup and, in version 1.1.5, the explicitly viewed OpenFreeMap area; `authenticationInfo` covers existing credentials sent to the selected proxy. Optional `personallyIdentifyingInfo` before a browser-routing profile may send the user's own public IP. See `docs/PRIVACY.md`.
 
 ## Page behaviour
@@ -249,3 +249,13 @@ accepting anonymous CONNECT requests may not issue a 407 challenge. This applies
 ordinary webpage and map traffic too, independently of the Firefox-protected service
 limitation. Require the server to reject anonymous access when account identity matters.
 This is not a Direct fallback or a guarantee of reauthentication of existing connections.
+
+## Master-password vault candidate
+
+Explicit setup migrates existing profiles and both saved/applied credentials into native
+WebCrypto AES-256-GCM storage (PBKDF2-SHA-256, 600,000 iterations). No new permission or
+runtime dependency. Master passwords are never stored/transmitted; derived keys are
+storage.session-only. Unsupported/damaged documents are preserved, with no automatic
+reset. Backup export is ciphertext-only. Restore refuses nonempty installations. Full
+Firefox exit locks active ordinary traffic until explicit unlock; Off stays Off.
+Review docs/ENCRYPTED-VAULT.md and the two additional real-Firefox vault harnesses.

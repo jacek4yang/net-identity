@@ -24,9 +24,7 @@ export function parseQuickEndpoint(
   const text = input.trim();
   if (!text || /\s/.test(text)) return fail("Enter a host without whitespace.");
   if (text.includes("@"))
-    return fail(
-      "Remove credentials from the address and use the session-only authentication fields.",
-    );
+    return fail("Remove credentials from the address and use the separate authentication fields.");
   if (text.includes("%"))
     return fail("Percent-encoded endpoints are not supported. Enter the host directly.");
   let type = defaultType;

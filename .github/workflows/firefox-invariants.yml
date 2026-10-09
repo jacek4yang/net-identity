@@ -74,6 +74,8 @@ jobs:
           run websocket npm run e2e:websocket -- --firefox "$firefox"
           run ui npm run e2e:ui -- --firefox "$firefox"
           run draft npm run e2e:draft -- --firefox "$firefox"
+          run vault-ui node scripts/e2e-ui.mjs --vault-check --firefox "$firefox"
+          run vault-restart node scripts/e2e-fail-closed.mjs --restart --auth --vault --firefox /usr/bin/firefox-devedition
           run draft-delayed-init npm run e2e:draft -- --firefox "$firefox" --delayed-init
           run map-fallback npm run e2e:map-fallback -- --firefox "$firefox"
           run map-render env -u MOZ_HEADLESS LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=2 xvfb-run -a npm run e2e:map -- --firefox "$firefox" --no-local-cjk --screenshots artifacts/map-render

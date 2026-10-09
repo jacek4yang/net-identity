@@ -24,7 +24,7 @@ changes diagnostic health only. In particular:
 ordinary proxy-bound request + unavailable proxy -> request failure
 ```
 
-The route changes only after an explicit user action. Proxy usernames and passwords remain
+The route changes only after an explicit user action. Without the optional encrypted vault, proxy usernames and passwords remain
 session-only. After a full restart the missing-credential gate cancels ordinary
 proxy-bound traffic until credentials are applied. It does not add a Direct fallback,
 but protected browser requests require server-side rejection of anonymous access.
@@ -35,10 +35,11 @@ but protected browser requests require server-side rejection of anonymous access
    (`createPublicIdentity`), and `serializeForPage` is asserted against a whitelist of
    keys in tests.
 
-2. **Proxy credentials are never persisted in `storage.local`.**
-   Usernames and passwords live only under `ni.cred.v1.<profileId>` in `browser.storage.session`
-   (`src/background/credentials.ts`), plus inside the session-only active-target
-   snapshot. Tests serialise the local area and assert usernames and passwords are absent.
+2. **Proxy credentials are never persisted in plaintext in `storage.local`.**
+   Before vault setup, usernames/passwords and active-target snapshots are session-only.
+   After explicit master-password setup, the vault encrypts profiles and both saved and
+   applied credentials together; only the derived key remains session-only.
+   [Vault format, migration and limitations](ENCRYPTED-VAULT.md) are part of this contract.
 
 3. **Proxy credentials are never logged.**
    Only `describeError()` output is ever logged, which redacts `Basic …`/`Bearer …`
@@ -151,7 +152,9 @@ exact bounds and races; these guarantees require the map feature's final release
 | GeoIP location data                  | profile in `storage.local`                                | persistent          | only coordinates/accuracy/timezone, deliberately |
 | Client certificate, cookies, history | not touched                                               | —                   | —                                                |
 
-There is no key material, no signing, no native messaging and no local server.
+The table above describes the unencrypted legacy mode. After vault setup, profiles and
+credentials are persistent authenticated ciphertext, while the decryption key is
+session-only. There is no native messaging or local server. See [encrypted vault](ENCRYPTED-VAULT.md).
 
 If a `password`, `credentials` or `proxyPassword` key is ever found inside
 `ni.state.v1`, profile migration drops it and writes the profile back without that
@@ -162,8 +165,8 @@ document with an empty one or with a direct profile.
 
 Firefox's `storage.session` is restricted to trusted extension contexts
 (`TRUSTED_CONTEXTS`), so content scripts cannot read it. Firefox clears it when the
-browser exits, which is also the documented guarantee given to users in the UI
-("Stored only for the current Firefox session.").
+browser exits, so encrypted-vault users must unlock again. Credentials remain encrypted on disk
+when the vault is enabled; without it, credentials are lost on full exit.
 
 ## Data collection declaration
 

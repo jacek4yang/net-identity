@@ -155,6 +155,7 @@ test(
         "draft-probe-fixture.mjs",
         "run-draft-checks.mjs",
         "delayed-options-startup.mjs",
+        "run-vault-checks.mjs",
       ])
         await copyFile(new URL(name, import.meta.url), path.join(root, "scripts", name));
       await writeFile(

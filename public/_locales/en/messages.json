@@ -30,7 +30,7 @@
     "message": "Profile name (optional)"
   },
   "sessionAuth": {
-    "message": "Session-only authentication"
+    "message": "Proxy authentication"
   },
   "username": {
     "message": "Username"
@@ -39,7 +39,7 @@
     "message": "Password"
   },
   "authNotice": {
-    "message": "Credentials are lost when Firefox exits. SOCKS4 does not support authentication."
+    "message": "Without the vault, credentials are lost when Firefox exits. SOCKS4 does not support authentication."
   },
   "pasteNotice": {
     "message": "An address containing a port can leave Port blank. Explicit URL schemes take precedence. Enter credentials separately; protocols are not auto-detected."
@@ -111,7 +111,7 @@
     "message": "Relinquish WebRTC & synthetic identity"
   },
   "detailsNotice": {
-    "message": "Direct route uses Firefox and system routing without configuring an extension proxy. Session proxy credentials are kept only in memory until Firefox exits."
+    "message": "Direct route uses Firefox and system routing without configuring an extension proxy. Enable the vault for encrypted credential persistence; otherwise credentials are session-only."
   },
   "availableRoutes": {
     "message": "Available routes"
@@ -207,7 +207,7 @@
     "message": "Enter a host without whitespace."
   },
   "uriCredentials": {
-    "message": "Remove credentials from the address and use the session-only authentication fields."
+    "message": "Remove credentials from the address and use the separate authentication fields."
   },
   "percentEndpoint": {
     "message": "Percent-encoded endpoints are not supported. Enter the host directly."
@@ -399,7 +399,7 @@
     "message": "Proxy password"
   },
   "sessionCredentialsHint": {
-    "message": "Usernames and passwords are kept for this Firefox session only. Leave both blank to keep existing credentials. Enter either field to replace the pair; enter the username again when changing the password."
+    "message": "Enable the vault to keep credentials encrypted across restarts. Otherwise they last only this session. Leave both blank to keep the pair; entering either replaces both."
   },
   "clearCredentials": {
     "message": "Clear credentials on Save (Apply to remove from the active route)"
@@ -639,7 +639,7 @@
     "message": "active"
   },
   "sessionCredentialsBadge": {
-    "message": "session credentials"
+    "message": "credentials saved"
   },
   "builtInBadge": {
     "message": "built-in"
@@ -975,7 +975,7 @@
     "message": "Draft check timed out. The proxy or provider may be temporarily unavailable. Retry without losing your input."
   },
   "draftCredentials": {
-    "message": "This profile needs its session username and password before checking."
+    "message": "This profile needs its saved username and password before checking."
   },
   "draftBusy": {
     "message": "Other draft checks are running. Retry shortly."
@@ -1030,5 +1030,56 @@
   },
   "turningOff": {
     "message": "Turning off…"
+  },
+  "vaultPassword": {
+    "message": "Master password"
+  },
+  "vaultConfirm": {
+    "message": "Confirm master password"
+  },
+  "vaultSetupTitle": {
+    "message": "Protect saved profiles"
+  },
+  "vaultLockedTitle": {
+    "message": "Unlock your profiles"
+  },
+  "vaultUnlockedTitle": {
+    "message": "Encrypted vault · unlocked"
+  },
+  "vaultDamagedTitle": {
+    "message": "Vault needs attention"
+  },
+  "vaultSetupHint": {
+    "message": "Encrypt profiles and proxy passwords on this device. Use a strong passphrase of at least 12 characters. Unlock after Firefox restarts; forgotten passwords cannot be recovered. Until enabled, profiles remain unencrypted and proxy passwords are session-only."
+  },
+  "vaultUnlockedHint": {
+    "message": "Profiles and credentials are encrypted at rest. Keep an encrypted backup. Browser exit, disabling or updating the extension may require unlocking again. This does not protect a compromised, unlocked device."
+  },
+  "vaultLockedHint": {
+    "message": "Your saved data is retained. Unlock to continue. A previously active route stays blocked until unlocked; a previously disabled route stays disabled."
+  },
+  "vaultEnable": {
+    "message": "Enable encryption"
+  },
+  "vaultUnlock": {
+    "message": "Unlock"
+  },
+  "vaultExport": {
+    "message": "Download encrypted backup"
+  },
+  "vaultExportPrevious": {
+    "message": "Previous encrypted revision"
+  },
+  "vaultRestore": {
+    "message": "Restore encrypted backup"
+  },
+  "vaultRestoreHint": {
+    "message": "For an empty installation only. Choose your backup and enter its master password above. Restoring resumes the route saved in that backup. Existing profiles are never overwritten."
+  },
+  "vaultOperationFailed": {
+    "message": "Could not complete this operation. Check the password (at least 12 characters), backup and available storage. Existing data was preserved. Restore requires an empty installation."
+  },
+  "vaultMismatch": {
+    "message": "The two master passwords do not match."
   }
 }
