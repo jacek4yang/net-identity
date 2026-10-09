@@ -1344,6 +1344,8 @@ async function main() {
       "Automatic preview permits panning but never selects on click",
     );
     await click("#deactivate");
+    // WebDriver click completion does not await the async runtime mutation.
+    await waitFor('return document.getElementById("deactivate").disabled;');
     check(
       (await call({ type: "state:get" })).state.activeProfileId === null,
       "Final Off releases the test profile",
