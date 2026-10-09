@@ -24,7 +24,13 @@ import {
   parseStateResponse,
   type ProfilesResponse,
 } from "../shared/messages";
-import { ensureDirectIpConsent, onRuntimeMessage, request } from "../shared/runtime";
+import {
+  ensureDirectIpConsent,
+  onRuntimeMessage,
+  request,
+  readMapAutoload,
+  writeMapAutoload,
+} from "../shared/runtime";
 import type { RuntimeState } from "../shared/state";
 import {
   accuracyRadiusPixels,
@@ -127,6 +133,21 @@ let onlineMap: OnlineMap | null = null;
 let mapSessionId: string | null = null;
 let onlineGeneration: number | null = null;
 let mapLoadEpoch = 0;
+const mapAutoload = requireElement<HTMLInputElement>("#map-autoload");
+let mapPreferenceVersion = 0;
+let mapPreferenceWrites: Promise<void> = Promise.resolve();
+function rememberMapAutoload(enabled: boolean): void {
+  const version = ++mapPreferenceVersion;
+  mapAutoload.checked = enabled;
+  mapPreferenceWrites = mapPreferenceWrites
+    .then(() => writeMapAutoload(enabled))
+    .catch(() => {
+      if (version !== mapPreferenceVersion) return;
+      mapAutoload.checked = false;
+      setMapStatus("Could not save automatic map preference. Enable the map again next time.");
+    });
+}
+
 const mapLoad = requireElement<HTMLButtonElement>("#load-online-map");
 const mapUnload = requireElement<HTMLButtonElement>("#unload-online-map");
 const mapOnlineStatus = requireElement<HTMLElement>("#map-online-status");
@@ -155,7 +176,7 @@ function stopOnlineMap(reason = "Online map off. Coordinates work offline."): vo
   ui.mapSurface.dataset.online = "off";
 }
 
-async function loadOnlineMap(): Promise<void> {
+async function loadOnlineMap(userGesture = true): Promise<void> {
   if (mapLoad.disabled || onlineMap !== null || ui.form.hidden) return;
   const state = runtimeState;
   if (state === null) return;
@@ -163,9 +184,13 @@ async function loadOnlineMap(): Promise<void> {
   const generation = state.generation;
   mapLoad.disabled = true;
   setMapStatus("Checking map consent and the applied route…");
-  if (!(await ensureDirectIpConsent(state.appliedRoute === "proxy" ? "proxy" : "direct"))) {
-    if (epoch === mapLoadEpoch)
+  if (
+    !(await ensureDirectIpConsent(state.appliedRoute === "proxy" ? "proxy" : "direct", userGesture))
+  ) {
+    if (epoch === mapLoadEpoch) {
+      if (userGesture) rememberMapAutoload(false);
       stopOnlineMap("Public-IP permission was not granted. Coordinates still work offline.");
+    }
     return;
   }
   if (epoch !== mapLoadEpoch || ui.form.hidden) return;
@@ -183,6 +208,7 @@ async function loadOnlineMap(): Promise<void> {
     );
     return;
   }
+  if (userGesture) rememberMapAutoload(true);
   mapSessionId = opened.value.sessionId;
   onlineGeneration = generation;
   setMapStatus("Loading OpenFreeMap through the applied route…");
@@ -249,7 +275,17 @@ mapLoad.addEventListener("click", () => {
   }
   void loadOnlineMap();
 });
-mapUnload.addEventListener("click", () => stopOnlineMap());
+mapUnload.addEventListener("click", () => {
+  rememberMapAutoload(false);
+  stopOnlineMap();
+});
+mapAutoload.addEventListener("change", () => {
+  const enabled = mapAutoload.checked;
+  rememberMapAutoload(enabled);
+  if (enabled) void loadOnlineMap();
+  else stopOnlineMap();
+});
+
 let capture: { element: HTMLElement; id: number } | null = null;
 let wheelDelta = 0;
 let lastWheelAt = 0;
@@ -885,6 +921,8 @@ requireElement<HTMLDetailsElement>("#section-identity").addEventListener("toggle
   if (!(event.currentTarget as HTMLDetailsElement).open) {
     stopOnlineMap();
     cancelMapInteraction();
+  } else if (mapAutoload.checked) {
+    void loadOnlineMap(false);
   }
 });
 
@@ -1057,6 +1095,13 @@ onRuntimeMessage((message) => {
 });
 
 void (async () => {
+  const initialVersion = mapPreferenceVersion;
+  try {
+    const enabled = await readMapAutoload();
+    if (initialVersion === mapPreferenceVersion) mapAutoload.checked = enabled;
+  } catch {
+    /* Missing preference must never initiate a map request. */
+  }
   await bindLanguageControl(() => {
     renderGuide();
     showErrors(lastErrors);

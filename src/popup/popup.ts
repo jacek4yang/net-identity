@@ -281,7 +281,7 @@ function renderState(state: RuntimeState): void {
       ? "Proxy credentials are required. Traffic remains restricted to this profile."
       : state.runtimeHealth === "unavailable"
         ? "Traffic is blocked rather than sent directly. Retry this profile after the proxy returns."
-        : state.lastError === undefined
+        : state.lastError === undefined || state.lastError.code === "proxy_recovered"
           ? null
           : explainRuntimeError(state.lastError.code, state.lastError.message),
   );

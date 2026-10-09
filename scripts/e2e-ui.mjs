@@ -33,6 +33,7 @@ const { values } = parseArgs({
     timeout: { type: "string", default: "90" },
     screenshots: { type: "string" },
     light: { type: "boolean", default: false },
+    review: { type: "boolean", default: false },
     scale: { type: "string", default: "1" },
     "live-map": { type: "boolean", default: false },
   },
@@ -548,9 +549,9 @@ async function main() {
         else await execute("window.scrollTo(0, 0);");
         await execute("document.activeElement?.blur();");
         await new Promise((resolve) => setTimeout(resolve, 150));
-        const result = await client.send("WebDriver:TakeScreenshot", { full: false });
+        const result = await client.send("WebDriver:TakeScreenshot", { full: values.review });
         let encoded = result.value;
-        if (frame) {
+        if (frame && !values.review) {
           // Reframe real pixels at native scale: either identity + audit or the
           // complete Identity & Privacy fieldset. The picker includes its legend,
           // policy controls, override warning, map, attribution, provider/privacy
@@ -586,17 +587,17 @@ async function main() {
           encoded = framed.value.image;
         }
         const bytes = Buffer.from(encoded, "base64");
-        if (bytes.readUInt32BE(16) !== 1280 || bytes.readUInt32BE(20) !== 800) {
+        if (!values.review && (bytes.readUInt32BE(16) !== 1280 || bytes.readUInt32BE(20) !== 800)) {
           throw new Error(`Unexpected screenshot dimensions for ${name}`);
         }
         await writeFile(path.join(directory, name), bytes);
         images.push({
           file: name,
-          width: 1280,
-          height: 800,
+          width: bytes.readUInt32BE(16),
+          height: bytes.readUInt32BE(20),
           sha256: createHash("sha256").update(bytes).digest("hex"),
         });
-        log(`Wrote ${name} (1280 × 800)`);
+        log(`Wrote ${name} (${bytes.readUInt32BE(16)} × ${bytes.readUInt32BE(20)})`);
       };
       // Size by content viewport, not OS-dependent browser decoration height.
       await client.send("WebDriver:SetWindowRect", { width: 1280, height: 900 });
@@ -728,6 +729,20 @@ async function main() {
       await capture("08-help-community-chinese.png", ".page-footer", 16);
       await execute('document.getElementById("section-identity").open = true;');
       await capture("09-identity-controls-chinese.png", "#section-identity", 16);
+      if (values.review) {
+        await execute('document.querySelectorAll("details").forEach(e => e.open = true);');
+        await capture("10-all-settings-expanded-chinese.png");
+        await execute(`document.querySelector('[data-profile-id="builtin-direct"]').click();`);
+        await capture("11-firefox-network-chinese.png");
+        await click("#new-profile");
+        await execute('document.querySelectorAll("details").forEach(e => e.open = true);');
+        await capture("12-new-profile-defaults-chinese.png");
+        await client.send("WebDriver:Navigate", { url: popupUrl });
+        await waitFor('return document.documentElement.lang === "zh-CN";');
+        await click("#quick-add-toggle");
+        await execute('document.querySelectorAll("details").forEach(e => e.open = true);');
+        await capture("13-quick-auth-protection-chinese.png");
+      }
 
       const userAgent = await execute("return navigator.userAgent;");
       const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));

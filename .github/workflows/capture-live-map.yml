@@ -3,6 +3,8 @@ name: Capture real OpenFreeMap listing images
 # Optional, manually requested, provider-dependent artwork capture. This does not
 # replace any deterministic PR/release gate, sign a build, or publish to AMO.
 on:
+  pull_request:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       capture_public_map:
@@ -16,13 +18,17 @@ permissions:
 
 jobs:
   capture:
-    if: inputs.capture_public_map
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.capture_public_map) ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'preview-real-map' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -50,13 +56,16 @@ jobs:
         run: xvfb-run -a node scripts/e2e-map.mjs --firefox /usr/bin/firefox --screenshots artifacts/map-gate
       - name: Capture actual provider geography using the production UI
         env:
+          EVENT_NAME: ${{ github.event_name }}
           LIBGL_ALWAYS_SOFTWARE: "1"
           LP_NUM_THREADS: "2"
         run: |
           set -euo pipefail
+          args=()
+          if [ "$EVENT_NAME" = "pull_request" ]; then args+=(--review); fi
           xvfb-run -a node scripts/e2e-ui.mjs --firefox /usr/bin/firefox \
-            --live-map --screenshots artifacts/listing-map --timeout 180
-          printf '%s\n' "$GITHUB_SHA" > artifacts/listing-map/source-commit.txt
+            --live-map --screenshots artifacts/listing-map --timeout 180 "${args[@]}"
+          git rev-parse HEAD > artifacts/listing-map/source-commit.txt
       - name: Upload candidate images for visual review, not publication
         uses: actions/upload-artifact@v7
         with:

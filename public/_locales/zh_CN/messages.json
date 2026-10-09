@@ -937,5 +937,23 @@
   },
   "browserRoutingExplanation": {
     "message": "可能直连，也可能使用浏览器或系统代理。"
+  },
+  "mapAutoload": {
+    "message": "同意后自动加载当前视野的地图"
+  },
+  "mapAutoloadNotice": {
+    "message": "启用后，打开地图即自动加载当前视野；拖动和缩放时通过已应用的线路加载对应区域。取消勾选即可保持离线。"
+  },
+  "mapAutoloadSaveFailed": {
+    "message": "无法保存自动加载选择，下次需要重新启用地图。"
+  },
+  "firefoxSettingsConflict": {
+    "message": "其他扩展正在控制 Firefox 代理设置，请检查是否存在冲突。"
+  },
+  "firefoxSettingsUnverified": {
+    "message": "无法确认 Firefox 代理设置，或该设置受浏览器策略控制。"
+  },
+  "firefoxSettingsRecorded": {
+    "message": "已读取 Firefox 原有代理设置。未被绕过的网页请求使用选中的代理；明确配置的绕过规则仍遵循 Firefox 设置。"
   }
 }

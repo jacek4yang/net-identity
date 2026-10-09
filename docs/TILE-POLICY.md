@@ -14,7 +14,7 @@ with no availability SLA. It is not the standard `tile.openstreetmap.org` servic
 ### Data and activation
 
 - The grid and typed coordinates work offline. Online data loads only after the
-  visible **Load online map** action for the current editor session.
+  visible **Load online map** action or after a previously saved automatic-loading choice, when the map is opened.
 - MapLibre code, CSS, worker and required license notices ship locally. Remote
   styles, tile metadata, vector/raster tiles, sprites and glyphs are data, not scripts.
 - CJK ideographs use the style's provider glyphs (`localIdeographFontFamily: false`),
@@ -71,3 +71,20 @@ Its independent viewport/selection/gesture model fixed hidden-editor downloads, 
 storms, pointer cancellation and returning-drag misclassification. Those interaction
 fixes are preserved; the new provider decision does not authorize the rejected service
 or a Referer workaround.
+
+## Remembered visible-map loading (unreleased candidate)
+
+The owner requested automatic viewport loading. The first map enablement remains explicit
+and disclosed. Successful explicit authorization remembers only a boolean
+`ni.map.autoload.v1`; no viewed coordinates, credentials or routing state are stored there.
+After that choice, opening the identity map automatically creates a fresh generation-bound
+session. Panning/zooming uses the renderer's existing viewport requests and bounded broker.
+No bulk/offline map download or new provider is introduced.
+
+An automatic opening can only reuse an existing direct-IP grant; it never raises a
+permission prompt. Missing consent, blocked routing, missing credentials, provider bypasses
+and stale generations still fail closed. Closing the panel or changing editor destroys
+the old renderer/session. Unload or unchecking automatic loading clears the remembered
+choice and stops the current map. No hidden retry loop runs after an error.
+
+Publication remains blocked until the owner accepts the updated final pages.

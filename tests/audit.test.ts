@@ -190,12 +190,46 @@ describe("buildAuditReport", () => {
     const external = auditInput({
       firefoxProxy: { proxyType: "manual", levelOfControl: "controllable_by_this_extension" },
     });
-    expect(statusOf(external, "firefox_proxy")).toBe("unavailable");
+    expect(statusOf(external, "firefox_proxy")).toBe("ok");
+    expect(buildAuditReport(external).verdict).toBe("consistent");
 
     const otherExtension = auditInput({
       firefoxProxy: { proxyType: "manual", levelOfControl: "controlled_by_other_extensions" },
     });
     expect(statusOf(otherExtension, "firefox_proxy")).toBe("controlled_by_other_extension");
+  });
+
+  it.each(["system", "manual", "autoConfig", "autoDetect"])(
+    "does not turn readable %s settings into a false failure for an explicit proxy",
+    (proxyType) => {
+      const report = buildAuditReport(
+        auditInput({
+          firefoxProxy: { proxyType, levelOfControl: "controllable_by_this_extension" },
+        }),
+      );
+      expect(report.verdict).toBe("consistent");
+      expect(report.checks.find((c) => c.id === "firefox_proxy")?.detail).toContain(
+        "explicit bypasses",
+      );
+    },
+  );
+  it.each([
+    { proxyType: "unknown", levelOfControl: "unknown" },
+    { proxyType: "system", levelOfControl: "not_controllable" },
+    { proxyType: "none", levelOfControl: "unknown" },
+    { proxyType: "future-mode", levelOfControl: "controllable_by_this_extension" },
+  ])("keeps unknown or policy-controlled settings visible: %j", (firefoxProxy) => {
+    expect(statusOf(auditInput({ firefoxProxy }), "firefox_proxy")).toBe("unavailable");
+  });
+  it("does not hide another extension just because its setting is none", () => {
+    expect(
+      statusOf(
+        auditInput({
+          firefoxProxy: { proxyType: "none", levelOfControl: "controlled_by_other_extensions" },
+        }),
+        "firefox_proxy",
+      ),
+    ).toBe("controlled_by_other_extension");
   });
 
   it("treats a direct profile as not configured but not as a failure", () => {

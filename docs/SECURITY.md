@@ -344,3 +344,20 @@ This is a creation default, not a migration. Saved manual policies, DNS choices 
 the existing automatic recommendation remain unchanged. Built-in browser/system
 routing and Off retain their existing semantics. No new permission or network probe
 is introduced. Save still does not apply these settings.
+
+## Remembered visible-map loading (unreleased candidate)
+
+The owner requested automatic viewport loading. The first map enablement remains explicit
+and disclosed. Successful explicit authorization remembers only a boolean
+`ni.map.autoload.v1`; no viewed coordinates, credentials or routing state are stored there.
+After that choice, opening the identity map automatically creates a fresh generation-bound
+session. Panning/zooming uses the renderer's existing viewport requests and bounded broker.
+No bulk/offline map download or new provider is introduced.
+
+An automatic opening can only reuse an existing direct-IP grant; it never raises a
+permission prompt. Missing consent, blocked routing, missing credentials, provider bypasses
+and stale generations still fail closed. Closing the panel or changing editor destroys
+the old renderer/session. Unload or unchecking automatic loading clears the remembered
+choice and stops the current map. No hidden retry loop runs after an error.
+
+Publication remains blocked until the owner accepts the updated final pages.

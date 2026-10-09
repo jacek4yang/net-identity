@@ -494,7 +494,7 @@ describe("activation", () => {
 
     firefoxProxy.proxyType = "manual";
     const proxyChanged = await harness.controller.refreshObservedSettings();
-    expect(checkStatus(harness, "firefox_proxy")).toBe("unavailable");
+    expect(checkStatus(harness, "firefox_proxy")).toBe("ok");
     expect(proxyChanged.generation).toBe(activated.generation);
     expect(harness.providerResolveCount()).toBe(providerCalls);
     expect(harness.webrtcSetting.setCalls).toBe(setCalls);
@@ -1007,59 +1007,62 @@ describe("background restart", () => {
     }
   });
 
-  it("correlates suspect health, preserves identity and recovers only with sustained success", async () => {
-    let now = 0;
-    const harness = createHarness({ now: () => now });
-    const profile = makeProfile({
-      id: "health-proxy",
-      proxy: { type: "socks5", host: "proxy.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
-    });
-    await harness.saveProfile(profile);
-    const activated = await harness.controller.activate(profile.id);
-    const providerCalls = harness.providerResolveCount();
-    const webRtcSets = harness.webrtcSetting.setCalls;
-    const webRtcClears = harness.webrtcSetting.clearCalls;
-    const envelopes = structuredClone(harness.envelopes);
-    const observations = [];
-    for (let i = 0; i < 6; i++) {
-      const url = `https://origin${i % 2}.invalid/`;
-      const requestId = `request-${i}`;
-      const proxyInfo = terminalProxy(
-        await harness.controller.decideProxyForRequest(url, requestId),
-      );
-      observations.push({
-        url,
-        requestId,
-        proxyInfo,
-        fromCache: false,
-        error: "NS_ERROR_NET_RESET",
+  it.each(["socks5", "socks4", "http", "https"] as const)(
+    "%s correlates suspect health, preserves identity and recovers only with sustained success",
+    async (type) => {
+      let now = 0;
+      const harness = createHarness({ now: () => now });
+      const profile = makeProfile({
+        id: "health-proxy",
+        proxy: { type, host: "proxy.invalid", port: 1080, proxyDNS: true, bypassHosts: [] },
       });
-    }
-    for (const details of observations.slice(0, 3)) {
-      harness.controller.recordNetworkFailure(details);
-      now += 350;
-    }
-    await waitUntil(() => harness.controller.getState().runtimeHealth === "degraded");
-    expect(harness.controller.getState().lastError?.code).toBe("proxy_suspect");
-    expect(harness.controller.getState().desiredRoute).toBe("proxy");
-    expect(harness.controller.getState().appliedRoute).toBe("proxy");
-    expect(harness.controller.getState().identity).toEqual(activated.identity);
-    expect(harness.controller.getState().generation).toBe(activated.generation);
-    expect(harness.providerResolveCount()).toBe(providerCalls);
-    expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
-    expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
-    expect(harness.envelopes).toEqual(envelopes);
-    for (const details of observations.slice(3)) {
-      harness.controller.recordNetworkSuccess(details);
-      now += 600;
-    }
-    await waitUntil(() => harness.controller.getState().runtimeHealth === "healthy");
-    expect(harness.controller.getState().activeProfileId).toBe(profile.id);
-    expect(harness.providerResolveCount()).toBe(providerCalls);
-    expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
-    expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
-    expect(harness.envelopes).toEqual(envelopes);
-  });
+      await harness.saveProfile(profile);
+      const activated = await harness.controller.activate(profile.id);
+      const providerCalls = harness.providerResolveCount();
+      const webRtcSets = harness.webrtcSetting.setCalls;
+      const webRtcClears = harness.webrtcSetting.clearCalls;
+      const envelopes = structuredClone(harness.envelopes);
+      const observations = [];
+      for (let i = 0; i < 6; i++) {
+        const url = `https://origin${i % 2}.invalid/`;
+        const requestId = `request-${i}`;
+        const proxyInfo = terminalProxy(
+          await harness.controller.decideProxyForRequest(url, requestId),
+        );
+        observations.push({
+          url,
+          requestId,
+          proxyInfo,
+          fromCache: false,
+          error: "NS_ERROR_NET_RESET",
+        });
+      }
+      for (const details of observations.slice(0, 3)) {
+        harness.controller.recordNetworkFailure(details);
+        now += 350;
+      }
+      await waitUntil(() => harness.controller.getState().runtimeHealth === "degraded");
+      expect(harness.controller.getState().lastError?.code).toBe("proxy_suspect");
+      expect(harness.controller.getState().desiredRoute).toBe("proxy");
+      expect(harness.controller.getState().appliedRoute).toBe("proxy");
+      expect(harness.controller.getState().identity).toEqual(activated.identity);
+      expect(harness.controller.getState().generation).toBe(activated.generation);
+      expect(harness.providerResolveCount()).toBe(providerCalls);
+      expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
+      expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
+      expect(harness.envelopes).toEqual(envelopes);
+      for (const details of observations.slice(3)) {
+        harness.controller.recordNetworkSuccess(details);
+        now += 600;
+      }
+      await waitUntil(() => harness.controller.getState().runtimeHealth === "healthy");
+      expect(harness.controller.getState().activeProfileId).toBe(profile.id);
+      expect(harness.providerResolveCount()).toBe(providerCalls);
+      expect(harness.webrtcSetting.setCalls).toBe(webRtcSets);
+      expect(harness.webrtcSetting.clearCalls).toBe(webRtcClears);
+      expect(harness.envelopes).toEqual(envelopes);
+    },
+  );
 
   it("ignores stale generations and repeated failures from only one origin", async () => {
     let now = 0;

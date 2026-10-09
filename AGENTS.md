@@ -190,7 +190,7 @@ step before changing the stored shape.
 - Installation does not create or activate a profile, so a fresh install makes no
   GeoIP request.
 - The unreleased options picker starts with a bundled local grid and no map requests.
-  **Load online map** explicitly enables OpenFreeMap data for that editor session.
+  **Load online map** explicitly enables OpenFreeMap data and remembers the automatic-loading choice.
   MapLibre code, CSS and the CSP worker are packaged locally. A bounded background
   broker validates provider URLs, optional direct-IP consent, owner and route generation.
   Route changes cancel map work before changing routing. Provider-host bypasses refuse
@@ -377,7 +377,7 @@ applied snapshot; do not reconstruct it from newer saved edits. Both credential 
 fields load blank. Blank Save keeps the pair; either entered field replaces it; Clear
 removes the saved pair/marker; Apply changes runtime. See the upgrade tests in `migrate.test.ts`.
 
-`proxy-health.ts` is passive bounded SOCKS evidence: matching request ID, generation,
+`proxy-health.ts` is passive bounded SOCKS4/SOCKS5/HTTP/HTTPS evidence: matching request ID, generation,
 endpoint and hostname; five-second failure window; three 300 ms buckets across at least
 two hostnames for suspicion; three non-cached successes across one second for recovery.
 Do not call generic errors proof of a proxy outage. Keep the 512-request/30-second bound,
@@ -438,3 +438,30 @@ This is a creation default, not a migration. Saved manual policies, DNS choices 
 the existing automatic recommendation remain unchanged. Built-in browser/system
 routing and Off retain their existing semantics. No new permission or network probe
 is introduced. Save still does not apply these settings.
+
+## Remembered visible-map loading (unreleased candidate)
+
+The owner requested automatic viewport loading. The first map enablement remains explicit
+and disclosed. Successful explicit authorization remembers only a boolean
+`ni.map.autoload.v1`; no viewed coordinates, credentials or routing state are stored there.
+After that choice, opening the identity map automatically creates a fresh generation-bound
+session. Panning/zooming uses the renderer's existing viewport requests and bounded broker.
+No bulk/offline map download or new provider is introduced.
+
+An automatic opening can only reuse an existing direct-IP grant; it never raises a
+permission prompt. Missing consent, blocked routing, missing credentials, provider bypasses
+and stale generations still fail closed. Closing the panel or changing editor destroys
+the old renderer/session. Unload or unchecking automatic loading clears the remembered
+choice and stops the current map. No hidden retry loop runs after an error.
+
+Publication remains blocked until the owner accepts the updated final pages.
+
+### Firefox settings audit and passive recovery
+
+Readable system/manual/PAC Firefox settings are informational when an explicit proxy is active;
+the terminal-null route still applies to non-bypassed ordinary web requests. Explicit bypasses
+retain Firefox routing semantics. Unknown reads, policy control and other extension control
+remain warnings. Do not turn those into success or modify Firefox settings to clear a badge.
+Passive successes restore route health only after sustained matching non-cached requests.
+No request replay, direct fallback, or new public probe is introduced; HTTP health observation
+does not introduce SOCKS-specific cooldown scheduling. A recovery diagnostic is not an error.

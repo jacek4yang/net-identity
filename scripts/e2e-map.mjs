@@ -661,18 +661,38 @@ async function main() {
         `return document.querySelectorAll('#location-map-tiles canvas').length===0 && document.getElementById('location-map-surface').dataset.online==='off';`,
       );
       await click("#section-identity > summary");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      check(
+        await execute(`return document.getElementById('map-autoload').checked;`),
+        "Reopening the map reloads its view after the explicit remembered opt-in",
+      );
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      await client.send("WebDriver:Navigate", { url: optionsURL });
+      await waitFor(`return !!document.querySelector('[data-profile-id="${profile.id}"]');`);
+      await click(`[data-profile-id="${profile.id}"]`);
+      await click("#section-identity > summary");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      check(
+        await execute(`return document.getElementById('map-autoload').checked;`),
+        "Automatic map choice survives options-page reload without a second enable click",
+      );
+      await click("#map-autoload");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===0;`);
+      await click("#section-identity > summary");
+      await click("#section-identity > summary");
+      await pause(150);
       check(
         await execute(
-          `return document.querySelectorAll('#location-map-tiles canvas').length===0 && document.getElementById('location-map-surface').dataset.online==='off';`,
+          `return !document.getElementById('map-autoload').checked && document.querySelectorAll('#location-map-tiles canvas').length===0;`,
         ),
-        "Collapsing identity unloads the map; reopening does not silently enable it",
+        "Disabling automatic loading keeps the reopened map offline",
       );
       await click("#load-online-map");
       await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
       await click("#new-profile");
       check(
         await execute(`return document.querySelectorAll('#location-map-tiles canvas').length===0;`),
-        "Opening another editor revokes per-editor opt-in and destroys the old map",
+        "Opening another editor destroys the old map before any new visible view loads",
       );
     }
 

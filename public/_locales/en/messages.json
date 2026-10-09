@@ -937,5 +937,23 @@
   },
   "browserRoutingExplanation": {
     "message": "May connect directly or use Firefox/system proxies."
+  },
+  "mapAutoload": {
+    "message": "Automatically load the visible map after consent"
+  },
+  "mapAutoloadNotice": {
+    "message": "Once enabled, opening this map loads its current view. Panning and zooming load the relevant area through the applied route. Turn this off to stay offline."
+  },
+  "mapAutoloadSaveFailed": {
+    "message": "Could not save automatic map preference. Enable the map again next time."
+  },
+  "firefoxSettingsConflict": {
+    "message": "Another extension controls Firefox proxy settings; review that extension for conflicts."
+  },
+  "firefoxSettingsUnverified": {
+    "message": "Firefox proxy settings could not be verified or are controlled by browser policy."
+  },
+  "firefoxSettingsRecorded": {
+    "message": "Firefox's existing proxy settings were read. Non-bypassed web requests use the selected profile; explicit bypasses still follow Firefox settings."
   }
 }

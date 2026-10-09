@@ -33,13 +33,17 @@ export async function sendToTab(tabId: number, message: unknown): Promise<Result
  * optional personal-data grant must be requested from a user gesture.
  * Returns false when the user declines or the consent API is missing.
  */
-export async function ensureDirectIpConsent(proxyType: string): Promise<boolean> {
+export async function ensureDirectIpConsent(
+  proxyType: string,
+  requestIfMissing = true,
+): Promise<boolean> {
   if (proxyType !== "direct") return true;
   try {
     const current = await browser.permissions.getAll();
     const granted = current.data_collection;
     if (!Array.isArray(granted)) return false;
     if (granted.includes("personallyIdentifyingInfo")) return true;
+    if (!requestIfMissing) return false;
     return await browser.permissions.request({
       data_collection: ["personallyIdentifyingInfo"],
     });
@@ -97,4 +101,14 @@ export function onUiLanguageChanged(handler: (value: unknown) => void): () => vo
   return () => {
     browser.storage.onChanged.removeListener(listener);
   };
+}
+
+const MAP_AUTOLOAD_KEY = "ni.map.autoload.v1";
+
+/** Explicit online-map choice only; contains no coordinates, route or credentials. */
+export async function readMapAutoload(): Promise<boolean> {
+  return (await browser.storage.local.get(MAP_AUTOLOAD_KEY))[MAP_AUTOLOAD_KEY] === true;
+}
+export async function writeMapAutoload(enabled: boolean): Promise<void> {
+  await browser.storage.local.set({ [MAP_AUTOLOAD_KEY]: enabled });
 }

@@ -255,12 +255,7 @@ export class ActivationController {
     const decide = () => {
       const result = decideFailClosedProxy(this.target, url);
       const endpoint = sanitizeProxyEndpoint(Array.isArray(result) ? result[0] : result);
-      if (
-        requestId !== undefined &&
-        endpoint !== null &&
-        (endpoint.type === "socks" || endpoint.type === "socks4") &&
-        this.target !== null
-      )
+      if (requestId !== undefined && endpoint !== null && this.target !== null)
         this.networkHealth.track(requestId, this.target.generation, url, endpoint);
       return result;
     };

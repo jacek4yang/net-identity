@@ -11,11 +11,17 @@ describe("optional real-provider listing capture", () => {
   it("requires a manual opt-in and grants no write credentials", () => {
     const source = workflow();
     expect(source).toContain("workflow_dispatch:");
-    expect(source).toContain("if: inputs.capture_public_map");
+    expect(source).toContain(
+      "github.event_name == 'workflow_dispatch' && inputs.capture_public_map",
+    );
+    expect(source).toContain("types: [labeled]");
+    expect(source).toContain("github.event.label.name == 'preview-real-map'");
+    expect(source).toContain("github.event.pull_request.head.repo.full_name == github.repository");
+    expect(source).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
     expect(source).toContain("default: false");
     expect(source).toContain("contents: read");
     expect(source).toContain("persist-credentials: false");
-    expect(source).not.toMatch(/pull_request:|push:|schedule:|secrets\./);
+    expect(source).not.toMatch(/pull_request_target:|push:|schedule:|secrets\./);
   });
 
   it("requires deterministic actual rendering before requesting public map data", () => {
