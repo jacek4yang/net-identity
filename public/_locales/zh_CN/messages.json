@@ -1051,5 +1051,8 @@
   },
   "identityCustom": {
     "message": "自定义身份"
+  },
+  "turningOff": {
+    "message": "正在关闭…"
   }
 }

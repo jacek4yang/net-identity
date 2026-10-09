@@ -143,3 +143,8 @@ The compact protection summary describes current draft choices, not an active-ro
 health guarantee. SOCKS DNS is editable; HTTP/HTTPS do not claim a SOCKS DNS toggle.
 Custom identity and WebRTC choices remain editable and are never migrated to defaults.
 Final interface acceptance and publication remain separate owner decisions.
+
+Off is confirmed only after background teardown commits. The popup uses a localized
+Turning off state while that request is pending; it must not optimistically claim
+Off while the old route is still being released. The real toolbar test verifies
+the committed idle state before testing language-only changes.

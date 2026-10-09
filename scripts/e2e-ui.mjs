@@ -1103,6 +1103,10 @@ async function main() {
     );
 
     const optionsBeforeLanguage = (await call({ type: "state:get" })).state;
+    check(
+      optionsBeforeLanguage.status === "idle" && optionsBeforeLanguage.activeProfileId === null,
+      "Popup Off waits for committed background teardown before language checks",
+    );
     await fill({ "field-name": "Unsaved bilingual draft", "ui-language": "zh_CN" });
     await waitFor(
       'return document.documentElement.lang === "zh-CN" && document.getElementById("save").textContent === "保存";',

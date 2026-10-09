@@ -1051,5 +1051,8 @@
   },
   "identityCustom": {
     "message": "Custom identity"
+  },
+  "turningOff": {
+    "message": "Turning off…"
   }
 }

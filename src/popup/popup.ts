@@ -91,7 +91,7 @@ let activatingProfileId: string | null = null;
 let isDeactivating = false;
 let displayedGeneration = -1;
 
-function setStatusPill(state: RuntimeState | RuntimeStatus): void {
+function setStatusPill(state: RuntimeState | RuntimeStatus | "deactivating"): void {
   const { label, tone } = describePopupStatus(state);
   elements.statusText.textContent = lt(label);
   elements.statusPill.dataset.tone = tone;
@@ -337,7 +337,8 @@ async function deactivateRoute(): Promise<void> {
   }
 
   isDeactivating = true;
-  setStatusPill("idle");
+  // Off is only truthful after the background commits teardown.
+  setStatusPill("deactivating");
   renderRoutes();
   renderError(null);
 
