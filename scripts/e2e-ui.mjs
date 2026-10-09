@@ -688,6 +688,14 @@ async function main() {
       await capture("01-active-profile.png");
       await click("#toggle-details");
       await capture("03-identity-audit.png", "#details-panel", 0, "audit");
+      await click("#toggle-details");
+      await fill({ "ui-language": "zh_CN" });
+      await waitFor('return document.documentElement.lang === "zh-CN";');
+      await capture("05-switcher-chinese.png");
+      await click("#quick-add-toggle");
+      await execute('document.body.style.marginTop = "16px";');
+      await fill({ "quick-host": "127.0.0.1", "quick-port": "10808" });
+      await capture("06-quick-add-chinese.png");
       const userAgent = await execute("return navigator.userAgent;");
       const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));
       const sourceHashes = {};
@@ -949,8 +957,44 @@ async function main() {
     await waitFor(
       'return document.documentElement.lang === "en" && document.getElementById("quick-save").textContent === "Save";',
     );
+    const beforeSearch = (await call({ type: "state:get" })).state;
+    await fill({ "route-search": "does-not-match-any-profile" });
+    check(
+      await execute(
+        'return !document.getElementById("route-empty").hidden && document.querySelectorAll("#route-list button").length === 0;',
+      ),
+      "Search has an explicit empty state",
+    );
+    check(
+      (await call({ type: "state:get" })).state.generation === beforeSearch.generation,
+      "Filtering never switches or deactivates the route",
+    );
+    await fill({ "route-search": "" });
     const beforeQuick = (await call({ type: "state:get" })).state;
     await click("#quick-add-toggle");
+    check(
+      await execute(
+        'return document.body.dataset.view === "add" && getComputedStyle(document.querySelector(".identity-card")).display === "none" && document.activeElement.id === "quick-host";',
+      ),
+      "Quick setup is a focused view with host focus",
+    );
+    await fill({
+      "quick-host": "preserved.example",
+      "quick-username": "fixture-user",
+      "quick-password": "fixture-password",
+    });
+    await click("#quick-add-toggle");
+    check(
+      await execute(
+        'return document.body.dataset.view === "routes" && document.getElementById("quick-password").value === "" && document.getElementById("quick-username").value === "" && document.activeElement.id === "quick-add-toggle";',
+      ),
+      "Back restores switcher focus and clears credential drafts",
+    );
+    await click("#quick-add-toggle");
+    check(
+      await execute('return document.getElementById("quick-host").value === "preserved.example";'),
+      "Back retains the non-secret endpoint draft",
+    );
     await fill({ "quick-host": "socks5://[::1]:10808", "quick-name": "Quick local fixture" });
     await click("#quick-save");
     await waitFor(

@@ -1,4 +1,4 @@
-import { localizeKnownText as lt } from "../shared/i18n";
+import { localizeKnownText as lt, message } from "../shared/i18n";
 /** Compact editor using the existing validated save and explicit activation commands. */
 import { parseQuickEndpoint, quickProxyProfile, type QuickProxyType } from "../profile/quick-proxy";
 import { createProfileId } from "../profile/store";
@@ -32,6 +32,7 @@ export function bindQuickAdd(deps: {
   }
   document.addEventListener("ni:language-changed", () => {
     status.textContent = lt(lastStatus);
+    toggle.textContent = message(panel.hidden ? "addProxy" : "backToRoutes");
   });
   let pending = false;
   // Reuse an id after a partial write/transport error rather than creating duplicates on retry.
@@ -39,11 +40,15 @@ export function bindQuickAdd(deps: {
   toggle.addEventListener("click", () => {
     if (pending) return;
     panel.hidden = !panel.hidden;
+    document.body.dataset.view = panel.hidden ? "routes" : "add";
+    toggle.dataset.i18n = panel.hidden ? "addProxy" : "backToRoutes";
+    toggle.textContent = message(panel.hidden ? "addProxy" : "backToRoutes");
     toggle.setAttribute("aria-expanded", String(!panel.hidden));
     if (!panel.hidden) host.focus();
     else {
       username.value = "";
       password.value = "";
+      toggle.focus();
     }
   });
   async function submit(activate: boolean): Promise<void> {

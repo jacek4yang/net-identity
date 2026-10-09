@@ -24,7 +24,7 @@
     "message": "Host or proxy address"
   },
   "port": {
-    "message": "Port (when not included above)"
+    "message": "Port (optional in URL)"
   },
   "profileNameOptional": {
     "message": "Profile name (optional)"
@@ -280,5 +280,14 @@
   },
   "languageSaveFailed": {
     "message": "Could not save language preference. Try again."
+  },
+  "searchProfiles": {
+    "message": "Find a proxy"
+  },
+  "noMatchingProfiles": {
+    "message": "No matching profiles. Your active route is unchanged."
+  },
+  "backToRoutes": {
+    "message": "← Back to routes"
   }
 }

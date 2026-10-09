@@ -1,5 +1,6 @@
 import { bindLanguageControl } from "../shared/language-control";
 import { localizeKnownText as lt, message } from "../shared/i18n";
+import { filterProfiles } from "./profile-search";
 import { bindQuickAdd } from "./quick-add";
 /**
  * Popup view: compact quick-switching route switcher and identity surface.
@@ -35,6 +36,8 @@ const elements = {
   consistencyBadge: requireElement<HTMLElement>("#consistency-badge"),
   routeOff: requireElement<HTMLButtonElement>("#route-off"),
   routeList: requireElement<HTMLElement>("#route-list"),
+  routeSearch: requireElement<HTMLInputElement>("#route-search"),
+  routeEmpty: requireElement<HTMLElement>("#route-empty"),
   manageProfiles: requireElement<HTMLButtonElement>("#manage-profiles"),
   identityRoute: requireElement<HTMLElement>("#identity-route"),
   identityIp: requireElement<HTMLElement>("#identity-ip"),
@@ -118,7 +121,9 @@ function renderRoutes(): void {
   elements.routeOff.disabled = quickAddBusy;
   clear(elements.routeList);
 
-  for (const profile of knownProfiles) {
+  const matches = filterProfiles(knownProfiles, elements.routeSearch.value);
+  elements.routeEmpty.hidden = matches.length > 0;
+  for (const profile of matches) {
     const isDirect = isBuiltinDirectProfile(profile.id);
     const isActive = profile.id === currentActiveId;
     const isThisActivating = profile.id === activatingProfileId;
@@ -409,6 +414,9 @@ requireElement<HTMLElement>(".routes-container").addEventListener("keydown", (ev
         : (index + (event.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length;
   rows[next]?.focus();
 });
+
+// Filtering is display-only and never changes the selected route.
+elements.routeSearch.addEventListener("input", renderRoutes);
 
 // Event bindings
 elements.routeOff.addEventListener("click", () => {

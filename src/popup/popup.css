@@ -57,7 +57,7 @@
 
 body {
   width: 380px;
-  max-width: 420px;
+  max-width: 100vw;
   margin: 0;
   padding: 12px;
   background: var(--bg);
@@ -603,4 +603,92 @@ body {
 #quick-add-panel :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Focused setup view, rather than a second long form above the current identity. */
+body[data-view="add"] [data-switcher-surface] {
+  display: none !important;
+}
+.switcher-toolbar {
+  margin-bottom: 8px;
+}
+.switcher-toolbar label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+#route-search {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+}
+#route-search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.route-list {
+  max-height: 210px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#route-empty {
+  color: var(--fg-dim);
+}
+#quick-add-toggle {
+  width: 100%;
+  margin-top: 8px;
+}
+.endpoint-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.endpoint-row label {
+  display: block;
+  min-height: 2.8em;
+}
+.quick-actions {
+  display: flex;
+  gap: 8px;
+}
+#quick-save-activate {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+#quick-save-activate:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+#quick-add-panel summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+#quick-add-panel fieldset {
+  margin-top: 8px;
+}
+.language-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+.language-row select {
+  max-width: 140px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+}
+.language-row p {
+  flex-basis: 100%;
 }

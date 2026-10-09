@@ -64,3 +64,18 @@ onboarding, dynamic audit explanations and the complete backend error presentati
 to be localized; the product is **not yet fully bilingual**. Stable machine identifiers,
 proxy hosts, coordinates and IANA timezones are not translated. Unknown diagnostics remain
 visible rather than being replaced with misleading success or an unrelated translation.
+
+### Focused popup interaction (candidate slice 3)
+
+The default popup prioritizes route search and switching. Search is literal and bounded
+(128 characters), matching profile name, protocol, host and port without changing routing.
+A no-match state explicitly says that the active route is unchanged. Off stays reachable;
+long profile lists scroll within the switcher. Language selection moves to the footer.
+
+Add Proxy now opens a focused setup view instead of inserting a long form above the
+identity card. Back restores the switcher, retains the non-secret endpoint draft and clears
+both credential fields. Host receives focus on entry; Back receives focus on return.
+Protocol and port share one row; session authentication remains collapsed. Save and
+Save & Activate retain their existing distinct semantics. Runtime warnings and the header
+remain available during setup. These are popup changes only; options and full localization
+remain work in progress.

@@ -24,7 +24,7 @@
     "message": "主机或代理地址"
   },
   "port": {
-    "message": "端口（地址中未填写时）"
+    "message": "端口（地址已含端口可留空）"
   },
   "profileNameOptional": {
     "message": "配置名称（可选）"
@@ -280,5 +280,14 @@
   },
   "languageSaveFailed": {
     "message": "无法保存语言偏好，请重试。"
+  },
+  "searchProfiles": {
+    "message": "搜索代理"
+  },
+  "noMatchingProfiles": {
+    "message": "没有匹配的配置。当前线路保持不变。"
+  },
+  "backToRoutes": {
+    "message": "← 返回线路"
   }
 }

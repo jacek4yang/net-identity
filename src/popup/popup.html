@@ -20,20 +20,24 @@
     </header>
 
     <main class="main-surface">
-      <label for="ui-language" data-i18n="language">Language / 语言</label>
-      <select id="ui-language">
-        <option value="auto" data-i18n="languageAuto">Auto</option>
-        <option value="en">English</option>
-        <option value="zh_CN">简体中文</option>
-      </select>
-      <p id="language-error" role="status" hidden></p>
       <!-- Route switcher section -->
       <section
         class="routes-section"
         aria-label="Available routes"
         data-i18n-aria="availableRoutes"
       >
+        <div class="switcher-toolbar" data-switcher-surface>
+          <label for="route-search" data-i18n="searchProfiles">Find a proxy</label>
+          <input
+            id="route-search"
+            type="search"
+            maxlength="128"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
         <div
+          data-switcher-surface
           class="routes-container"
           role="radiogroup"
           aria-label="Network routes"
@@ -78,6 +82,15 @@
           </div>
         </div>
 
+        <p
+          id="route-empty"
+          hidden
+          data-switcher-surface
+          role="status"
+          data-i18n="noMatchingProfiles"
+        >
+          No matching profiles. Your active route is unchanged.
+        </p>
         <button
           id="quick-add-toggle"
           type="button"
@@ -97,13 +110,6 @@
           <form id="quick-add-form" autocomplete="off">
             <fieldset id="quick-add-fields">
               <legend data-i18n="addProxyLegend">Add a proxy</legend>
-              <label for="quick-protocol" data-i18n="protocol">Protocol</label>
-              <select id="quick-protocol">
-                <option value="socks5">SOCKS5</option>
-                <option value="http">HTTP</option>
-                <option value="https">HTTPS</option>
-                <option value="socks4">SOCKS4</option>
-              </select>
               <label for="quick-host" data-i18n="host">Host or proxy address</label>
               <input
                 id="quick-host"
@@ -112,17 +118,30 @@
                 placeholder="127.0.0.1:10808"
                 spellcheck="false"
               />
-              <label for="quick-port" data-i18n="port">Port (when not included above)</label>
-              <input id="quick-port" inputmode="numeric" maxlength="5" placeholder="10808" />
+              <div class="endpoint-row">
+                <div>
+                  <label for="quick-protocol" data-i18n="protocol">Protocol</label>
+                  <select id="quick-protocol">
+                    <option value="socks5">SOCKS5</option>
+                    <option value="http">HTTP</option>
+                    <option value="https">HTTPS</option>
+                    <option value="socks4">SOCKS4</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="quick-port" data-i18n="port">Port (optional in URL)</label>
+                  <input id="quick-port" inputmode="numeric" maxlength="5" placeholder="10808" />
+                </div>
+              </div>
               <label for="quick-name" data-i18n="profileNameOptional"
                 >Profile name (optional)</label
               >
               <input id="quick-name" maxlength="64" />
               <details>
                 <summary data-i18n="sessionAuth">Session-only authentication</summary>
-                <label for="quick-username">Username</label
+                <label for="quick-username" data-i18n="username">Username</label
                 ><input id="quick-username" autocomplete="off" maxlength="128" spellcheck="false" />
-                <label for="quick-password">Password</label
+                <label for="quick-password" data-i18n="password">Password</label
                 ><input
                   id="quick-password"
                   type="password"
@@ -137,15 +156,17 @@
                 Explicit URL schemes take precedence. No automatic protocol detection. Enter
                 credentials separately, not in a URL.
               </p>
-              <button id="quick-save" class="btn" type="submit" data-i18n="save">Save</button>
-              <button id="quick-save-activate" class="btn" type="submit" data-i18n="saveActivate">
-                Save &amp; Activate
-              </button>
+              <div class="quick-actions">
+                <button id="quick-save" class="btn" type="submit" data-i18n="save">Save</button>
+                <button id="quick-save-activate" class="btn" type="submit" data-i18n="saveActivate">
+                  Save &amp; Activate
+                </button>
+              </div>
             </fieldset>
           </form>
           <p id="quick-status" role="status" aria-live="polite"></p>
         </section>
-        <div class="manage-row">
+        <div class="manage-row" data-switcher-surface>
           <button
             id="manage-profiles"
             type="button"
@@ -158,7 +179,12 @@
       </section>
 
       <!-- Primary Current Identity card -->
-      <section class="identity-card" aria-label="Current identity" data-i18n-aria="currentIdentity">
+      <section
+        data-switcher-surface
+        class="identity-card"
+        aria-label="Current identity"
+        data-i18n-aria="currentIdentity"
+      >
         <div class="identity-header">
           <h2 class="identity-title" data-i18n="currentIdentity">Current identity</h2>
           <span id="consistency-badge" class="consistency-badge" data-tone="pending">—</span>
@@ -204,6 +230,7 @@
 
       <!-- Secondary Expandable Details & Diagnostics -->
       <section
+        data-switcher-surface
         id="details-panel"
         class="details-panel"
         hidden
@@ -257,6 +284,15 @@
         </p>
       </section>
     </main>
+    <footer class="language-row">
+      <label for="ui-language" data-i18n="language">Language / 语言</label>
+      <select id="ui-language">
+        <option value="auto" data-i18n="languageAuto">Auto</option>
+        <option value="en">English</option>
+        <option value="zh_CN">简体中文</option>
+      </select>
+      <p id="language-error" role="status" hidden></p>
+    </footer>
 
     <script type="module" src="popup.js"></script>
   </body>
