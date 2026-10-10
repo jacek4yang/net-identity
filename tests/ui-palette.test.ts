@@ -40,6 +40,10 @@ describe("readable interface palette", () => {
         }
         expect(contrast(color("accent-fg"), color("accent"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(color("fg-dim"), color("panel"))).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(color("fg"), color("panel"))).toBeGreaterThanOrEqual(4.5);
+        for (const background of ["bg", "panel"]) {
+          expect(contrast(color("control-border"), color(background))).toBeGreaterThanOrEqual(3);
+        }
       });
     }
     it(`${page} retains visible keyboard focus and honors reduced motion`, () => {

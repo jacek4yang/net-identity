@@ -1,3 +1,4 @@
+import { parseCredentials } from "../profile/validation";
 /** One short-lived provider request per editor; never changes the active target. */
 import { IPWHOIS_ENDPOINT, parseIpWhoIsResponse } from "../geo/ipwhois";
 import type { DraftInput, DraftResponse } from "../shared/draft-probe";
@@ -111,7 +112,10 @@ export class DraftProbeBroker {
           ? await this.deps.credentials(input.profileId, input.proxy)
           : (input.credentials ?? null);
       if (job.abort.signal.aborted) return { ok: false, error: timedOut ? "timeout" : "cancelled" };
-      if (input.proxy.authenticationRequired && credentials === null)
+      if (
+        (input.proxy.authenticationRequired && credentials === null) ||
+        (credentials !== null && !parseCredentials(credentials, input.proxy.type).ok)
+      )
         return { ok: false, error: "credentials" };
       job.target = {
         profileId: "draft",

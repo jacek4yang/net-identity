@@ -399,7 +399,7 @@
     "message": "Proxy password"
   },
   "sessionCredentialsHint": {
-    "message": "Enable the vault to keep credentials encrypted across restarts. Otherwise they last only this session. Leave both blank to keep the pair; entering either replaces both."
+    "message": "Saved authentication is kept when both fields are blank. To replace it, enter both fields. Enable encrypted storage to retain credentials across Firefox restarts."
   },
   "clearCredentials": {
     "message": "Clear credentials on Save (Apply to remove from the active route)"
@@ -1087,5 +1087,17 @@
   },
   "vaultMismatch": {
     "message": "The two master passwords do not match."
+  },
+  "savedAuthentication": {
+    "message": "Saved — leave blank to keep"
+  },
+  "socksUsernameRequired": {
+    "message": "SOCKS5 authentication requires a username"
+  },
+  "socksUsernameBytes": {
+    "message": "SOCKS5 username must not exceed 255 UTF-8 bytes"
+  },
+  "socksPasswordBytes": {
+    "message": "SOCKS5 password must not exceed 255 UTF-8 bytes"
   }
 }

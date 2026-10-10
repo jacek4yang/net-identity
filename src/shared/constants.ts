@@ -23,7 +23,7 @@ export const MAX_HOST_LENGTH = 253;
 export const MAX_LOCATION_TEXT_LENGTH = 96;
 export const MAX_BYPASS_ENTRIES = 100;
 export const MAX_BYPASS_ENTRY_LENGTH = 64;
-export const MAX_USERNAME_LENGTH = 128;
+export const MAX_USERNAME_LENGTH = 255;
 export const MAX_PASSWORD_LENGTH = 256;
 export const MAX_DISTINCT_TABS_TO_PROBE = 32;
 

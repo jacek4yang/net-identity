@@ -10,6 +10,33 @@ export async function runVaultChecks({
   optionsUrl,
   popupUrl,
 }) {
+  // Successful vault setup/unlock deliberately reloads the extension document.
+  // Never click twice: only retry the read-only postcondition across that navigation.
+  async function submitAndWaitForReload(condition) {
+    await execute('document.documentElement.dataset.vaultNavigationWitness = "before-submit";');
+    const navigation = (error) =>
+      error instanceof Error && error.message.includes('"message":"Document was unloaded"');
+    try {
+      await click("#vault-submit");
+    } catch (error) {
+      if (!navigation(error)) throw error;
+    }
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try {
+        if (
+          await execute(
+            'if (document.documentElement.dataset.vaultNavigationWitness === "before-submit") return false; ' +
+              condition,
+          )
+        )
+          return;
+      } catch (error) {
+        if (!navigation(error)) throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error("Vault reload did not reach its verified postcondition");
+  }
   await client.send("WebDriver:Navigate", { url: optionsUrl });
   await waitFor('return !!document.getElementById("vault-panel");');
   const profile = {
@@ -50,8 +77,7 @@ export async function runVaultChecks({
     "Mismatched master passwords never migrate data",
   );
   await fill({ "vault-confirm": "fixture master passphrase" });
-  await click("#vault-submit");
-  await waitFor(
+  await submitAndWaitForReload(
     'return !!document.getElementById("vault-panel") && document.getElementById("vault-form").hidden;',
   );
   check(
@@ -120,8 +146,7 @@ export async function runVaultChecks({
     "Actual UI rejects a wrong master password",
   );
   await fill({ "vault-password": "fixture master passphrase" });
-  await click("#vault-submit");
-  await waitFor(
+  await submitAndWaitForReload(
     'return !!document.getElementById("vault-panel") && document.getElementById("vault-form").hidden && !document.querySelector("main").hidden;',
   );
   check(
