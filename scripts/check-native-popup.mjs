@@ -83,6 +83,14 @@ export async function checkNativePopup(browser, proxyPort, expected) {
     [expected.username, expected.password],
   );
   if (!retained) throw Error("native popup lost entered credentials");
+  const geometry = await popupRead(`
+    const controls=[...document.querySelectorAll("input,select,button,summary")]
+      .filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;});
+    return {overflow:document.documentElement.scrollWidth>innerWidth,
+      clipped:controls.filter(e=>{const r=e.getBoundingClientRect();return r.left < -1 || r.right > innerWidth+1;}).map(e=>e.id||e.tagName)};
+  `);
+  if (geometry.overflow || geometry.clipped.length)
+    throw Error("Native popup has horizontally clipped controls: " + geometry.clipped.join(","));
   console.log(
     JSON.stringify({
       nativePopupSaved: true,

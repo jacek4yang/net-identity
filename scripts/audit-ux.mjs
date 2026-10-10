@@ -44,6 +44,26 @@ export async function auditUx({
   );
   viewportMetrics.push({ zoom: 2, ...zoomed });
   check(!zoomed.overflow, "200% zoom at 320 CSS pixels has no horizontal overflow");
+  const layoutStress = await execute(`
+    const target = document.querySelector("#form-title, #quick-status");
+    const previous = target?.textContent;
+    if (target) target.textContent = "LongProfile状态".repeat(24);
+    try {
+      const controls = [...document.querySelectorAll("button,input,select,textarea,summary")]
+        .filter(e => {const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=="hidden";});
+      return {overflow:document.documentElement.scrollWidth>innerWidth,
+        clipped:controls.filter(e=>{const r=e.getBoundingClientRect();return r.left < -1 || r.right > innerWidth+1;}).map(e=>e.id||e.tagName)};
+    } finally { if (target) target.textContent = previous; }
+  `);
+  check(
+    !layoutStress.overflow && layoutStress.clipped.length === 0,
+    "Long labels and status text do not push visible controls outside the narrow viewport",
+  );
+  const narrowScreenshot = await client.send("WebDriver:TakeScreenshot", { full: true });
+  await writeFile(
+    path.join(output, `${name}-${language}-320css.png`),
+    Buffer.from(narrowScreenshot.value, "base64"),
+  );
   await client.send("Marionette:SetContext", { value: "chrome" });
   await client.send("WebDriver:ExecuteScript", {
     script: "gBrowser.selectedBrowser.browsingContext.fullZoom=1;",
@@ -110,7 +130,7 @@ export async function auditUx({
   }
   await writeFile(
     path.join(output, `${name}-${language}-metrics.json`),
-    JSON.stringify({ viewportMetrics, feedback }, null, 2),
+    JSON.stringify({ viewportMetrics, layoutStress, feedback }, null, 2),
   );
   await execute(await readFile(axePath, "utf8"));
   const audit = await client.send("WebDriver:ExecuteAsyncScript", {
