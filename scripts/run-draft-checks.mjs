@@ -246,6 +246,11 @@ export async function runDraftChecks({
   await waitFor('return document.getElementById("draft-status").dataset.state === "success";', 300);
   await capture?.("options-auth-saved");
   await client.send("WebDriver:Navigate", { url: optionsUrl });
+  if (delayedInit) {
+    await waitFor('return document.documentElement.dataset.startupGate === "held";');
+    await execute('document.dispatchEvent(new Event("ni-test-release-startup"));');
+    await waitFor('return document.documentElement.dataset.startupGate === "settled";');
+  }
   await waitFor('return !!document.querySelector("[data-profile-id]");');
   await execute(`document.querySelector('[data-profile-id="' + arguments[0] + '"]').click();`, [
     activated.activeProfileId,

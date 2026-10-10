@@ -1248,16 +1248,21 @@ async function main() {
     await click("#quick-add-toggle");
     check(
       await execute(
-        'return document.body.dataset.view === "routes" && document.getElementById("quick-password").value === "" && document.getElementById("quick-username").value === "" && document.activeElement.id === "quick-add-toggle";',
+        'return document.body.dataset.view === "routes" && document.getElementById("quick-password").value === "fixture-password" && document.getElementById("quick-username").value === "fixture-user" && document.activeElement.id === "quick-add-toggle";',
       ),
-      "Back restores switcher focus and clears credential drafts",
+      "Back restores switcher focus and preserves credential drafts",
     );
     await click("#quick-add-toggle");
     check(
       await execute('return document.getElementById("quick-host").value === "preserved.example";'),
       "Back retains the non-secret endpoint draft",
     );
-    await fill({ "quick-host": "socks5://[::1]:10808", "quick-name": "Quick local fixture" });
+    await fill({
+      "quick-host": "socks5://[::1]:10808",
+      "quick-name": "Quick local fixture",
+      "quick-username": "",
+      "quick-password": "",
+    });
     await click("#quick-save");
     await waitFor(
       'return document.getElementById("quick-status").textContent.startsWith("Saved.");',
