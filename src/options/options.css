@@ -8,6 +8,7 @@
   --fg: #18313f;
   --fg-dim: #526875;
   --border: #ccd7dd;
+  --control-border: #7b8b94;
   --border-subtle: #e5ebee;
   --accent: #087f72;
   --accent-hover: #05675d;
@@ -27,6 +28,7 @@
     --fg: #eaf2f5;
     --fg-dim: #afc3ce;
     --border: #3c5361;
+    --control-border: #718a99;
     --border-subtle: #2b414e;
     --accent: #72dec8;
     --accent-hover: #96ebdb;
@@ -876,6 +878,15 @@ summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+/* Input boundaries remain distinguishable without relying on placeholder text. */
+input[type="text"]:not(:focus-visible),
+input[type="password"]:not(:focus-visible),
+input[type="number"]:not(:focus-visible),
+select:not(:focus-visible),
+textarea:not(:focus-visible) {
+  border-color: var(--control-border);
+}
+
 @media (forced-colors: active) {
   button,
   input,

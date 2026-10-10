@@ -5,6 +5,7 @@
   --panel: #eaf0f3;
   --hover: #e5edef;
   --border: #ccd7dd;
+  --control-border: #7b8b94;
   --fg: #18313f;
   --fg-dim: #526875;
   --fg-muted: #657b88;
@@ -33,6 +34,7 @@
     --panel: #223844;
     --hover: #2b4350;
     --border: #3c5361;
+    --control-border: #718a99;
     --fg: #eaf2f5;
     --fg-dim: #afc3ce;
     --fg-muted: #90a8b6;
@@ -796,6 +798,13 @@ summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+/* Input boundaries remain distinguishable without relying on placeholder text. */
+#quick-add-panel input:not(:focus-visible),
+#quick-add-panel select:not(:focus-visible),
+#route-search:not(:focus-visible) {
+  border-color: var(--control-border);
+}
+
 @media (forced-colors: active) {
   button,
   input,
