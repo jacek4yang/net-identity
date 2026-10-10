@@ -93,12 +93,14 @@ export function bindQuickAdd(deps: {
   });
   toggle.addEventListener("click", () => {
     if (pending) return;
-    draftCheck.cancel();
+    // Back preserves a completed preview; an interrupted probe remains unchecked.
+    draftCheck.cancel(true);
     panel.hidden = !panel.hidden;
     document.body.dataset.view = panel.hidden ? "routes" : "add";
     toggle.dataset.i18n = panel.hidden ? "addProxy" : "backToRoutes";
     toggle.textContent = message(panel.hidden ? "addProxy" : "backToRoutes");
     toggle.setAttribute("aria-expanded", String(!panel.hidden));
+    draftCheck.refresh();
     if (!panel.hidden) host.focus();
     else {
       // Returning to the route list must not erase an unfinished authentication draft.

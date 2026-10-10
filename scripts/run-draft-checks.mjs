@@ -288,12 +288,24 @@ export async function runDraftChecks({
     await execute('return document.getElementById("quick-password").value === "fixture-password";'),
     "Back to routes and returning preserves the unfinished popup authentication draft",
   );
+  check(
+    await execute(
+      'return document.getElementById("quick-draft-status").dataset.state === "success";',
+    ),
+    "Back and reopening preserve the completed preview instead of asking for filled fields again",
+  );
   const popupCount = (await call({ type: "profiles:list" })).profiles.length;
   await click("#quick-save");
   await waitFor('return !document.getElementById("quick-add-fields").disabled;');
   check(
     await execute('return document.getElementById("quick-password").value === "fixture-password";'),
     "Popup Save preserves the account and endpoint for correction or enable",
+  );
+  check(
+    await execute(
+      'return document.getElementById("quick-draft-status").dataset.state === "success";',
+    ),
+    "Popup Save retains the completed connectivity preview",
   );
   await click("#quick-save-activate");
   await waitFor('return !document.getElementById("quick-add-fields").disabled;', 300);
