@@ -189,10 +189,17 @@ details summary {
 
 .profile-list .name {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   font-weight: 600;
   font-size: 13.5px;
+}
+
+.profile-list .name > span:first-child {
+  flex: 1 0 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .profile-list .meta {

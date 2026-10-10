@@ -7,6 +7,7 @@ import { request } from "./runtime";
 export type DraftCheckState = "idle" | "waiting" | "checking" | "success" | "error";
 export class DraftCheck {
   private revision = 0;
+  private settled = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(
     private readonly deps: {
@@ -14,12 +15,15 @@ export class DraftCheck {
       render: (state: DraftCheckState, result?: DraftResponse) => void;
     },
   ) {}
-  cancel(): void {
+  cancel(preserveResult = false): void {
     this.revision++;
     clearTimeout(this.timer);
     this.timer = undefined;
     void this.deps.send("draft:cancel").catch(() => {});
-    this.deps.render("idle");
+    if (!preserveResult || !this.settled) {
+      this.settled = false;
+      this.deps.render("idle");
+    }
   }
   schedule(input: DraftInput | null, delay = 700): void {
     this.cancel();
@@ -39,6 +43,7 @@ export class DraftCheck {
       result = { ok: false, error: "network" };
     }
     if (revision !== this.revision) return;
+    this.settled = true;
     this.deps.render(result.ok ? "success" : "error", result);
   }
 }

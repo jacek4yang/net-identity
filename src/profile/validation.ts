@@ -386,7 +386,7 @@ export function parseAppliedSelection(
   return ok({ kind: "profile", profile: parsed.value });
 }
 
-export function parseCredentials(input: unknown): Result<ProxyCredentials> {
+export function parseCredentials(input: unknown, proxyType?: string): Result<ProxyCredentials> {
   if (!isPlainObject(input)) return fail("credentials must be an object");
   const username = input.username;
   const password = input.password;
@@ -400,6 +400,14 @@ export function parseCredentials(input: unknown): Result<ProxyCredentials> {
   if (parsedUsername.length > MAX_USERNAME_LENGTH) return fail("username is too long");
   if (parsedPassword.length > MAX_PASSWORD_LENGTH) return fail("password is too long");
   if (parsedUsername === "" && parsedPassword === "") return fail("credentials must not be empty");
+  if (proxyType === "socks5") {
+    if (parsedUsername === "") return fail("SOCKS5 authentication requires a username");
+    const encoder = new TextEncoder();
+    if (encoder.encode(parsedUsername).length > 255)
+      return fail("SOCKS5 username must not exceed 255 UTF-8 bytes");
+    if (encoder.encode(parsedPassword).length > 255)
+      return fail("SOCKS5 password must not exceed 255 UTF-8 bytes");
+  }
   return ok({ username: parsedUsername, password: parsedPassword });
 }
 

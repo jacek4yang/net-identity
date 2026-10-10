@@ -92,3 +92,20 @@ describe("draft status presentation", () => {
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: "draft:probe", input }));
   });
 });
+
+it("keeps a settled preview on Save but invalidates it after editing", async () => {
+  const h = harness();
+  h.setInput(input);
+  send.mockImplementation(async (request) =>
+    request.type === "draft:probe"
+      ? { ok: false, error: "credentials" }
+      : { ok: false, error: "cancelled" },
+  );
+  h.field.dispatchEvent(new Event("input"));
+  await vi.advanceTimersByTimeAsync(701);
+  expect(h.status.dataset.state).toBe("error");
+  h.check.cancel(true);
+  expect(h.status.dataset.state).toBe("error");
+  h.field.dispatchEvent(new Event("input"));
+  expect(h.status.dataset.state).toBe("waiting");
+});

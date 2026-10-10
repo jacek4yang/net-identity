@@ -399,7 +399,7 @@
     "message": "代理密码"
   },
   "sessionCredentialsHint": {
-    "message": "启用保险库可加密保存凭据并在重启后保留，否则仅保留本次会话。两项留空保留已有凭据，填写任意一项替换整组。"
+    "message": "两个输入框都留空会保留已保存的认证信息。修改认证时请填写完整账号密码。启用加密存储后，重启 Firefox 也能保留凭据。"
   },
   "clearCredentials": {
     "message": "保存时清除凭据（点击“应用”后才从当前线路移除）"
@@ -1087,5 +1087,8 @@
   },
   "vaultMismatch": {
     "message": "两次输入的主密码不一致。"
+  },
+  "savedAuthentication": {
+    "message": "已保存；留空保持不变"
   }
 }

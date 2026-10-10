@@ -188,5 +188,125 @@ export async function runDraftChecks({
     (await call({ type: "state:get" })).state.generation === baseline.generation,
     "Closing draft editor leaves active A intact after success and failures",
   );
+  // Real user flow: enter credentials, save, correct, enable, reopen and retry.
+  await client.send("WebDriver:Navigate", { url: optionsUrl });
+  await waitFor('return !!document.getElementById("new-profile");');
+  await click("#new-profile");
+  await fill({
+    "field-name": "Auth editor regression",
+    "field-proxy-host": "127.0.0.1",
+    "field-proxy-port": String(fixture.auth),
+  });
+  await click("#section-auth > summary");
+  await fill({ "field-proxy-username": "fixture-user", "field-password": "wrong" });
+  await waitFor('return document.getElementById("draft-status").dataset.state === "error";', 300);
+  const countBefore = (await call({ type: "profiles:list" })).profiles.length;
+  await click("#save");
+  await waitFor('return !document.getElementById("remove-credentials-row").hidden;');
+  check(
+    await execute(
+      'return document.getElementById("field-proxy-username").value === "fixture-user" && document.getElementById("field-password").value === "wrong" && document.getElementById("section-auth").open;',
+    ),
+    "Save retains typed authentication and the expanded editor",
+  );
+  await fill({ "field-password": "fixture-password" });
+  await waitFor('return document.getElementById("draft-status").dataset.state === "success";', 300);
+  await click("#save-activate");
+  await waitFor(
+    'return !document.getElementById("profile-form").inert && document.getElementById("options-status").textContent.includes("Asia/Tokyo");',
+    300,
+  );
+  check(
+    await execute(
+      'return document.getElementById("field-password").value === "fixture-password" && document.getElementById("field-proxy-username").value === "fixture-user";',
+    ),
+    "Save and enable retains credentials after successful authentication",
+  );
+  check(
+    (await call({ type: "profiles:list" })).profiles.length === countBefore + 1,
+    "Save then enable updates one profile instead of duplicating it",
+  );
+  const activated = (await call({ type: "state:get" })).state;
+  check(
+    activated.proxy.port === fixture.auth && activated.identity.publicIp === "203.0.113.42",
+    "Edited credentials really authenticate the active route and fetch identity",
+  );
+  const changedEndpointBefore = fixture.seen.b.length;
+  await fill({ "field-proxy-port": String(fixture.b) });
+  await waitFor('return document.getElementById("draft-status").dataset.state === "error";', 300);
+  check(
+    fixture.seen.b.length === changedEndpointBefore,
+    "Changing endpoint does not automatically forward the retained account to the new proxy",
+  );
+  check(
+    await execute('return document.getElementById("field-password").value === "fixture-password";'),
+    "Endpoint edit preserves the user's text while requiring authentication confirmation",
+  );
+  await fill({ "field-proxy-port": String(fixture.auth), "field-password": "fixture-password" });
+  await waitFor('return document.getElementById("draft-status").dataset.state === "success";', 300);
+  await capture?.("options-auth-saved");
+  await client.send("WebDriver:Navigate", { url: optionsUrl });
+  await waitFor('return !!document.querySelector("[data-profile-id]");');
+  await execute(`document.querySelector('[data-profile-id="' + arguments[0] + '"]').click();`, [
+    activated.activeProfileId,
+  ]);
+  await waitFor('return document.getElementById("field-password").placeholder.length > 0;');
+  check(
+    await execute(
+      'return document.getElementById("field-password").value === "" && document.getElementById("section-auth").open;',
+    ),
+    "Reopening shows saved-authentication placeholders without exposing the stored password",
+  );
+  await click("#save-activate");
+  await waitFor('return !document.getElementById("profile-form").inert;', 300);
+  check(
+    (await call({ type: "state:get" })).state.identity.publicIp === "203.0.113.42",
+    "Reopened editor can save and enable using its unchanged stored credentials",
+  );
+  await client.send("WebDriver:Navigate", { url: popupUrl });
+  await waitFor('return !!document.getElementById("quick-add-toggle");');
+  await click("#quick-add-toggle");
+  await execute('document.querySelector("#quick-username").closest("details").open = true;');
+  await fill({
+    "quick-host": "127.0.0.1",
+    "quick-port": String(fixture.auth),
+    "quick-username": "fixture-user",
+    "quick-password": "fixture-password",
+  });
+  await waitFor(
+    'return document.getElementById("quick-draft-status").dataset.state === "success";',
+    300,
+  );
+  await click("#quick-add-toggle");
+  await click("#quick-add-toggle");
+  check(
+    await execute('return document.getElementById("quick-password").value === "fixture-password";'),
+    "Back to routes and returning preserves the unfinished popup authentication draft",
+  );
+  const popupCount = (await call({ type: "profiles:list" })).profiles.length;
+  await click("#quick-save");
+  await waitFor('return !document.getElementById("quick-add-fields").disabled;');
+  check(
+    await execute('return document.getElementById("quick-password").value === "fixture-password";'),
+    "Popup Save preserves the account and endpoint for correction or enable",
+  );
+  await click("#quick-save-activate");
+  await waitFor('return !document.getElementById("quick-add-fields").disabled;', 300);
+  check(
+    (await call({ type: "profiles:list" })).profiles.length === popupCount + 1,
+    "Repeated popup Save and enable do not duplicate the profile",
+  );
+  check(
+    (await call({ type: "state:get" })).state.identity.publicIp === "203.0.113.42",
+    "Popup authenticated route works after separate Save and enable",
+  );
+  await capture?.("popup-auth-saved");
+  await click("#quick-new");
+  check(
+    await execute(
+      'return document.getElementById("quick-password").value === "" && document.getElementById("quick-host").value === "";',
+    ),
+    "Only explicit New profile clears the completed popup draft",
+  );
   await call({ type: "profiles:deactivate" });
 }

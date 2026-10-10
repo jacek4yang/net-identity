@@ -92,7 +92,7 @@ async function saveProfile(
     credentialInput === null ||
     (credentialInput.username === "" && credentialInput.password === "")
       ? null
-      : parseCredentials(credentialInput);
+      : parseCredentials(credentialInput, profile.proxy.type);
   if (parsedCredentials !== null && !parsedCredentials.ok)
     return mutation(false, parsedCredentials.errors, deps.controller);
 

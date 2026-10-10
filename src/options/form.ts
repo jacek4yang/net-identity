@@ -110,8 +110,8 @@ export function toProfileInput(values: ProfileFormValues, fallbackId: string): u
  */
 export function credentialsIntentFrom(values: ProfileFormValues): CredentialsIntent {
   if (values.removeCredentials) return { action: "clear" };
-  if (values.password !== "" || values.proxyUsername.trim() !== "") {
-    return { action: "set", username: values.proxyUsername.trim(), password: values.password };
+  if (values.password !== "" || values.proxyUsername !== "") {
+    return { action: "set", username: values.proxyUsername, password: values.password };
   }
   return { action: "keep" };
 }

@@ -12,8 +12,8 @@ import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n"
  * reject.
  *
  * Credentials: the password travels from this page to the background script over
- * `runtime.sendMessage` only, is never written to local storage, and is cleared
- * from the field after a successful save.
+ * `runtime.sendMessage` only. It stays in the current editor after Save so a later activation or
+ * correction cannot silently replace it with an empty value.
  */
 import { BUILTIN_DIRECT_PROFILE_ID, describeProxy, type IdentityProfile } from "../profile/schema";
 import { GUIDE } from "../shared/onboarding";
@@ -130,9 +130,18 @@ let credentialProfileIds: string[] = [];
 let selectedId: string | null = null;
 // A late initial storage snapshot must never replace work begun in the editor.
 let editorRevision = 0;
+let selectionRevision = 0;
 let manualUserEdited = false;
 let resolvedSeed: LocationSeed | null = null;
 let draftSeed: LocationSeed | null = null;
+
+const credentialEndpointKey = () =>
+  JSON.stringify([ui.proxyType.value, ui.proxyHost.value.trim().toLowerCase(), ui.proxyPort.value]);
+let credentialEndpoint: string | null = null;
+for (const field of [ui.proxyUsername, ui.password])
+  field.addEventListener("input", () => {
+    credentialEndpoint = credentialEndpointKey();
+  });
 
 const draftCheck = bindDraftCheck({
   fields: [
@@ -161,6 +170,19 @@ const draftCheck = bindDraftCheck({
       authenticationRequired:
         !values.removeCredentials && selectedProfile()?.proxy.authenticationRequired === true,
     };
+    if (
+      intent.action === "set" &&
+      credentialEndpoint !== null &&
+      credentialEndpoint !== credentialEndpointKey()
+    ) {
+      // Retaining the editor must not send an earlier endpoint's secret to a newly typed host.
+      const blocked = parseDraftRequest({
+        type: "draft:probe",
+        owner: "ui-draft-validation",
+        input: { proxy: { ...proxy, authenticationRequired: true }, credentials: null },
+      });
+      return blocked.ok && blocked.value.type === "draft:probe" ? blocked.value.input : null;
+    }
     const parsed = parseDraftRequest({
       type: "draft:probe",
       owner: "ui-draft-validation",
@@ -560,6 +582,8 @@ function updateVisibility(): void {
   syncMapSelection();
   renderLocationMap();
   ui.removeCredentialsRow.hidden = !hasCredentials;
+  ui.proxyUsername.placeholder = hasCredentials ? message("savedAuthentication") : "";
+  ui.password.placeholder = hasCredentials ? message("savedAuthentication") : "";
 
   renderHints();
   ui.proxyDns.disabled = !["socks4", "socks5"].includes(ui.proxyType.value);
@@ -643,6 +667,8 @@ function renderProfileList(): void {
 
 function selectProfile(profileId: string | null): void {
   editorRevision++;
+  selectionRevision++;
+  credentialEndpoint = null;
   draftCheck.cancel();
   requireElement<HTMLDetailsElement>("#section-auth").open = false;
   requireElement<HTMLDetailsElement>("#section-identity").open = false;
@@ -663,6 +689,8 @@ function selectProfile(profileId: string | null): void {
     ui.form.hidden = false;
     const profile = selectedProfile();
     writeForm(toFormValues(profile));
+    requireElement<HTMLDetailsElement>("#section-auth").open =
+      profileId !== null && credentialProfileIds.includes(profileId);
 
     ui.formTitle.textContent = profile === null ? message("newProfile") : profile.name;
     ui.formBadge.hidden = profile === null || profile.id !== activeProfileId;
@@ -690,6 +718,9 @@ function selectProfile(profileId: string | null): void {
 
 function renderSaveStatus(): void {
   const profile = selectedProfile();
+  ui.delete.disabled = profile === null;
+  ui.duplicate.disabled = profile === null;
+  ui.formBadge.hidden = profile === null || profile.id !== activeProfileId;
   const pending =
     profile !== null &&
     profile.id === runtimeState?.activeProfileId &&
@@ -797,7 +828,8 @@ function renderRuntimeRows(state: RuntimeState): void {
 
 async function reload(
   selectAfter: string | null = null,
-  initialEditorRevision?: number,
+  initialEditorRevision: number = editorRevision,
+  preserveEditor = false,
 ): Promise<ProfilesResponse | null> {
   const [profilesResponse, stateResponse] = await Promise.all([
     request({ type: "profiles:list" }, parseProfilesResponse),
@@ -820,13 +852,32 @@ async function reload(
     (selectedId !== null && profiles.some((profile) => profile.id === selectedId)
       ? selectedId
       : BUILTIN_DIRECT_PROFILE_ID);
-  if (initialEditorRevision === undefined || initialEditorRevision === editorRevision)
-    selectProfile(desiredSelection);
-  else renderProfileList();
+  if (initialEditorRevision === editorRevision && !preserveEditor) selectProfile(desiredSelection);
+  else {
+    renderProfileList();
+    updateVisibility();
+    renderSaveStatus();
+    if (selectedProfile() !== null) ui.formTitle.textContent = ui.name.value;
+  }
   return snapshot;
 }
 
+let savePending = false;
 async function saveProfile(): Promise<IdentityProfile | null> {
+  if (savePending) return null;
+  savePending = true;
+  ui.save.disabled = true;
+  try {
+    return await persistProfile();
+  } finally {
+    savePending = false;
+    ui.save.disabled = false;
+  }
+}
+
+async function persistProfile(): Promise<IdentityProfile | null> {
+  const saveRevision = editorRevision;
+  const saveSelection = selectionRevision;
   const values = readForm();
   if (values.name.trim() === "")
     values.name = `${values.proxyType.toUpperCase()} ${values.proxyHost}:${values.proxyPort}`;
@@ -864,13 +915,27 @@ async function saveProfile(): Promise<IdentityProfile | null> {
   }
 
   showErrors([]);
-  ui.password.value = "";
+  // Saving must not reset an editor that the user is still filling in.
+  // Bind a newly saved draft to its id only if the same editor is still open.
+  if (selectionRevision === saveSelection) {
+    selectedId = profile.id;
+    if (editorRevision === saveRevision) {
+      credentialEndpoint = credentialEndpointKey();
+      ui.name.value = profile.name;
+    }
+    if (intent.action === "clear" && editorRevision === saveRevision) {
+      ui.proxyUsername.value = "";
+      ui.password.value = "";
+      ui.removeCredentials.checked = false;
+    }
+  }
   renderStatus(response.value.state);
-  await reload(profile.id);
+  await reload(profile.id, saveRevision, true);
   return profile;
 }
 
 async function activateProfileById(profileId: string, preserveEditor = false): Promise<void> {
+  const activationRevision = editorRevision;
   const response = await request({ type: "profiles:activate", profileId }, parseMutationResponse);
   if (!response.ok) {
     showErrors(response.errors);
@@ -881,7 +946,7 @@ async function activateProfileById(profileId: string, preserveEditor = false): P
   }
   renderStatus(response.value.state);
   if (preserveEditor) renderProfileList();
-  else await reload(profileId);
+  else await reload(profileId, activationRevision, selectedId === profileId);
 }
 
 async function duplicateSelected(): Promise<void> {
@@ -943,6 +1008,7 @@ async function deactivate(): Promise<void> {
 }
 
 async function refreshIdentity(): Promise<void> {
+  const refreshRevision = editorRevision;
   ui.refreshIdentity.disabled = true;
   const response = await request({ type: "identity:refresh" }, parseMutationResponse);
   ui.refreshIdentity.disabled = false;
@@ -951,7 +1017,7 @@ async function refreshIdentity(): Promise<void> {
     return;
   }
   renderStatus(response.value.state);
-  await reload(selectedId);
+  await reload(selectedId, refreshRevision, true);
 }
 
 for (const field of [ui.geoIpPolicy, ui.geolocationPolicy, ui.timezonePolicy])
@@ -973,7 +1039,7 @@ ui.newProfile.addEventListener("click", () => {
 
 async function applySelected(): Promise<void> {
   if (ui.form.inert) return;
-  draftCheck.cancel();
+  draftCheck.cancel(true);
   ui.form.inert = true;
   ui.list.inert = true;
   ui.newProfile.disabled = true;

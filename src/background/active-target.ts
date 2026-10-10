@@ -109,7 +109,7 @@ export function parseActiveTargetSnapshot(value: unknown): Result<ActiveTargetSn
 
   let credentials: ProxyCredentials | null = null;
   if (value.credentials !== null && value.credentials !== undefined) {
-    const parsed = parseCredentials(value.credentials);
+    const parsed = parseCredentials(value.credentials, proxy.value.type);
     if (!parsed.ok) return fail(...parsed.errors);
     credentials = parsed.value;
   }
