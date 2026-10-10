@@ -147,6 +147,7 @@ const draftCheck = bindDraftCheck({
   ],
   status: requireElement<HTMLElement>("#draft-status"),
   retry: requireElement<HTMLButtonElement>("#draft-retry"),
+  disabled: () => ui.geoIpPolicy.value === "disabled",
   read: () => {
     if (ui.form.hidden || ui.geoIpPolicy.value === "disabled") return null;
     const values = readForm();
@@ -536,6 +537,7 @@ function setManualPoint(latitude: number, longitude: number, edited: boolean): v
 }
 
 function updateVisibility(): void {
+  draftCheck.refresh();
   const isManual = ui.modeManual.checked;
   const hasCredentials = selectedId !== null && credentialProfileIds.includes(selectedId);
 

@@ -2,12 +2,12 @@
 
 net-identity does not include telemetry, analytics, or remotely loaded program code.
 
-**Candidate boundary:** this document describes the unreleased bilingual/quick-setup
-candidate. Public listed 1.1.5 retains its immutable tagged policy and package; see
-[release verification](RELEASING.md#published-115-2026-10-01). The candidate has not
-been submitted, signed or published by preparing this policy.
+**Version scope:** this document describes the 1.2.0 source, including quick setup,
+bilingual UI and the optional vault. Historical 1.1.5 retains its immutable tagged
+policy and package; see [release verification](RELEASING.md#published-115-2026-10-01).
+Preparing this policy does not itself submit, sign or publish an extension version.
 
-## Encrypted storage (candidate)
+## Optional encrypted storage
 
 You can explicitly enable a master-password vault in the popup or settings. It encrypts
 profiles, saved and applied proxy credentials and the active snapshot locally. The key
@@ -30,7 +30,7 @@ remain unencrypted. Upgrades preserve existing configuration without setting a p
 | Proxy username and password                                                                                               | Firefox session storage                     | Until Firefox exits                           |
 | Active routing snapshot, including the credentials needed after the background page restarts                              | Firefox session storage                     | Until Firefox exits                           |
 
-Neither a username nor a password is written into the saved or applied profile. Schema 4 converts legacy usernames to a non-secret authentication-required flag. Migration removes secret keys from
+In this pre-vault mode, neither a username nor a password is written into the saved or applied profile. Schema 4 converts legacy usernames to a non-secret authentication-required flag. Migration removes secret keys from
 supported documents that can be migrated safely. Newer or unsafe documents are left
 unchanged and held inactive, rather than silently dropping a profile or its proxy.
 
@@ -95,7 +95,7 @@ If a selected proxy fails, ordinary external traffic fails rather than switching
 Firefox's direct or system route. The selected profile stays selected and can recover
 without a route switch. Without an enabled vault, after a full Firefox exit, session-only usernames and passwords are lost;
 if the applied profile requires authentication, non-bypassed ordinary webpage and
-extension-observable GeoIP requests are blocked until you save replacement credentials and Apply them. The request gate prevents those ordinary requests from
+extension-observable GeoIP requests are blocked until you save replacement credentials and enable the profile. The request gate prevents those ordinary requests from
 trying that endpoint anonymously, even if the proxy would accept it: anonymous access
 could produce a different egress identity. Profiles intentionally configured without
 authentication and explicit bypasses keep their existing behavior.
@@ -119,11 +119,13 @@ Pages receive the location and timezone of the active profile through compatibil
 - Use a proxy profile when the location lookup should see the proxy's address.
 - Use Custom identity policies for manual coordinates, a timezone override, unavailable geolocation, or disabled GeoIP lookup. Disabled GeoIP makes no GeoIP provider request; separately enabled map requests are independent.
 - Direct switches routing immediately even without optional consent. It keeps native geolocation blocked until Off; identity is unavailable until a permitted lookup succeeds.
-- Save stores edits without activation; Save and enable saves the visible form and then activates it. Choosing an existing route activates its saved configuration. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. Leaving both username and password blank keeps existing session credentials; entering either replaces the pair, and Clear credentials removes the saved credentials (Apply also removes them from runtime).
+- Save stores edits without activation; Save and enable saves the visible form and then activates it. Choosing an existing route activates its saved configuration. An event-page restart preserves the applied revision and credentials, including when a newer revision was saved. Leaving both username and password blank keeps existing stored credentials; entering either replaces the pair, and Clear credentials removes the saved credentials (enabling the updated profile also removes them from runtime).
 - Deactivate the profile to stop the shims and release the WebRTC setting.
 
-The committed applied route remains separate from editable saved profiles, with no
-usernames or passwords in durable profile storage. Historical release behavior is
+The committed applied route remains separate from editable saved profiles. Without
+vault setup, durable profile storage contains no usernames or passwords. With the
+vault enabled, saved and applied credentials persist only inside authenticated ciphertext;
+unlock restores the applied snapshot without activating newer saved edits. Historical release behavior is
 recorded in immutable tagged source archives and [release history](RELEASING.md).
 New map functionality does not alter those historical packages or submissions.
 
@@ -163,8 +165,8 @@ does not change OS firewalls or Firefox security settings.
 
 ## HTTP/HTTPS proxy account identity
 
-The proxy server must enforce authentication. Keeping a username/password pair in the
-session does not prove every HTTP/HTTPS proxy connection used that account: a server
+The proxy server must enforce authentication. Having a username/password pair available
+does not prove every HTTP/HTTPS proxy connection used that account: a server
 accepting anonymous CONNECT requests may not issue a 407 challenge. This applies to
 ordinary webpage and map traffic too, independently of the Firefox-protected service
 limitation. Require the server to reject anonymous access when account identity matters.

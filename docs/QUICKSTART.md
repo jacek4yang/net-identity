@@ -2,8 +2,8 @@
 
 [简体中文](QUICKSTART.zh-CN.md) · [Project](../README.md)
 
-The popup quick-add and bilingual interface described here are candidate-branch features,
-not a claim that the public AMO version already contains them. Use your own proxy.
+This guide describes the 1.2.0 source. Check AMO for the currently published version.
+Use your own proxy; Net Identity does not provide proxy servers or a VPN service.
 
 ## Add and use a proxy
 
@@ -11,11 +11,15 @@ not a claim that the public AMO version already contains them. Use your own prox
 2. Check the protocol. A bare address uses the visible SOCKS5 choice; an explicit URL
    scheme takes precedence. Examples: `127.0.0.1:10808`, `http://proxy.example.com:8080`,
    `socks5://[2001:db8::1]:1080`. There is no network-based protocol guessing.
-3. If required, expand session authentication and enter the username and password.
+3. If required, expand authentication and enter the username and password.
    Do not paste them into a URL. SOCKS4 has no authentication support in Firefox.
-4. **Save** stores the profile without changing the route. **Save & Activate** explicitly
-   applies it. Saving a syntactically valid address does not establish connectivity.
-5. Inspect the route status and identity diagnostics separately. An active route does
+4. A complete endpoint automatically checks its observed exit IP, approximate location and
+   timezone through that draft proxy before you save. Existing browsing keeps its active
+   route; no draft credentials or profile are saved by the check. Options with Public IP /
+   GeoIP set to Disabled do not schedule checks; popup quick setup previews by design.
+5. **Save** stores the profile without changing the route. **Save and enable** saves the
+   visible form and activates it. A valid address or successful preview is not activation.
+6. Inspect the route status and identity diagnostics separately. An active route does
    not prove that GeoIP resolved or every frame accepted the identity shim.
 
 A new proxy uses strict proxy-only WebRTC and automatic location/timezone. SOCKS DNS
@@ -29,15 +33,25 @@ Click a saved profile once to switch. Search by name, host, port or protocol wit
 changing routing. **Off** releases identity/WebRTC control. **Browser / System routing**
 uses the existing Firefox/system route, which can itself contain another proxy.
 
-In Settings, **Save** stores changes; **Apply** uses the saved revision. Unsaved edits
-stay in the form. Refresh uses the applied configuration. Duplicate never copies secrets.
-Closing Firefox loses session credentials; re-enter both fields and apply the profile.
-Leaving both fields blank on Save preserves existing session credentials.
+In Settings, **Save** stores changes without activation; **Save and enable** saves and
+activates the current visible form. Selecting a saved profile uses its saved revision.
+Refresh uses the applied configuration. Duplicate never copies secrets. Leaving both
+authentication fields blank on Save preserves existing stored credentials.
+
+Before vault setup, closing Firefox loses session credentials; re-enter both fields and
+enable the profile. With **Protect saved profiles** enabled, profiles and separate
+saved/applied credentials persist encrypted behind a master password. Unlock after a
+full Firefox restart to restore the applied snapshot; newer saved edits stay unapplied.
+Export an encrypted backup outside the Firefox profile. The master password cannot be
+reset, and backup restore is allowed only into an empty installation. See
+[encrypted storage and recovery](ENCRYPTED-VAULT.md).
 
 Language selection is independent of network identity. Advanced controls expose DNS,
-bypasses, manual coordinates, timezone and WebRTC. The online map is optional: its
-explicit load action discloses your visible IP/viewed area to the provider. The local
-grid and coordinate fields work without loading it.
+bypasses, manual coordinates, timezone and WebRTC. The online map is optional: first
+loading it discloses your network-visible IP/viewed area to OpenFreeMap and remembers
+automatic loading for later visible map openings. Each opening rechecks route, credentials
+and consent. Unload or unchecking automatic loading clears the preference. The local
+grid and coordinate fields work without network map data.
 
 ## Migrate from another extension
 
@@ -51,13 +65,18 @@ is read from another extension. Never attach credential-bearing exports to a pub
 ## Common questions
 
 - **Saved, but nothing changed?** Save is intentionally non-activating. Select the profile
-  or Apply the saved revision.
+  or choose Save and enable to use the current form.
 - **Proxy works but identity is partial?** GeoIP can fail independently. Check its diagnostic,
   connectivity and any required consent; do not assume a routing bypass.
-- **No internet after browser restart?** Session passwords are gone. Enter the matching
-  credentials and Apply. Missing credentials must not silently switch to Direct.
-- **Map is blank?** The default is an offline coordinate grid. Online data needs an explicit
-  load and a working route; coordinates remain usable when imagery fails.
+- **No internet after browser restart?** Unlock the vault if you enabled it. Otherwise,
+  session passwords are gone: enter matching credentials and Save and enable. Missing
+  credentials do not silently switch ordinary observed traffic to Direct. Firefox-protected
+  services remain outside complete extension control; servers must reject anonymous access.
+- **Forgot the master password?** There is no password-reset service. Backups require the
+  same password. Keep the password and an encrypted backup somewhere independently accessible.
+- **Map is blank?** The initial default is an offline coordinate grid. Online data needs
+  explicit first enablement or your remembered loading preference, plus a permitted working
+  route. Coordinates remain usable when imagery fails.
 - **A call no longer connects?** Strict proxy-only WebRTC requires a suitable proxy/TURN TCP
   path. Choose a less restrictive policy only with awareness of the privacy trade-off.
 - **Why isn't Direct direct?** It leaves Firefox/system proxy configuration in effect.

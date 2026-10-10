@@ -1,7 +1,7 @@
 # Net Identity
 
-A Firefox network identity manager that keeps **proxy, public IP, geolocation, timezone
-and WebRTC behaviour consistent**.
+Manage your Firefox proxy, observed public IP, page-visible location, timezone and
+WebRTC settings in one place, with clear diagnostics for what is actually applied.
 
 [Install for Firefox](https://addons.mozilla.org/en-US/firefox/addon/net-identity/) ·
 [简体中文](README.zh-CN.md) · [Quick setup and migration](docs/QUICKSTART.md) ·
@@ -9,9 +9,12 @@ and WebRTC behaviour consistent**.
 
 You supply the proxy; Net Identity does not sell proxy access or provide a VPN service.
 
-**Candidate branch:** popup quick setup, search, bilingual UI and stricter new-profile
-protection are in development and are not yet public AMO features. Existing releases
-remain immutable. See [the candidate interaction record](docs/UX-2.0.md).
+**Version scope:** this README describes the 1.2.0 source: compact English/Simplified
+Chinese light/dark interfaces, quick setup, search and an optional encrypted vault.
+Check [AMO](https://addons.mozilla.org/en-US/firefox/addon/net-identity/) and
+[GitHub Releases](https://github.com/jacek4yang/net-identity/releases) for published
+versions and signed installers. Preparing release source does not itself publish it.
+Existing releases remain immutable. See [the interaction record](docs/UX-2.0.md).
 
 **Firefox only.** There is no Chrome/Edge/Safari support and no cross-browser
 abstraction layer: the extension uses Firefox's native `browser.*` APIs (`proxy.onRequest`,
@@ -23,7 +26,7 @@ content scripts) precisely because those APIs allow a correct implementation.
 - Node.js for development: **>= 22** (required by `web-ext` 10)
 - Locally bundled MapLibre renderer; no telemetry or remote executable code
 
-**1.1.5 is released:** opt-in OpenFreeMap basemaps are available with locally bundled
+**Release history, 1.1.5:** opt-in OpenFreeMap basemaps were introduced with locally bundled
 MapLibre, readable CJK labels and an offline coordinate fallback. Mozilla approved the
 listed version on 2026-10-01; its unchanged signed XPI passed permanent installation in
 normal Firefox. The failed 1.1.4 attempt remains immutable. See [release history](docs/RELEASING.md).
@@ -33,7 +36,7 @@ normal Firefox. The failed 1.1.4 attempt remains immutable. See [release history
 A proxy changes the network route, but page-visible identity and browser policy need
 separate attention. The extension addresses these distinct concerns:
 
-| Leak                                                | What net-identity does                                                         |
+| Concern                                             | What net-identity does                                                         |
 | --------------------------------------------------- | ------------------------------------------------------------------------------ |
 | DNS resolved outside the proxy                      | `proxyDNS` for SOCKS, so names are resolved by the proxy                       |
 | WebRTC exposing the real interface/IP               | applies a WebRTC IP handling policy when the profile activates                 |
@@ -57,13 +60,13 @@ separate attention. The extension addresses these distinct concerns:
   (create, edit, duplicate, delete, activate).
 - **Proxy support** for `direct`, `http`, `https`, `socks4` and `socks5`, with bypass
   lists (hosts, `*.domain`, IP literals, IPv4 CIDR) and loopback always bypassed.
-- **Encrypted local vault (candidate):** save profiles and proxy passwords behind a master
+- **Optional encrypted local vault:** save profiles and proxy passwords behind a master
   password, with encrypted backups and upgrade-safe migration. [Storage boundaries](docs/ENCRYPTED-VAULT.md).
 - **Proxy authentication:** session-only before vault setup; persistent ciphertext after setup.
   Preemptive Basic for HTTP/HTTPS, strict challenge matching
   for proxies that demand `407`.
 - **Automatic identity**: the public egress IP is observed through the active proxy and
-  the derived country/region/city/timezone/coordinates are applied everywhere.
+  the derived location and timezone are supplied to eligible pages through compatibility shims.
 - **Manual identity**: pin coordinates, accuracy and timezone yourself.
 - **Identity audit**: per-aspect status using precise terms — _consistent_,
   _not configured_, _unavailable_, _manual_, _provider error_, _controlled by another
@@ -95,9 +98,12 @@ Full details, including why each Firefox API is used the way it is, are in
 
 ## Security model
 
-1. Proxy usernames and passwords live **only** in `browser.storage.session` and vanish when Firefox
-   exits. They are never written to `storage.local`, never included in a profile, never
-   logged, and never sent to a content script, page or GeoIP provider.
+1. Before explicit vault setup, proxy credentials live only in `browser.storage.session`
+   and vanish when Firefox exits. With the vault enabled, profiles and separate saved/applied
+   credentials persist as authenticated ciphertext; the master password is never stored and
+   the derived key is session-only. Full Firefox exit requires unlocking again. Plaintext
+   credentials are never written to durable profile storage, logged or sent to a content
+   script, page or GeoIP provider. See [encrypted storage and recovery](docs/ENCRYPTED-VAULT.md).
 2. Only this extension can talk to the background script (`sender.id` check), and every
    message and stored value is validated by a parser before use.
 3. The MAIN-world channel carries exactly one shape of data:
@@ -120,6 +126,12 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
   optional personal-data collection. The request sends no credentials, no cookies and
   no referrer, and the response is never cached. Installing the extension does not
   create or activate a profile, so a fresh install makes no such request.
+- **Typing a valid proxy endpoint can also start a lookup before Save or enable.**
+  Quick setup and the editor automatically check the draft through that entered proxy
+  after a short pause. Only the marked preview request uses the draft; ordinary browsing
+  keeps its active route. Checks do not save profiles or credentials, never fall back to
+  Direct, and are cancelled when the input changes or the editor closes. In Options,
+  Public IP / GeoIP set to Disabled suppresses checks; popup quick setup previews by design.
 - This is declared to AMO as required `locationInfo` and `authenticationInfo` collection, with
   `personallyIdentifyingInfo` as optional; see
   [`docs/SECURITY.md`](docs/SECURITY.md#data-collection-declaration).
@@ -128,14 +140,16 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 - The timezone and geolocation shims are **compatibility shims, observable by
   sophisticated page scripts**. They are not a claim of fingerprinting invisibility, and
   controlled geolocation reports a synthetic permission status.
-- The options location picker starts with a local grid and makes **no automatic map
-  requests**. The **Load online map** action adds OpenFreeMap geographic
-  imagery beneath the existing selection controls. MapLibre code, CSS and its worker
-  are bundled locally. Manual coordinate entry and the grid remain available offline.
+- The location picker starts with a local grid. **Load online map** enables OpenFreeMap
+  and remembers automatic loading for later visible map openings. Unload or unchecking
+  automatic loading clears that preference. Each opening rechecks route, credentials and
+  consent; it cannot request new permission without a user gesture. MapLibre code, CSS
+  and its worker are bundled locally. Coordinates and the grid remain usable offline.
 - Online map requests reveal the viewed region and network-visible IP to OpenFreeMap
   and its delivery infrastructure. Direct/browser routing additionally requires the
   optional personal-data grant. Proxy failures do not enable a Direct fallback;
-  route changes cancel the map session and require a new explicit enable action.
+  route changes cancel the old map session. A remembered loading preference never
+  bypasses the current route, credential or consent checks.
   See [tile policy and attribution](docs/TILE-POLICY.md) and [privacy](docs/PRIVACY.md).
 
 ## Requirements
@@ -148,7 +162,7 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the invariants and
 
 For normal Firefox, install from the public
 [AMO listing](https://addons.mozilla.org/en-US/firefox/addon/net-identity/).
-Version **1.1.5** is public on AMO and uses Firefox's default AMO update channel.
+Version **1.1.5** was published on AMO using Firefox's default AMO update channel.
 Its [signed installer, source, checksums and provenance](https://github.com/jacek4yang/net-identity/releases/tag/v1.1.5)
 were published on 2026-10-01 after Mozilla approval and permanent signed-install
 verification in normal Firefox 157. The public description and privacy policy were
@@ -220,26 +234,30 @@ npm run e2e:websocket
 
 ## Creating a profile
 
-1. Open the extension's **Manage Profiles** page.
-2. **New profile** → name it.
-3. Pick the proxy type and fill in host/port (or choose `direct`).
-4. Optionally set a proxy username/password. _Stored only for the current Firefox
-   session._
-5. Choose the identity mode:
-   - **Automatic** – the proxy's observed egress identity is resolved and applied.
-   - **Manual** – enter latitude, longitude, accuracy and an IANA timezone.
-6. Pick a WebRTC policy and **Save**.
-7. Click **Save and enable**, or save for later and click the saved profile row in the popup. The popup shows the resulting identity, the audit and the state of
-   open pages.
+1. Open the popup and choose **Add Proxy**, or create a profile in Settings.
+2. Enter the host/port and confirm the protocol. Add credentials separately if required.
+3. A complete endpoint automatically previews its observed exit IP, approximate location
+   and timezone through that draft proxy. This does not switch your browsing route or save
+   the draft. Options with GeoIP Disabled do not schedule the check.
+4. Keep the new-profile defaults or customize identity, DNS, bypasses and WebRTC.
+   Manual coordinates and timezone are not overwritten by a preview.
+5. **Save** stages edits without changing the active route. **Save and enable** saves the
+   visible form and activates it; selecting a saved profile activates its saved revision.
+6. Inspect routing and identity diagnostics separately. Preview success does not mean
+   the profile is enabled or that every page has accepted its identity.
+7. Optionally enable **Protect saved profiles** to encrypt profiles and credentials with
+   a master password. Export an encrypted backup and keep the password: it cannot be reset.
+   Without the vault, credentials last only until Firefox exits. With it, unlock after a
+   full restart to restore the applied snapshot, not any newer saved-but-unapplied edits.
 
 ## Proxy support
 
-| Type            | Notes                                                                                                                                           |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `direct`        | No proxying. Beware: this does **not** override a proxy configured in Firefox's own settings — the audit reports that case as _not configured_. |
-| `http`, `https` | Optional credentials, sent as a preemptive `Proxy-Authorization` header and, if the proxy answers `407`, through strict challenge matching.     |
-| `socks5`        | Optional username/password (SOCKS authentication). `Proxy DNS` defaults to on, so names are resolved by the proxy.                              |
-| `socks4`        | No authentication (a Firefox limitation — the UI says so) and `proxyDNS` is honoured.                                                           |
+| Type            | Notes                                                                                                                                                             |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `direct`        | No extension-configured proxy. Beware: this does **not** override a proxy configured in Firefox's own settings — the audit reports that case as _not configured_. |
+| `http`, `https` | Optional credentials, sent as a preemptive `Proxy-Authorization` header and, if the proxy answers `407`, through strict challenge matching.                       |
+| `socks5`        | Optional username/password (SOCKS authentication). `Proxy DNS` defaults to on, so names are resolved by the proxy.                                                |
+| `socks4`        | No authentication (a Firefox limitation — the UI says so) and `proxyDNS` is honoured.                                                                             |
 
 Bypass lists accept bare hosts, `*.domain`, IP literals and IPv4 CIDR ranges.
 `localhost`, `127.0.0.1` and `::1` are always bypassed. The GeoIP endpoint is
@@ -283,7 +301,7 @@ stay direct.
 
 - Applies `privacy.network.webRTCIPHandlingPolicy` on activation, after checking
   `levelOfControl`.
-- On this candidate branch, new proxies select strict `proxy_only`. Previously saved
+- New proxies select strict `proxy_only`. Previously saved
   automatic/manual choices remain unchanged. Strict mode can prevent calls without
   TURN over TCP through the proxy; it does not disable the entire WebRTC API.
 - If another extension or an enterprise policy controls the setting, the UI says
@@ -436,8 +454,9 @@ traffic establishes recovery. The selected profile and synthetic identity stay u
 Suspected SOCKS failures can briefly delay new proxy decisions with a bounded cooldown.
 The extension never replays failed HTTP requests, changes to Direct, or launches background
 health probes. See [the exact bounds and limitations](docs/ARCHITECTURE.md#passive-socks-health).
-Schema 4 removes legacy stored usernames; usernames and passwords live only for the
-Firefox session. Enter both again when replacing an authenticated pair.
+Schema 4 removes legacy plaintext stored usernames. Without vault setup, credentials
+last only for the Firefox session; with the vault, they persist encrypted. Enter both
+fields when replacing an authenticated pair. Saved and applied credentials stay separate.
 
 ### Authentication data consent
 

@@ -44,8 +44,9 @@ describe("AMO reviewer package", () => {
     expect(privacy).toContain("no map\nnetwork request");
     expect(privacy).toContain("not private from the map provider");
     expect(privacy).toContain("optional personal-data consent");
-    expect(privacy).toContain("unreleased bilingual/quick-setup");
-    expect(privacy).toContain("Public listed 1.1.5 retains its immutable tagged policy");
+    expect(privacy).toContain(`describes the ${packageJson.version} source`);
+    expect(privacy).toContain("Preparing this policy does not itself submit, sign or publish");
+    expect(privacy).toContain("Historical 1.1.5 retains its immutable tagged");
     expect(privacy).not.toContain("standard extension Referer");
     expect(privacy).toMatch(/storage\.session|session storage/);
     expect(privacy).toMatch(/does not include telemetry/i);

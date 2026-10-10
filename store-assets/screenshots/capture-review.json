@@ -1,12 +1,19 @@
 {
-  "extensionVersion": "1.1.5",
-  "sourceCommit": "e5bb71c3fbcd777755a00a231d6e0da54ec2892d",
+  "extensionVersion": "1.2.0",
+  "sourceCommit": "74df312bbf324cfaf6b9b76f5ca1136f793f92c8",
   "capture": {
-    "runUrl": "https://github.com/jacek4yang/net-identity/actions/runs/36863012728",
+    "runUrl": "https://github.com/jacek4yang/net-identity/actions/runs/38041843194",
     "conclusion": "success",
-    "artifactId": 11163131466,
+    "artifactId": 11666526696,
     "artifactName": "candidate-real-map-listing",
-    "artifactSha256": "a8d97d1da00ce7c7fae360d6c72136a3402e6dda8c94406e179f2f8f8954bda3"
+    "artifactSha256": "3a2053c6f2eaa0745367edadd41cc5e6f7d64f5b6061677fa4fde4f56bb6e71e"
+  },
+  "bilingualReview": {
+    "artifactId": 11665837865,
+    "artifactSha256": "639157faa1b70e7e70cd46f50f7d4c53bfa1f04a39f2b07e5b8b784c89c1d885",
+    "themes": ["dark", "light"],
+    "locales": ["en", "zh_CN"],
+    "sinhalaFontFamilies": ["Noto Sans Sinhala", "Noto Serif Sinhala"]
   },
   "provenance": {
     "build": "unsigned local candidate",
@@ -19,20 +26,23 @@
     "archiveDigestVerified": true,
     "sourceCommitVerified": true,
     "imageCount": 4,
+    "sourceImageCount": 9,
     "allImageDimensions": "1280x800",
     "allImageHashesVerified": true,
     "capturedUiAndRendererSourceHashesVerified": 9,
-    "comparedAgainst": ["local production dist", "matching entries in net-identity-1.1.5.zip"]
+    "comparedAgainst": ["local production dist", "matching entries in net-identity-1.2.0.zip"],
+    "unsignedZipSha256": "a531f8ac326e0a80717de5d8d629512c46f54f7c2da4f79854e6273a95e3e328"
   },
   "visualReview": {
-    "reviewedOn": "2026-10-01",
+    "reviewedOn": "2026-10-10",
     "passed": true,
-    "actualGeography": "Tokyo Bay, roads, coastline and surrounding cities rendered from real OpenFreeMap data",
-    "cjkLabels": "Japanese labels render correctly without missing-glyph boxes",
-    "powerIcon": "Locally bundled SVG renders correctly",
-    "framing": "Complete Identity & Privacy fieldset including all policy controls, warning, map, attribution, provider disclosure, online state and coordinate inputs; native scale; 11px top and bottom margins",
+    "actualGeography": "Real Tokyo roads, coastlines, labels, marker and radius; world zoom-2 Sinhala labels reviewed in both themes",
+    "cjkLabels": "Japanese and Chinese labels readable",
+    "sinhalaLabels": "Reviewed on capture host with Noto Sinhala; complex grapheme rendering still depends on suitable local fonts on user systems",
+    "draftStatus": "English and Chinese GeoIP-disabled policy is accurately shown; no probe is enabled by this wording fix",
+    "framing": "Entire identity fieldset and audit region preserved; uniform source-to-1280x800 framing scale and bounds recorded per image, never claimed native scale when reduced",
     "attribution": ["OpenFreeMap", "© OpenMapTiles", "Data from OpenStreetMap"],
-    "privacy": "Only synthetic Tokyo identity, coordinates and loopback endpoint are visible; no real public IP or credentials"
+    "privacy": "Synthetic Tokyo identity and loopback endpoint only; no real public IP or credentials"
   },
   "requestEvidence": {
     "active": 0,
@@ -41,9 +51,9 @@
     "glyphRequests": 99,
     "failures": 0,
     "glyphFailures": 0,
-    "totalBytes": 20564081,
+    "totalBytes": 20563678,
     "glyphBytes": 19617835,
     "observerErrors": 0
   },
-  "scope": "Candidate screenshot capture and visual review only. This receipt does not assert Mozilla signing, AMO approval or public publication."
+  "scope": "Candidate screenshot capture and visual review only. Does not assert Mozilla signing, AMO approval or public publication."
 }

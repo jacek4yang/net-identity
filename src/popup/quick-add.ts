@@ -26,6 +26,7 @@ export function bindQuickAdd(deps: {
   const username = requireElement<HTMLInputElement>("#quick-username");
   const password = requireElement<HTMLInputElement>("#quick-password");
   const status = requireElement<HTMLElement>("#quick-status");
+  let pending = false;
   const draftCheck = bindDraftCheck({
     fields: [protocol, host, port, username, password],
     status: requireElement<HTMLElement>("#quick-draft-status"),
@@ -59,7 +60,6 @@ export function bindQuickAdd(deps: {
     status.textContent = lastStatus.map(lt).join(" ");
     toggle.textContent = message(panel.hidden ? "addProxy" : "backToRoutes");
   });
-  let pending = false;
   // Reuse an id after a partial write/transport error rather than creating duplicates on retry.
   let draftId: string | undefined;
   toggle.addEventListener("click", () => {

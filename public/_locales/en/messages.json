@@ -959,6 +959,12 @@
   "draftIdle": {
     "message": "Enter an address and port to start."
   },
+  "draftDisabled": {
+    "message": "Draft checks are disabled because Public IP / GeoIP is Disabled."
+  },
+  "draftUnchecked": {
+    "message": "This endpoint has not been checked. Edit it or choose Check again."
+  },
   "draftWaiting": {
     "message": "Preparing check…"
   },
