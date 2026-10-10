@@ -1,0 +1,13 @@
+{
+  "version": "1.2.0",
+  "source_pull_requests": [
+    {
+      "number": 92,
+      "title": "feat: simplify proxy setup, bilingual UI and encrypted profile storage"
+    }
+  ],
+  "release_notes": {
+    "en-US": "Changes from PR #92: simplify proxy setup, bilingual UI and encrypted profile storage.\n\n• Compact English/Simplified Chinese interfaces with light and dark themes, profile search and quicker setup.\n• Automatic draft checks preview the exit IP, approximate location and timezone through the entered proxy without changing existing browsing. Checks contact ipwho.is before Save or enable.\n• Save stages edits; Save and enable saves and activates the visible form. Saved and applied configurations stay separate.\n• Optional local master-password vault keeps profiles and credentials encrypted across Firefox restarts, with encrypted backup and empty-install restore. Unlock again after a full restart; the master password cannot be reset.\n• New proxies default to proxy-only WebRTC, automatic identity and SOCKS proxy DNS. Existing choices are preserved and remain editable.\n• Online maps remember the user's loading preference while rechecking routing, credentials and consent for each visible opening.\n\nFirefox desktop 140+; bring your own proxy. No anonymity or browser-wide kill-switch guarantee. Protected Firefox requests remain outside complete extension control, and proxy servers must reject anonymous access when account identity matters.",
+    "zh-CN": "来自 PR #92：简化代理配置、双语界面与加密配置存储。\n\n• 紧凑英文／简体中文界面，支持浅色／深色主题、配置搜索与快速添加。\n• 自动通过输入的草稿代理预览出口 IP、大致位置和时区，不改变已有浏览线路；保存或启用前会请求 ipwho.is。\n• “保存”保留编辑；“保存并启用”保存并应用当前表单。已保存与已应用配置保持独立。\n• 可选本地主密码保险库让配置与凭据跨 Firefox 重启加密保存，支持加密备份及空白安装恢复。完整重启后需重新解锁，主密码无法重置。\n• 新代理默认采用仅代理 WebRTC、自动身份及 SOCKS 代理 DNS；已有选择保留，仍可手动调整。\n• 在线地图记住用户的加载偏好，每次打开可见地图仍检查当前线路、凭据与许可。\n\n需要 Firefox 桌面版 140 或更新版本，请自备代理。不保证匿名，也不是浏览器级万能断网开关。Firefox 受保护请求仍存在控制边界；需要确保账户身份时，代理服务器必须拒绝匿名访问。"
+  }
+}

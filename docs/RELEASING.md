@@ -377,3 +377,40 @@ copy-only receipt retains its dated pre-replacement observation.
 These are public verification records, not trusted automated-publisher transactions.
 The publisher must not automatically adopt these manually uploaded previews or fabricate
 its journal from them. Historical release assets remain unchanged.
+
+## 1.2.0 candidate preparation (2026-10-10)
+
+The owner authorized PR #92 merge, a version PR, tagging, listed AMO submission,
+post-approval signed release publication, and bilingual store copy/media updates.
+PR #92 was squash-merged to `4ca3d0bf7b6dbd0bfdbfd16c8a7d05b657fbfe21`;
+[merged-main CI](https://github.com/jacek4yang/net-identity/actions/runs/38037319129)
+passed. At 08:18 UTC, authenticated AMO version history showed listed 1.1.5 approved
+and no 1.2.0 entry; GitHub had no v1.2.0 tag. These observations do not reserve the
+version or establish submission, approval, signing or publication.
+
+This candidate aligns package/lockfile/manifest to 1.2.0, keeps listed distribution
+and the stable extension ID, and documents optional encrypted storage, isolated
+draft checks, configurable protection defaults and remembered visible-map loading.
+The runtime from PR #92 is unchanged by version preparation.
+
+### Preserved map-test failure and stronger qualification
+
+[Capture 38037300530](https://github.com/jacek4yang/net-identity/actions/runs/38037300530)
+failed before producing listing artwork: the radio remained Manual when the harness
+attempted Automatic, and a subsequent map click changed coordinates. Earlier
+[CI 37995379329](https://github.com/jacek4yang/net-identity/actions/runs/37995379329)
+reported success, but its no-WebGL log also showed Manual at this checkpoint: clicking
+the same point twice hid the failed setup. Neither outcome is erased or treated as
+proof of Automatic-mode read-only behavior.
+
+The revised harness first settles the native radio's visible, hit-testable geometry,
+uses a real WebDriver click, and fails immediately unless mode, preview and disabled
+coordinate controls agree. Both renderer variants then click a different map point
+and verify the mode and unchanged coordinates. It neither forces radio state nor
+retries a failed click until success. Fresh ordinary-font, isolated-font and fallback
+checks are required; earlier greens do not qualify this new head.
+
+Versioned imagery must come from the new production bundle and retain synthetic-fixture
+and unsigned-candidate provenance. Copy/media publication still waits for exact-version
+AMO approval and signed-payload verification. Historical listing receipts remain
+manual-publication evidence and must not be adopted as automatic-publisher journals.

@@ -58,16 +58,36 @@ jobs:
         run: xvfb-run -a node scripts/e2e-map.mjs --firefox /usr/bin/firefox --screenshots artifacts/map-gate
       - name: Capture actual provider geography using the production UI
         env:
-          EVENT_NAME: ${{ github.event_name }}
           LIBGL_ALWAYS_SOFTWARE: "1"
           LP_NUM_THREADS: "2"
         run: |
           set -euo pipefail
-          args=()
-          if [ "$EVENT_NAME" = "pull_request" ]; then args+=(--review); fi
           xvfb-run -a node scripts/e2e-ui.mjs --firefox /usr/bin/firefox \
-            --live-map --screenshots artifacts/listing-map --timeout 180 "${args[@]}"
+            --live-map --screenshots artifacts/listing-map --timeout 180
           git rev-parse HEAD > artifacts/listing-map/source-commit.txt
+      - name: Capture bilingual light and dark review surfaces
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          LP_NUM_THREADS: "2"
+        run: |
+          set -euo pipefail
+          for theme in dark light; do
+            args=()
+            if [ "$theme" = "light" ]; then args+=(--light); fi
+            xvfb-run -a node scripts/e2e-ui.mjs --firefox /usr/bin/firefox \
+              --live-map --review --screenshots "artifacts/review-$theme" --timeout 180 "${args[@]}"
+            xvfb-run -a node scripts/e2e-ui.mjs --firefox /usr/bin/firefox \
+              --draft-check --draft-evidence artifacts/draft-review --timeout 180 "${args[@]}"
+          done
+      - name: Upload bilingual acceptance images
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-bilingual-review
+          path: |
+            artifacts/review-dark/*
+            artifacts/review-light/*
+            artifacts/draft-review/*
+          if-no-files-found: error
       - name: Upload candidate images for visual review, not publication
         uses: actions/upload-artifact@v7
         with:
@@ -75,8 +95,9 @@ jobs:
           path: artifacts/listing-map/*
           if-no-files-found: error
       - name: Upload deterministic rendering evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: candidate-map-render-gate
           path: artifacts/map-gate/*
-          if-no-files-found: error
+          if-no-files-found: ignore

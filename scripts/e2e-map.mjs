@@ -247,10 +247,55 @@ async function main() {
       ) {
         await click("#section-identity > summary");
       }
+      // Radio controls can be above the viewport after map interaction. Gecko's
+      // native click can miss while scroll anchoring is settling, without raising
+      // an error. Settle the real target first; never force checked or retry clicks.
+      if (selector.startsWith("#field-mode-")) {
+        await execute(
+          "document.querySelector(arguments[0]).scrollIntoView({block:'center',behavior:'instant'});",
+          [selector],
+        );
+        let previous;
+        let settled = false;
+        const deadline = Date.now() + 2000;
+        while (Date.now() < deadline) {
+          const geometry = await execute(
+            `const e=document.querySelector(arguments[0]),r=e.getBoundingClientRect();
+             const x=r.left+r.width/2,y=r.top+r.height/2;
+             return {rect:[r.left,r.top,r.width,r.height],
+               hit:document.elementFromPoint(x,y)===e,
+               visible:r.width>0&&r.height>0&&r.top>=0&&r.left>=0&&
+                 r.bottom<=innerHeight&&r.right<=innerWidth};`,
+            [selector],
+          );
+          if (
+            geometry.hit &&
+            geometry.visible &&
+            JSON.stringify(geometry.rect) === JSON.stringify(previous)
+          ) {
+            settled = true;
+            break;
+          }
+          previous = geometry.rect;
+          await pause(50);
+        }
+        if (!settled) throw new Error(`Radio target did not settle: ${selector}`);
+      }
       const element = (
         await client.send("WebDriver:FindElement", { using: "css selector", value: selector })
       ).value;
       await client.send("WebDriver:ElementClick", { id: element[ELEMENT] });
+      if (selector.startsWith("#field-mode-")) {
+        const expectedAuto = selector === "#field-mode-auto";
+        const mode = await readMode();
+        const selected =
+          mode.auto === expectedAuto &&
+          mode.manual === !expectedAuto &&
+          mode.preview === expectedAuto &&
+          mode.coordinatesDisabled === expectedAuto;
+        check(selected, `Native mode selection ${selector}: ${JSON.stringify(mode)}`);
+        if (!selected) throw new Error(`Native mode selection failed: ${selector}`);
+      }
     };
     const fill = async (fields) =>
       execute(
@@ -258,10 +303,10 @@ async function main() {
         [fields],
       );
     const state = () => call({ type: "state:get" });
-    const point = (selector) =>
+    const point = (selector, x = 0.27, y = 0.63) =>
       execute(
-        `const e=document.querySelector(arguments[0]);e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return {x:Math.round(r.left+r.width*.27),y:Math.round(r.top+r.height*.63)};`,
-        [selector],
+        `const e=document.querySelector(arguments[0]);e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return {x:Math.round(r.left+r.width*arguments[1]),y:Math.round(r.top+r.height*arguments[2])};`,
+        [selector, x, y],
       );
     const pointer = async (from, to = from) =>
       client.send("WebDriver:PerformActions", {
@@ -279,6 +324,13 @@ async function main() {
           },
         ],
       });
+    const readMode = () =>
+      execute(`return {
+      auto:document.getElementById('field-mode-auto').checked,
+      manual:document.getElementById('field-mode-manual').checked,
+      preview:document.getElementById('location-map-surface').classList.contains('is-preview'),
+      coordinatesDisabled:document.getElementById('field-latitude').disabled &&
+        document.getElementById('field-longitude').disabled};`);
     const readMap = () =>
       execute(
         `const s=document.getElementById('location-map-surface');return {lat:document.getElementById('field-latitude').value,lng:document.getElementById('field-longitude').value,center:s.dataset.center,zoom:s.dataset.zoom};`,
@@ -426,8 +478,15 @@ async function main() {
       );
       await click("#field-mode-auto");
       const readOnly = await readMap();
-      await pointer(await point("#location-map-surface"));
+      // A different point avoids a false pass when a missed mode click leaves
+      // manual editing active and the last selected point is clicked again.
+      await pointer(await point("#location-map-surface", 0.73, 0.31));
       const afterReadOnly = await readMap();
+      const modeAfter = await readMode();
+      check(
+        modeAfter.auto && !modeAfter.manual && modeAfter.preview && modeAfter.coordinatesDisabled,
+        "Automatic mode remains selected after map interaction",
+      );
       log(
         `Fallback automatic preview: ${JSON.stringify({ before: readOnly, after: afterReadOnly, mode: await execute("return {auto:document.getElementById('field-mode-auto').checked,manual:document.getElementById('field-mode-manual').checked,preview:document.getElementById('location-map-surface').classList.contains('is-preview')};") })}`,
       );
@@ -644,8 +703,15 @@ async function main() {
       );
       await click("#field-mode-auto");
       const readOnly = await readMap();
-      await pointer(await point("#location-map-surface"));
+      // A different point avoids a false pass when a missed mode click leaves
+      // manual editing active and the last selected point is clicked again.
+      await pointer(await point("#location-map-surface", 0.73, 0.31));
       const afterReadOnly = await readMap();
+      const modeAfter = await readMode();
+      check(
+        modeAfter.auto && !modeAfter.manual && modeAfter.preview && modeAfter.coordinatesDisabled,
+        "Automatic mode remains selected after map interaction",
+      );
       log(
         `Automatic preview transition: ${JSON.stringify({ before: readOnly, after: afterReadOnly, mode: await execute("return {auto:document.getElementById('field-mode-auto').checked,manual:document.getElementById('field-mode-manual').checked,preview:document.getElementById('location-map-surface').classList.contains('is-preview')};") })}`,
       );

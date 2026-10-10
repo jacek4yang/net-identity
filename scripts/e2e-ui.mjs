@@ -924,7 +924,7 @@ async function main() {
                 signedRelease: false,
               },
               userAgent,
-              theme: "dark",
+              theme: values.light ? "light" : "dark",
               sourceHashes,
               ...(liveMap
                 ? {
