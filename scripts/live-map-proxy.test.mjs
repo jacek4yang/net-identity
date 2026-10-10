@@ -150,6 +150,7 @@ test(
       await writeFile(path.join(root, "dist/manifest.json"), '{"version":"0.0.0"}');
       for (const name of [
         "e2e-ui.mjs",
+        "audit-ux.mjs",
         "live-map-proxy.mjs",
         "capture-frame.mjs",
         "draft-probe-fixture.mjs",

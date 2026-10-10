@@ -50,3 +50,17 @@ Firefox 157.0.1 on the isolated Linux cloud test environment; synthetic accounts
 ### Still not established
 
 Native toolbar-popup sizing and scrolling in a regular signed installation; full screen-reader navigation; all forced-colors states; every import/upgrade path; actual owner remote-proxy performance; comparative human task completion against v1.2.0. Do not label this a full WCAG compliance audit or a complete usability certification. Publication remains a separate decision.
+
+## Persistent regression gates
+
+The shared Firefox workflow runs these checks on pull requests and release tags:
+
+- `node scripts/e2e-ui.mjs --draft-check --ux-audit --draft-evidence artifacts/ux-dark --firefox "$firefox"`
+- The same command with `--light` and a separate evidence directory.
+- `node scripts/e2e-microsocks.mjs --microsocks /usr/bin/microsocks --firefox "$firefox"`
+
+The UX audit preserves axe results (including reviewed incomplete findings), actual viewport/zoom measurements, keyboard samples and repeated-action latency in CI artifacts. It rejects newly determined violations, unreviewed incomplete findings, lost credentials, missing keyboard focus and horizontal overflow at the tested zoom. Local timing is recorded rather than used as a brittle runner-speed assertion.
+
+The independent microsocks check uses mandatory synthetic username/password authentication, real Firefox options-editor actions and HTTP transfers. Negative credentials must fail before corrected credentials succeed. It covers concurrent requests, daemon outage/recovery, credential replacement and Unicode/whitespace. A separate native extension-menu popup check uses Firefox WebDriver key/click actions to exercise Save, scrolling, Back and reopening in the actual popup document. Temporary-addon evidence does not replace signed-install qualification.
+
+These gates cover the stated paths, not every possible human interaction. Release approval remains conditional on closing the required acceptance gaps above; a green workflow is not permission to relabel NOT RUN as PASS.

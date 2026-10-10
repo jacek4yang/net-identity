@@ -1,3 +1,4 @@
+import { auditUx } from "./audit-ux.mjs";
 import { runVaultChecks } from "./run-vault-checks.mjs";
 import { DELAYED_OPTIONS_STARTUP } from "./delayed-options-startup.mjs";
 import { createDraftFixture } from "./draft-probe-fixture.mjs";
@@ -43,6 +44,7 @@ const { values } = parseArgs({
     "draft-check": { type: "boolean", default: false },
     "vault-check": { type: "boolean", default: false },
     "delayed-init": { type: "boolean", default: false },
+    "ux-audit": { type: "boolean", default: false },
     "draft-evidence": { type: "string" },
   },
 });
@@ -285,6 +287,8 @@ async function main() {
     process.exit(2);
   }
 
+  if (values["ux-audit"] && (!values["draft-check"] || !values["draft-evidence"]))
+    throw new Error("--ux-audit requires --draft-check and --draft-evidence");
   if (values["delayed-init"] && !values["draft-check"])
     throw new Error("Delayed startup requires the isolated draft fixture");
   let sourceDirectory = path.join(root, "dist");
@@ -408,6 +412,9 @@ async function main() {
       capabilities: {
         alwaysMatch: {
           browserName: "firefox",
+          // Each UI step waits for its own ready state. Unrelated map/image loads
+          // must not hold navigation open while testing a deliberately limited proxy.
+          pageLoadStrategy: "eager",
           acceptInsecureCerts: liveMap === null && draftFixture === null,
           unhandledPromptBehavior: "dismiss",
         },
@@ -624,6 +631,19 @@ async function main() {
                     await client.send("WebDriver:SetWindowRect", { width: 1280, height: 900 });
                   }
                   await execute("document.activeElement?.blur(); window.scrollTo(0, 0);");
+                  if (values["ux-audit"]) {
+                    await auditUx({
+                      client,
+                      execute,
+                      click,
+                      waitFor,
+                      check,
+                      output,
+                      name,
+                      language,
+                      light: values.light,
+                    });
+                  }
                   const screenshot = await client.send("WebDriver:TakeScreenshot", { full: true });
                   await writeFile(
                     path.join(
