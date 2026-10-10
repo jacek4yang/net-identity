@@ -24,7 +24,7 @@ changes diagnostic health only. In particular:
 ordinary proxy-bound request + unavailable proxy -> request failure
 ```
 
-The route changes only after an explicit user action. Proxy usernames and passwords remain
+The route changes only after an explicit user action. Without the optional encrypted vault, proxy usernames and passwords remain
 session-only. After a full restart the missing-credential gate cancels ordinary
 proxy-bound traffic until credentials are applied. It does not add a Direct fallback,
 but protected browser requests require server-side rejection of anonymous access.
@@ -35,10 +35,11 @@ but protected browser requests require server-side rejection of anonymous access
    (`createPublicIdentity`), and `serializeForPage` is asserted against a whitelist of
    keys in tests.
 
-2. **Proxy credentials are never persisted in `storage.local`.**
-   Usernames and passwords live only under `ni.cred.v1.<profileId>` in `browser.storage.session`
-   (`src/background/credentials.ts`), plus inside the session-only active-target
-   snapshot. Tests serialise the local area and assert usernames and passwords are absent.
+2. **Proxy credentials are never persisted in plaintext in `storage.local`.**
+   Before vault setup, usernames/passwords and active-target snapshots are session-only.
+   After explicit master-password setup, the vault encrypts profiles and both saved and
+   applied credentials together; only the derived key remains session-only.
+   [Vault format, migration and limitations](ENCRYPTED-VAULT.md) are part of this contract.
 
 3. **Proxy credentials are never logged.**
    Only `describeError()` output is ever logged, which redacts `Basic …`/`Bearer …`
@@ -151,7 +152,9 @@ exact bounds and races; these guarantees require the map feature's final release
 | GeoIP location data                  | profile in `storage.local`                                | persistent          | only coordinates/accuracy/timezone, deliberately |
 | Client certificate, cookies, history | not touched                                               | —                   | —                                                |
 
-There is no key material, no signing, no native messaging and no local server.
+The table above describes the unencrypted legacy mode. After vault setup, profiles and
+credentials are persistent authenticated ciphertext, while the decryption key is
+session-only. There is no native messaging or local server. See [encrypted vault](ENCRYPTED-VAULT.md).
 
 If a `password`, `credentials` or `proxyPassword` key is ever found inside
 `ni.state.v1`, profile migration drops it and writes the profile back without that
@@ -162,8 +165,8 @@ document with an empty one or with a direct profile.
 
 Firefox's `storage.session` is restricted to trusted extension contexts
 (`TRUSTED_CONTEXTS`), so content scripts cannot read it. Firefox clears it when the
-browser exits, which is also the documented guarantee given to users in the UI
-("Stored only for the current Firefox session.").
+browser exits, so encrypted-vault users must unlock again. Credentials remain encrypted on disk
+when the vault is enabled; without it, credentials are lost on full exit.
 
 ## Data collection declaration
 
@@ -220,8 +223,9 @@ follow/manual, and WebRTC automatic/manual. Automatic WebRTC uses the route reco
 Expert overrides are preserved. Follow-timezone uses the provider's resolved timezone;
 manual coordinates alone do not imply a locally inferred timezone.
 
-Save increments the configuration revision and does not alter runtime. Apply activates
-the saved revision without saving or discarding unsaved form edits. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
+Save increments the configuration revision and does not alter runtime. The options
+Save and enable action validates and saves the visible form before explicitly activating
+that revision. The low-level profiles:activate command still activates a saved revision. An interrupted Apply resumes its snapshot configuration, never a newer saved revision. Runtime and the session snapshot retain the applied revision and
 configuration; Refresh uses that applied configuration, including its session credentials.
 Both credential fields start blank. Leaving both blank retains saved session credentials; entering either replaces the pair. Clear changes the saved session credentials;
 Apply removes them from a currently active target. Duplicate does not copy usernames or passwords.
@@ -322,3 +326,77 @@ uses proxy matching. The dual-mode fixture records and locally rejects browser-s
 attempts, while asserting zero anonymous fixture CONNECTs and origin hits from ordinary
 test traffic. It does not assert zero browser-wide SOCKS handshakes. Removing the gate
 must make the ordinary-traffic negative control fail.
+
+## Candidate quick setup
+
+The popup quick-add form uses the existing validated profile save and explicit activation
+messages. It never probes an endpoint. Credential-bearing pasted URIs are refused with
+fixed text; credentials must use the existing session-only fields. Save never changes
+the applied route or initiates identity lookup. While a quick submission is pending its
+controls and competing popup route actions are disabled; runtime generations remain
+responsible for rejecting stale state. Closing the panel clears credential input fields.
+
+## New proxy protection defaults
+
+New proxy profiles now explicitly select `proxy_only` WebRTC, automatic identity,
+and proxy DNS for SOCKS4/SOCKS5. The options editor starts with SOCKS5 and DNS enabled,
+matching quick setup. Strict WebRTC can prevent calls without a TURN-over-TCP path
+through the proxy; it is not a claim that all browser traffic is covered. HTTP/HTTPS
+have no equivalent Firefox `proxyDNS` toggle. Explicit bypasses remain visible.
+
+This is a creation default, not a migration. Saved manual policies, DNS choices and
+the existing automatic recommendation remain unchanged. Built-in browser/system
+routing and Off retain their existing semantics. No new permission or network probe
+is introduced. Save still does not apply these settings.
+
+## Remembered visible-map loading (unreleased candidate)
+
+The owner requested automatic viewport loading. The first map enablement remains explicit
+and disclosed. Successful explicit authorization remembers only a boolean
+`ni.map.autoload.v1`; no viewed coordinates, credentials or routing state are stored there.
+After that choice, opening the identity map automatically creates a fresh generation-bound
+session. Panning/zooming uses the renderer's existing viewport requests and bounded broker.
+No bulk/offline map download or new provider is introduced.
+
+An automatic opening can only reuse an existing direct-IP grant; it never raises a
+permission prompt. Missing consent, blocked routing, missing credentials, provider bypasses
+and stale generations still fail closed. Closing the panel or changing editor destroys
+the old renderer/session. Unload or unchecking automatic loading clears the remembered
+choice and stops the current map. No hidden retry loop runs after an error.
+
+Publication remains blocked until the owner accepts the updated final pages.
+
+## Isolated draft checks (unreleased)
+
+Typing a valid proxy endpoint in the options or quick-add editor starts one debounced
+check after 700 ms without further edits. The UI discloses that ipwho.is receives the
+proxy exit IP; the same required install-time data-consent check applies. Direct
+profiles and disabled GeoIP never trigger this check. There is no background polling
+or automatic retry loop. The user can retry explicitly. A timeout or GeoIP provider
+failure is not proof that the proxy is broken.
+
+A short-lived broker owns at most four editor requests. It constructs the fixed HTTPS
+provider URL with a fresh random marker, binds the request to this extension's origin
+and one browser request ID, and returns only the chosen draft proxy followed by null.
+The request gate rejects missing, cancelled and stale markers even after event-page
+suspension. Redirects are errors, cookies/referrers/cache are disabled, the response
+body is limited to 64 KiB and the lifetime to 12 seconds. Provider input is parsed.
+No draft credentials, profiles, preview identity or route state are persisted.
+Reusing saved session credentials requires the same saved proxy type, host and port.
+Typing a different endpoint requires explicit re-entry; preview must never send an
+existing hidden password to a newly typed server.
+HTTP challenges must match the exact draft request and proxy host/port, are answered
+at most once, and never fall through to credentials for the active route.
+
+Ordinary requests continue through the committed target; the narrow draft capability
+neither changes WebRTC nor broadcasts identity nor alters the active generation or
+health counters. Editing, closing or changing the selected profile cancels the UI's
+preview and rejects late results. The deadline also bounds abandoned requests.
+A successful preview is not activation: explicit Save and enable commits the current
+form and resolves the active identity again. Manual policies are not overwritten.
+
+Firefox retains ownership of connection pooling and proxy-authentication caches.
+The draft check is not a fresh-authentication guarantee for a server reusing an already
+authenticated tunnel at the same endpoint. Servers must enforce their account policy.
+The deterministic local test uses a private disposable profile with its own fixture CA;
+TLS validation stays enabled and neither OS trust nor a user's profile is modified.

@@ -5,12 +5,22 @@ const ci = readFileSync(".github/workflows/ci.yml", "utf8");
 const firefox = readFileSync(".github/workflows/firefox-invariants.yml", "utf8");
 
 describe("real-Firefox release gate", () => {
+  it("pins installer names independently of localized display names", () => {
+    const metadata = JSON.parse(readFileSync("package.json", "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    expect(metadata.scripts.package).toContain("--filename net-identity-{version}.zip");
+    expect(firefox).toContain("--filename net-identity-{version}.zip");
+    expect(firefox).toContain('--xpi "artifacts/net-identity-$version.zip"');
+    expect(firefox).toContain("--expect-unsigned");
+  });
   it("runs the deterministic Firefox invariants as a separate CI job", () => {
     expect(ci).toContain("uses: ./.github/workflows/firefox-invariants.yml");
     expect(firefox).toContain("workflow_call");
     expect(firefox).toContain("run invariants npm run e2e:invariants");
     expect(firefox).toContain("run websocket npm run e2e:websocket");
     expect(firefox).toContain("run ui npm run e2e:ui");
+    expect(firefox).toContain("run draft npm run e2e:draft");
     expect(firefox).toContain("run fail-closed npm run e2e:fail-closed");
     expect(firefox).toContain("run flap npm run e2e:flap");
     expect(firefox).toContain("run restart npm run e2e:restart");
@@ -20,7 +30,7 @@ describe("real-Firefox release gate", () => {
   it("requires actual MapLibre WebGL rendering separately from the fallback", () => {
     expect(firefox).toContain("run: npm run build:prod");
     expect(firefox).not.toMatch(/run: npm run build\s*\n/);
-    expect(firefox).toContain("openssl xvfb libgl1-mesa-dri");
+    expect(firefox).toContain("openssl libnss3-tools xvfb libgl1-mesa-dri");
     expect(firefox).toContain("fontconfig fonts-dejavu-core");
     expect(firefox).toContain("--no-local-cjk --screenshots artifacts/map-render");
     expect(firefox).toContain("run map-fallback npm run e2e:map-fallback");

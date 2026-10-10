@@ -1,0 +1,1085 @@
+{
+  "extensionName": {
+    "message": "Net Identity"
+  },
+  "extensionDescription": {
+    "message": "Firefox proxy profiles with page-visible location, timezone and WebRTC controls."
+  },
+  "language": {
+    "message": "Language / 语言"
+  },
+  "languageAuto": {
+    "message": "Auto"
+  },
+  "addProxy": {
+    "message": "+ Add Proxy"
+  },
+  "addProxyLegend": {
+    "message": "Add a proxy"
+  },
+  "protocol": {
+    "message": "Protocol"
+  },
+  "host": {
+    "message": "Host or proxy address"
+  },
+  "port": {
+    "message": "Port"
+  },
+  "profileNameOptional": {
+    "message": "Profile name (optional)"
+  },
+  "sessionAuth": {
+    "message": "Proxy authentication"
+  },
+  "username": {
+    "message": "Username"
+  },
+  "password": {
+    "message": "Password"
+  },
+  "authNotice": {
+    "message": "Without the vault, credentials are lost when Firefox exits. SOCKS4 does not support authentication."
+  },
+  "pasteNotice": {
+    "message": "An address containing a port can leave Port blank. Explicit URL schemes take precedence. Enter credentials separately; protocols are not auto-detected."
+  },
+  "save": {
+    "message": "Save"
+  },
+  "saveActivate": {
+    "message": "Save & Activate"
+  },
+  "manageProfiles": {
+    "message": "Settings / Manage profiles"
+  },
+  "currentIdentity": {
+    "message": "Current identity"
+  },
+  "route": {
+    "message": "Route"
+  },
+  "location": {
+    "message": "Location"
+  },
+  "zone": {
+    "message": "Timezone"
+  },
+  "refresh": {
+    "message": "Refresh"
+  },
+  "details": {
+    "message": "Details"
+  },
+  "hideDetails": {
+    "message": "Hide details"
+  },
+  "diagnostics": {
+    "message": "Diagnostics & Details"
+  },
+  "routing": {
+    "message": "Routing"
+  },
+  "endpoint": {
+    "message": "Endpoint"
+  },
+  "ipVerification": {
+    "message": "IP Verification"
+  },
+  "firefoxProxy": {
+    "message": "Firefox Proxy"
+  },
+  "identityProtection": {
+    "message": "Spoofing & Protection"
+  },
+  "coordinates": {
+    "message": "Coordinates"
+  },
+  "webrtcPolicy": {
+    "message": "WebRTC Policy"
+  },
+  "frameShim": {
+    "message": "Frame Shim"
+  },
+  "consistencyChecks": {
+    "message": "Consistency Checks"
+  },
+  "off": {
+    "message": "Off"
+  },
+  "offDescription": {
+    "message": "Relinquish WebRTC & synthetic identity"
+  },
+  "detailsNotice": {
+    "message": "Direct route uses Firefox and system routing without configuring an extension proxy. Enable the vault for encrypted credential persistence; otherwise credentials are session-only."
+  },
+  "availableRoutes": {
+    "message": "Available routes"
+  },
+  "networkRoutes": {
+    "message": "Network routes"
+  },
+  "quickAddLabel": {
+    "message": "Quick add proxy"
+  },
+  "diagnosticsLabel": {
+    "message": "Details and diagnostics"
+  },
+  "inactive": {
+    "message": "Inactive"
+  },
+  "consistent": {
+    "message": "✓ Consistent"
+  },
+  "partial": {
+    "message": "Partial"
+  },
+  "error": {
+    "message": "Error"
+  },
+  "activating": {
+    "message": "Activating…"
+  },
+  "resolving": {
+    "message": "Resolving…"
+  },
+  "active": {
+    "message": "Active"
+  },
+  "proxyUnavailable": {
+    "message": "Proxy unavailable"
+  },
+  "credentialsRequired": {
+    "message": "Credentials required"
+  },
+  "routingBlocked": {
+    "message": "Routing blocked"
+  },
+  "proxyUncertain": {
+    "message": "Proxy connection uncertain"
+  },
+  "browserRouting": {
+    "message": "Use Firefox network settings"
+  },
+  "noProxy": {
+    "message": "No proxy active"
+  },
+  "directDetail": {
+    "message": "Direct (Firefox / system routing)"
+  },
+  "noRoute": {
+    "message": "No route active"
+  },
+  "noneOff": {
+    "message": "None (Off)"
+  },
+  "verified": {
+    "message": "Verified via egress query"
+  },
+  "unverified": {
+    "message": "Unverified"
+  },
+  "noTabs": {
+    "message": "No open tabs reporting"
+  },
+  "saving": {
+    "message": "Saving profile…"
+  },
+  "saved": {
+    "message": "Saved. Saving does not verify connectivity or change the active route."
+  },
+  "applying": {
+    "message": "Saved. Applying route; identity lookup may finish separately…"
+  },
+  "appliedSeeStatus": {
+    "message": "Saved. See the current route and identity status for the activation result."
+  },
+  "operationUnconfirmed": {
+    "message": "Could not confirm the operation. Check the profile list and retry."
+  },
+  "socks4NoAuth": {
+    "message": "SOCKS4 cannot authenticate. Choose SOCKS5, HTTP or HTTPS."
+  },
+  "endpointTooLong": {
+    "message": "Endpoint is too long."
+  },
+  "hostWhitespace": {
+    "message": "Enter a host without whitespace."
+  },
+  "uriCredentials": {
+    "message": "Remove credentials from the address and use the separate authentication fields."
+  },
+  "percentEndpoint": {
+    "message": "Percent-encoded endpoints are not supported. Enter the host directly."
+  },
+  "chooseProtocol": {
+    "message": "Choose HTTP, HTTPS, SOCKS4 or SOCKS5."
+  },
+  "endpointOnly": {
+    "message": "Enter only a proxy host and port, without a path or query."
+  },
+  "ipv6Close": {
+    "message": "Close the IPv6 address with ]."
+  },
+  "ipv6Port": {
+    "message": "Use [IPv6]:port."
+  },
+  "validHost": {
+    "message": "Enter a valid hostname, IPv4 or bracketed IPv6 address."
+  },
+  "validPort": {
+    "message": "Enter a port from 1 to 65535."
+  },
+  "ipv6Brackets": {
+    "message": "Wrap an IPv6 address in brackets, for example [::1]:1080."
+  },
+  "profileLimit": {
+    "message": "The profile limit has been reached."
+  },
+  "nameTooLong": {
+    "message": "Profile name is too long."
+  },
+  "nameUsed": {
+    "message": "That profile name is already used. Choose another name."
+  },
+  "ok": {
+    "message": "ok"
+  },
+  "notConfigured": {
+    "message": "not configured"
+  },
+  "unavailable": {
+    "message": "unavailable"
+  },
+  "manual": {
+    "message": "manual"
+  },
+  "providerError": {
+    "message": "provider error"
+  },
+  "controlledOther": {
+    "message": "controlled by another extension"
+  },
+  "stale": {
+    "message": "stale"
+  },
+  "pending": {
+    "message": "pending"
+  },
+  "errorLower": {
+    "message": "error"
+  },
+  "credentialsTraffic": {
+    "message": "Proxy credentials are required. Traffic remains restricted to this profile."
+  },
+  "blockedTraffic": {
+    "message": "Traffic is blocked rather than sent directly. Retry this profile after the proxy returns."
+  },
+  "refreshConsent": {
+    "message": "Refreshing a direct profile sends your public IP to the GeoIP provider. Allow collection to continue."
+  },
+  "languageSaveFailed": {
+    "message": "Could not save language preference. Try again."
+  },
+  "searchProfiles": {
+    "message": "Find a proxy"
+  },
+  "noMatchingProfiles": {
+    "message": "No matching profiles. Your active route is unchanged."
+  },
+  "backToRoutes": {
+    "message": "← Back to routes"
+  },
+  "profilesPage": {
+    "message": "Net Identity — Profiles"
+  },
+  "profilesGuide": {
+    "message": "How profiles work"
+  },
+  "profilesIntro": {
+    "message": "Add a proxy. Preview its identity. Enable when ready."
+  },
+  "profiles": {
+    "message": "Profiles"
+  },
+  "addProxyOption": {
+    "message": "+ Add proxy"
+  },
+  "noProfiles": {
+    "message": "No proxy profiles configured yet. Click \"+ Add proxy\" to create one."
+  },
+  "directLabel": {
+    "message": "Direct"
+  },
+  "builtIn": {
+    "message": "Built-in"
+  },
+  "activeLabel": {
+    "message": "Active"
+  },
+  "directLead": {
+    "message": "Net Identity does not configure an extension proxy; Firefox and system routing apply as normal."
+  },
+  "proxyLabel": {
+    "message": "Proxy"
+  },
+  "directValue": {
+    "message": "Direct (browser / system routing)"
+  },
+  "directHint": {
+    "message": "Does not override a proxy configured in Firefox settings"
+  },
+  "defaultLabel": {
+    "message": "Default"
+  },
+  "webrtcDefaultHint": {
+    "message": "Firefox default IP handling policy"
+  },
+  "identityLabel": {
+    "message": "Identity"
+  },
+  "automaticLabel": {
+    "message": "Automatic"
+  },
+  "directConsentHint": {
+    "message": "Observes egress IP; requires consent before direct IP lookup"
+  },
+  "directImmutable": {
+    "message": "The built-in Direct route cannot be modified, duplicated, or deleted. To deactivate synthetic identity completely, click Deactivate or choose Off in the popup."
+  },
+  "activateDirect": {
+    "message": "Activate Direct"
+  },
+  "allowGeoipRefresh": {
+    "message": "Allow GeoIP lookup / Refresh"
+  },
+  "deactivateLabel": {
+    "message": "Deactivate"
+  },
+  "newProfile": {
+    "message": "New profile"
+  },
+  "basicSection": {
+    "message": "Basic"
+  },
+  "profileName": {
+    "message": "Profile name"
+  },
+  "proxyProtocol": {
+    "message": "Proxy protocol"
+  },
+  "customDirect": {
+    "message": "Direct (custom identity)"
+  },
+  "httpProxy": {
+    "message": "HTTP proxy"
+  },
+  "httpsProxy": {
+    "message": "HTTPS proxy"
+  },
+  "socks4Proxy": {
+    "message": "SOCKS4 proxy"
+  },
+  "socks5Proxy": {
+    "message": "SOCKS5 proxy"
+  },
+  "hostShort": {
+    "message": "Host"
+  },
+  "portShort": {
+    "message": "Port"
+  },
+  "authentication": {
+    "message": "Authentication"
+  },
+  "proxyUsername": {
+    "message": "Proxy username"
+  },
+  "proxyPassword": {
+    "message": "Proxy password"
+  },
+  "sessionCredentialsHint": {
+    "message": "Enable the vault to keep credentials encrypted across restarts. Otherwise they last only this session. Leave both blank to keep the pair; entering either replaces both."
+  },
+  "clearCredentials": {
+    "message": "Clear credentials on Save (Apply to remove from the active route)"
+  },
+  "identityPrivacy": {
+    "message": "Identity & Privacy"
+  },
+  "automaticMode": {
+    "message": "Automatic — observe public egress IP through the proxy"
+  },
+  "manualMode": {
+    "message": "Manual — set custom coordinates, accuracy, and timezone"
+  },
+  "publicGeoip": {
+    "message": "Public IP / GeoIP"
+  },
+  "automaticIpwho": {
+    "message": "Automatic (ipwho.is)"
+  },
+  "disabledLookup": {
+    "message": "Disabled (no lookup)"
+  },
+  "geolocationLabel": {
+    "message": "Geolocation"
+  },
+  "followGeoip": {
+    "message": "Follow GeoIP"
+  },
+  "manualCoordinates": {
+    "message": "Manual coordinates"
+  },
+  "unavailableNative": {
+    "message": "Unavailable (never native)"
+  },
+  "followLocation": {
+    "message": "Follow resolved location"
+  },
+  "manualTimezone": {
+    "message": "Manual IANA timezone"
+  },
+  "localGrid": {
+    "message": "Local coordinate grid · No map imagery"
+  },
+  "mapUnavailable": {
+    "message": "Map imagery unavailable — coordinates still work."
+  },
+  "providerTerms": {
+    "message": "Provider terms"
+  },
+  "loadOnlineMap": {
+    "message": "Load online map"
+  },
+  "unloadOnlineMap": {
+    "message": "Unload online map"
+  },
+  "useGeoipLocation": {
+    "message": "Use GeoIP location"
+  },
+  "mapInteractionHint": {
+    "message": "In manual mode, drag map to pan, click map to place marker, or drag marker."
+  },
+  "latitude": {
+    "message": "Latitude"
+  },
+  "longitude": {
+    "message": "Longitude"
+  },
+  "accuracyMetres": {
+    "message": "Accuracy (metres)"
+  },
+  "ianaTimezone": {
+    "message": "Timezone (IANA)"
+  },
+  "advanced": {
+    "message": "Advanced"
+  },
+  "proxyDnsHint": {
+    "message": "Resolve DNS names through the proxy (applied by Firefox to SOCKS proxies)"
+  },
+  "bypassHosts": {
+    "message": "Bypass hosts (one per line, comma or semicolon separated)"
+  },
+  "webrtcHandling": {
+    "message": "WebRTC IP handling policy"
+  },
+  "webrtcAutomatic": {
+    "message": "Automatic (recommended for route)"
+  },
+  "webrtcExplicitDefault": {
+    "message": "Default (explicit policy)"
+  },
+  "webrtcPublicOnly": {
+    "message": "Public addresses only"
+  },
+  "webrtcPreferProxy": {
+    "message": "Prefer the proxy for UDP"
+  },
+  "webrtcStrict": {
+    "message": "Proxy only (strictest)"
+  },
+  "runtimeDetails": {
+    "message": "Runtime details"
+  },
+  "runtimeAuditHint": {
+    "message": "Active identity status and consistency audit"
+  },
+  "refreshIdentity": {
+    "message": "Refresh Identity"
+  },
+  "apply": {
+    "message": "Apply"
+  },
+  "duplicate": {
+    "message": "Duplicate"
+  },
+  "delete": {
+    "message": "Delete"
+  },
+  "collectionNotice": {
+    "message": "Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that provider the proxy address. A direct profile shows it your own public IP, and only after you allow that collection. The location picker starts offline. Loading the online map shares your connection’s public IP and viewed area with OpenFreeMap after explicit consent. Coordinates and all map interactions work offline. No telemetry and no remotely loaded code."
+  },
+  "shimLimitNotice": {
+    "message": "Page-level geolocation and timezone changes are compatibility shims. They are observable by sophisticated page scripts and are not a claim of fingerprinting invisibility."
+  },
+  "guideText0": {
+    "message": "What a profile does"
+  },
+  "guideText1": {
+    "message": "A profile applies one network identity together: how Firefox connects, the location pages see, the timezone pages see, and WebRTC address handling. Choose Direct or a proxy row to activate it. Off releases identity and WebRTC control. Save stores edits; Save & Activate applies them."
+  },
+  "guideText2": {
+    "message": "Browser routing"
+  },
+  "guideText3": {
+    "message": "Browser routing uses Firefox's own connection. It does not turn off a proxy you set in Firefox or on this computer. Choose an HTTP, HTTPS, or SOCKS proxy when this profile should send traffic through a specific server."
+  },
+  "guideText4": {
+    "message": "Automatic or manual location"
+  },
+  "guideText5": {
+    "message": "Automatic asks where the connection appears to come from. That place is approximate, about 20 km, not a GPS fix. A proxied profile shows the proxy's address. Browser routing shows your own public address and waits until you allow that. Manual lets you type coordinates or pick them on the map. The map still works when its pictures cannot load."
+  },
+  "guideText6": {
+    "message": "WebRTC"
+  },
+  "guideText7": {
+    "message": "The WebRTC policy limits which network addresses a page can learn. If another extension or a Firefox policy already controls that setting, this extension leaves it alone and says so."
+  },
+  "guideText8": {
+    "message": "When something fails"
+  },
+  "guideText9": {
+    "message": "An unreachable proxy or a missing password stops the new identity and keeps the previous page location, instead of revealing your real one. Refresh Identity tries the lookup again. A frame the browser will not inject into can still see the computer's timezone; that limit is reported, not hidden."
+  },
+  "savedPending": {
+    "message": "Saved changes are pending. Apply to update the active route."
+  },
+  "saveApplyNotice": {
+    "message": "Save stores edits. Apply activates the saved configuration; unsaved edits stay in the form."
+  },
+  "manualOverrideNotice": {
+    "message": "Custom overrides are applied as entered. A manual location or timezone may disagree with the observed network location."
+  },
+  "manualOverrideShort": {
+    "message": "Custom overrides are applied as entered; they may differ from the observed network location."
+  },
+  "longitudeTimezoneWarning": {
+    "message": "The manual timezone appears far from this longitude. Your choices will be applied unchanged."
+  },
+  "manualAccuracyNotice": {
+    "message": "Manual coordinates are applied to pages as-is, with the accuracy you provide."
+  },
+  "socks4AuthHint": {
+    "message": "Firefox does not support authentication for SOCKS4 proxies, so a username and password are ignored."
+  },
+  "httpAuthHint": {
+    "message": "HTTP/HTTPS proxy credentials are sent as a preemptive Basic header and, when the proxy demands a challenge, answered only for this proxy."
+  },
+  "socks5AuthHint": {
+    "message": "SOCKS5 credentials are passed to Firefox as SOCKS authentication."
+  },
+  "proxyDnsExplanation": {
+    "message": "Proxy DNS routes name resolution through the proxy. Firefox applies this to SOCKS proxies only."
+  },
+  "mapOff": {
+    "message": "Online map off. Coordinates work offline."
+  },
+  "mapConsent": {
+    "message": "Checking map consent and the applied route…"
+  },
+  "mapDenied": {
+    "message": "Public-IP permission was not granted. Coordinates still work offline."
+  },
+  "mapUnavailableOffline": {
+    "message": "Online map unavailable. Coordinates still work offline."
+  },
+  "mapLoading": {
+    "message": "Loading OpenFreeMap through the applied route…"
+  },
+  "mapWebglUnavailable": {
+    "message": "Online map unavailable on this route or WebGL unavailable. Coordinates still work offline."
+  },
+  "mapLoaded": {
+    "message": "Online map loaded. Panning and zooming send the viewed area to OpenFreeMap."
+  },
+  "mapWebglOffline": {
+    "message": "WebGL map unavailable. Coordinates still work offline."
+  },
+  "mapReloading": {
+    "message": "Reloading map data through the applied route…"
+  },
+  "reloadOnlineMap": {
+    "message": "Reload online map"
+  },
+  "mapRouteChanged": {
+    "message": "Route changed. Load the online map again for this route."
+  },
+  "profileRuntime": {
+    "message": "Profile"
+  },
+  "networkHealth": {
+    "message": "Network health"
+  },
+  "publicIp": {
+    "message": "Public IP"
+  },
+  "firefoxProxySettings": {
+    "message": "Firefox proxy settings"
+  },
+  "consistencyLabel": {
+    "message": "Consistency"
+  },
+  "lastError": {
+    "message": "Last error"
+  },
+  "activeBadge": {
+    "message": "active"
+  },
+  "sessionCredentialsBadge": {
+    "message": "credentials saved"
+  },
+  "builtInBadge": {
+    "message": "built-in"
+  },
+  "browserAutomaticIdentity": {
+    "message": "Browser / system routing · Automatic identity"
+  },
+  "profilesListAria": {
+    "message": "Profiles list"
+  },
+  "availableProfilesAria": {
+    "message": "Available profiles"
+  },
+  "profileEditorAria": {
+    "message": "Profile editor"
+  },
+  "locationPickerAria": {
+    "message": "Location picker; arrow keys pan, marker arrow keys move selection"
+  },
+  "selectedLocationAria": {
+    "message": "Selected location marker"
+  },
+  "zoomInAria": {
+    "message": "Zoom in"
+  },
+  "zoomOutAria": {
+    "message": "Zoom out"
+  },
+  "profileNameExample": {
+    "message": "e.g. Home Proxy, Lab"
+  },
+  "mapPartial": {
+    "message": "Some map data could not load. The displayed map may be incomplete; reload to try again."
+  },
+  "defaultProtectionNotice": {
+    "message": "New proxies use proxy DNS for SOCKS, strict proxy-only WebRTC, and automatic location/timezone. Some calls need TURN over TCP. Existing profiles keep their settings."
+  },
+  "helpLabel": {
+    "message": "Help"
+  },
+  "supportLink": {
+    "message": "Support / Report an issue"
+  },
+  "communityLink": {
+    "message": "Community · LINUX DO"
+  },
+  "communityNotice": {
+    "message": "Independent community resource; no endorsement or affiliation is implied."
+  },
+  "manualLabel": {
+    "message": "Manual"
+  },
+  "mapCamera": {
+    "message": "Center {latitude}, {longitude} · Zoom {zoom}"
+  },
+  "framesSynced": {
+    "message": "{current}/{total} frames synced"
+  },
+  "deleteProfile": {
+    "message": "Delete the profile “{name}”?"
+  },
+  "deleteActiveProfile": {
+    "message": "Delete and deactivate the profile “{name}”?"
+  },
+  "mapPrivacyBefore": {
+    "message": "Load online map sends your connection’s public IP and viewed map area to"
+  },
+  "mapPrivacyAfter": {
+    "message": ", which may use Cloudflare and keep incident IP logs for up to 30 days. Requests use the currently applied route, not unsaved proxy edits. Direct or Off also requires Firefox’s optional public-IP permission. No map requests are made until you load it."
+  },
+  "validationAccuracy": {
+    "message": "accuracy must be a positive number of metres (max 1,000,000)"
+  },
+  "validationCountryText": {
+    "message": "country code must be text"
+  },
+  "validationCountry": {
+    "message": "country code must be two letters (for example US)"
+  },
+  "validationPublicIp": {
+    "message": "public IP must be a valid IPv4 or IPv6 address"
+  },
+  "validationProxyRequired": {
+    "message": "proxy configuration is required"
+  },
+  "validationHost": {
+    "message": "proxy host must be a hostname, IPv4 address or IPv6 address"
+  },
+  "validationPort": {
+    "message": "proxy port must be an integer between 1 and 65535"
+  },
+  "validationProxyUser": {
+    "message": "proxy username is too long or empty"
+  },
+  "validationAuthFlag": {
+    "message": "proxy authentication requirement must be boolean"
+  },
+  "validationIdentity": {
+    "message": "identity configuration is required"
+  },
+  "validationCoordinatePair": {
+    "message": "latitude and longitude must be provided together"
+  },
+  "validationGeoipPolicy": {
+    "message": "invalid GeoIP policy"
+  },
+  "validationGeolocationPolicy": {
+    "message": "invalid geolocation policy"
+  },
+  "validationTimezonePolicy": {
+    "message": "invalid timezone policy"
+  },
+  "validationProvider": {
+    "message": "unsupported GeoIP provider"
+  },
+  "validationLatitude": {
+    "message": "manual mode requires a latitude"
+  },
+  "validationLongitude": {
+    "message": "manual mode requires a longitude"
+  },
+  "validationManualAccuracy": {
+    "message": "manual mode requires an accuracy in metres"
+  },
+  "validationManualZone": {
+    "message": "manual mode requires an IANA timezone"
+  },
+  "validationProfile": {
+    "message": "profile must be an object"
+  },
+  "validationProfileId": {
+    "message": "profile id is missing or malformed"
+  },
+  "validationProfileName": {
+    "message": "profile name is required (maximum 64 characters)"
+  },
+  "validationRevision": {
+    "message": "invalid profile revision"
+  },
+  "validationWebrtcMode": {
+    "message": "invalid WebRTC mode"
+  },
+  "validationProfileInvalid": {
+    "message": "profile is invalid"
+  },
+  "validationCredentialObject": {
+    "message": "credentials must be an object"
+  },
+  "validationCredentialPair": {
+    "message": "credentials must contain a username or a password"
+  },
+  "validationUserText": {
+    "message": "username must be text"
+  },
+  "validationPasswordText": {
+    "message": "password must be text"
+  },
+  "validationUserLength": {
+    "message": "username is too long"
+  },
+  "validationPasswordLength": {
+    "message": "password is too long"
+  },
+  "validationCredentialEmpty": {
+    "message": "credentials must not be empty"
+  },
+  "auditProxyConfigured": {
+    "message": "Proxy configured"
+  },
+  "auditPublicIp": {
+    "message": "Public egress IP resolved"
+  },
+  "auditGeoip": {
+    "message": "GeoIP resolved"
+  },
+  "auditTimezone": {
+    "message": "Timezone available"
+  },
+  "auditLocation": {
+    "message": "Geolocation available"
+  },
+  "auditWebrtc": {
+    "message": "WebRTC policy applied"
+  },
+  "auditPageShim": {
+    "message": "Page shim"
+  },
+  "auditNoProfile": {
+    "message": "No profile is active."
+  },
+  "auditNoIdentity": {
+    "message": "No identity is being applied."
+  },
+  "auditProviderFailed": {
+    "message": "The GeoIP provider failed."
+  },
+  "auditNoPublicIp": {
+    "message": "No public IP is known yet."
+  },
+  "auditUnverifiedIp": {
+    "message": "The configured public IP could not be verified."
+  },
+  "auditNoLocation": {
+    "message": "The provider returned no location data."
+  },
+  "auditNoTimezone": {
+    "message": "No timezone is available."
+  },
+  "auditNoCoordinates": {
+    "message": "No coordinates are available."
+  },
+  "auditNoPageReport": {
+    "message": "No page shim has reported from an open tab."
+  },
+  "validationHosthttp": {
+    "message": "http proxies require a host"
+  },
+  "validationPorthttp": {
+    "message": "http proxies require a port"
+  },
+  "validationHosthttps": {
+    "message": "https proxies require a host"
+  },
+  "validationPorthttps": {
+    "message": "https proxies require a port"
+  },
+  "validationHostsocks4": {
+    "message": "socks4 proxies require a host"
+  },
+  "validationPortsocks4": {
+    "message": "socks4 proxies require a port"
+  },
+  "validationHostsocks5": {
+    "message": "socks5 proxies require a host"
+  },
+  "validationPortsocks5": {
+    "message": "socks5 proxies require a port"
+  },
+  "communityShort": {
+    "message": "LINUX DO community"
+  },
+  "firefoxProxyDetail": {
+    "message": "Type: {type} · control: {control}"
+  },
+  "webrtcDetail": {
+    "message": "Requested: {desired} · effective: {actual} · status: {status}"
+  },
+  "privacyDiagnostic0": {
+    "message": "A page shim is present but has not reported yet."
+  },
+  "privacyDiagnostic1": {
+    "message": "No Firefox-level proxy is configured."
+  },
+  "privacyDiagnostic2": {
+    "message": "Browser routing: Firefox's own connection is used, and a proxy set in Firefox is not overridden."
+  },
+  "privacyDiagnostic3": {
+    "message": "This Firefox build does not allow extensions to change the WebRTC policy."
+  },
+  "privacyDiagnostic4": {
+    "message": "Another extension controls the WebRTC policy; net-identity did not change it."
+  },
+  "privacyDiagnostic5": {
+    "message": "The WebRTC policy could not be read on this Firefox build."
+  },
+  "privacyDiagnostic6": {
+    "message": "Firefox refused the WebRTC policy change."
+  },
+  "privacyDiagnostic7": {
+    "message": "Firefox accepted the change but did not report the resulting policy."
+  },
+  "privacyDiagnostic8": {
+    "message": "Firefox refused to relinquish the WebRTC policy."
+  },
+  "privacyDiagnostic9": {
+    "message": "Firefox cleared the WebRTC policy but did not report the restored value."
+  },
+  "consentDiagnostic0": {
+    "message": "Firefox has not confirmed install-time data-collection consent, so no GeoIP lookup was made."
+  },
+  "consentDiagnostic1": {
+    "message": "A direct profile would send your own public IP to the GeoIP provider. Allow optional personal-data collection before that lookup."
+  },
+  "consentDiagnostic2": {
+    "message": "Unapproved map resource."
+  },
+  "consentDiagnostic3": {
+    "message": "Map request cancelled."
+  },
+  "consentDiagnostic4": {
+    "message": "Map data unavailable."
+  },
+  "consentDiagnostic5": {
+    "message": "timezone must be a valid IANA timezone identifier (for example America/Los_Angeles)"
+  },
+  "browserRoutingExplanation": {
+    "message": "May connect directly or use Firefox/system proxies."
+  },
+  "mapAutoload": {
+    "message": "Automatically load the visible map after consent"
+  },
+  "mapAutoloadNotice": {
+    "message": "Once enabled, opening this map loads its current view. Panning and zooming load the relevant area through the applied route. Turn this off to stay offline."
+  },
+  "mapAutoloadSaveFailed": {
+    "message": "Could not save automatic map preference. Enable the map again next time."
+  },
+  "firefoxSettingsConflict": {
+    "message": "Another extension controls Firefox proxy settings; review that extension for conflicts."
+  },
+  "firefoxSettingsUnverified": {
+    "message": "Firefox proxy settings could not be verified or are controlled by browser policy."
+  },
+  "firefoxSettingsRecorded": {
+    "message": "Firefox's existing proxy settings were read. Non-bypassed web requests use the selected profile; explicit bypasses still follow Firefox settings."
+  },
+  "draftIdle": {
+    "message": "Enter an address and port to start."
+  },
+  "draftWaiting": {
+    "message": "Preparing check…"
+  },
+  "draftChecking": {
+    "message": "Checking… Your current route stays active."
+  },
+  "draftSuccess": {
+    "message": "Ready to enable ·"
+  },
+  "draftNetwork": {
+    "message": "Could not verify the draft. Check address, port, authentication and network; then retry. The current route is unchanged."
+  },
+  "draftTimeout": {
+    "message": "Draft check timed out. The proxy or provider may be temporarily unavailable. Retry without losing your input."
+  },
+  "draftCredentials": {
+    "message": "This profile needs its saved username and password before checking."
+  },
+  "draftBusy": {
+    "message": "Other draft checks are running. Retry shortly."
+  },
+  "draftCancelled": {
+    "message": "Draft check cancelled."
+  },
+  "draftProvider": {
+    "message": "The location service did not return a usable result. This does not prove the proxy is broken."
+  },
+  "draftDisclosure": {
+    "message": "Automatic checks contact ipwho.is through the entered proxy only, to preview its public IP, approximate location and timezone. No profile is saved or enabled. No automatic retry loop."
+  },
+  "draftRetry": {
+    "message": "Check again"
+  },
+  "enableDraft": {
+    "message": "Save and enable"
+  },
+  "enableDraftHint": {
+    "message": "Check first. Enable when ready."
+  },
+  "draftConsent": {
+    "message": "Firefox has not confirmed the required data consent. No draft request was sent."
+  },
+  "pendingDraftChanges": {
+    "message": "Saved changes are pending."
+  },
+  "draftPartial": {
+    "message": "Proxy responded, but the provider returned incomplete location/timezone data. Not enabled. Observed egress:"
+  },
+  "socksDnsHint": {
+    "message": "Proxy DNS routes name resolution through the proxy. Firefox applies this to SOCKS proxies only."
+  },
+  "privacyLimits": {
+    "message": "Privacy & limits"
+  },
+  "authenticationOptional": {
+    "message": "Authentication · optional"
+  },
+  "customSettings": {
+    "message": "Customize"
+  },
+  "quickCustomizeHint": {
+    "message": "Save, then use Settings to adjust DNS, WebRTC, location and timezone."
+  },
+  "moreActions": {
+    "message": "More"
+  },
+  "connectionNotes": {
+    "message": "Connection notes"
+  },
+  "turningOff": {
+    "message": "Turning off…"
+  },
+  "vaultPassword": {
+    "message": "Master password"
+  },
+  "vaultConfirm": {
+    "message": "Confirm master password"
+  },
+  "vaultSetupTitle": {
+    "message": "Protect saved profiles"
+  },
+  "vaultLockedTitle": {
+    "message": "Unlock your profiles"
+  },
+  "vaultUnlockedTitle": {
+    "message": "Encrypted vault · unlocked"
+  },
+  "vaultDamagedTitle": {
+    "message": "Vault needs attention"
+  },
+  "vaultSetupHint": {
+    "message": "Encrypt profiles and proxy passwords on this device. Use a strong passphrase of at least 12 characters. Unlock after Firefox restarts; forgotten passwords cannot be recovered. Until enabled, profiles remain unencrypted and proxy passwords are session-only."
+  },
+  "vaultUnlockedHint": {
+    "message": "Profiles and credentials are encrypted at rest. Keep an encrypted backup. Browser exit, disabling or updating the extension may require unlocking again. This does not protect a compromised, unlocked device."
+  },
+  "vaultLockedHint": {
+    "message": "Your saved data is retained. Unlock to continue. A previously active route stays blocked until unlocked; a previously disabled route stays disabled."
+  },
+  "vaultEnable": {
+    "message": "Enable encryption"
+  },
+  "vaultUnlock": {
+    "message": "Unlock"
+  },
+  "vaultExport": {
+    "message": "Download encrypted backup"
+  },
+  "vaultExportPrevious": {
+    "message": "Previous encrypted revision"
+  },
+  "vaultRestore": {
+    "message": "Restore encrypted backup"
+  },
+  "vaultRestoreHint": {
+    "message": "For an empty installation only. Choose your backup and enter its master password above. Restoring resumes the route saved in that backup. Existing profiles are never overwritten."
+  },
+  "vaultOperationFailed": {
+    "message": "Could not complete this operation. Check the password (at least 12 characters), backup and available storage. Existing data was preserved. Restore requires an empty installation."
+  },
+  "vaultMismatch": {
+    "message": "The two master passwords do not match."
+  }
+}

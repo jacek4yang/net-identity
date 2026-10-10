@@ -211,10 +211,11 @@ describe("toFormValues", () => {
     const values = toFormValues(null);
 
     expect(values.id).toBeUndefined();
-    expect(values.proxyType).toBe("http");
+    expect(values.proxyType).toBe("socks5");
+    expect(values.proxyDns).toBe(true);
     expect(values.identityMode).toBe("auto");
     expect(parseBypassHostsInput(values.bypassHosts)).toEqual(["localhost", "127.0.0.1", "::1"]);
-    expect(values.webrtcPolicy).toBe("automatic");
+    expect(values.webrtcPolicy).toBe("proxy_only");
     expect(values.password).toBe("");
   });
 
@@ -267,5 +268,19 @@ describe("proxy field hints", () => {
 describe("persisted state expectations", () => {
   it("keeps the schema version stable for the stored state", () => {
     expect(SCHEMA_VERSION).toBe(4);
+  });
+});
+
+describe("existing profile choices", () => {
+  it("preserves explicit DNS and WebRTC choices when reopening", () => {
+    const profile = makeProfile({
+      id: "retained-0001",
+      webrtcPolicy: "default",
+      webrtcMode: "manual",
+    });
+    profile.proxy.proxyDNS = false;
+    const form = toFormValues(profile);
+    expect(form.proxyDns).toBe(false);
+    expect(form.webrtcPolicy).toBe("default");
   });
 });

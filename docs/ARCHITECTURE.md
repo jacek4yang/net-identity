@@ -348,3 +348,50 @@ asserts zero ordinary-fixture CONNECTs/origin hits while credentials are missing
 zero-handshake counts would hide this platform limit and are not an acceptance criterion.
 See [the security boundary](SECURITY.md#missing-required-credentials-and-the-firefox-cancellation-boundary)
 and Mozilla's linked documentation for the distinction.
+
+## Candidate popup quick setup
+
+`profile/quick-proxy.ts` parses bounded endpoint text using shared host validation and
+constructs a profile through `parseProfile`. `popup/quick-add.ts` owns only form state
+and invokes the existing save/activate protocol. It adds no background permission,
+network probe, persistent credential format or alternate activation controller. The
+first slice remains English; full locale support is a separate tracked slice.
+
+Partial online-map data reload keeps the existing renderer and WebGL context, while
+`setStyle(..., { diff: false })` reloads data through the same generation-bound broker
+session. The existing bounded queue retains in-flight slots until RPC settlement;
+reload does not replace it or create new concurrent queues. A reload revision suppresses
+stale error notifications. Idle readiness is reported only after the new load has no
+reported failure. Off, route changes, editor changes and fatal errors still dispose the
+renderer/session. This avoids immediate GPU-context destruction/recreation during a
+recoverable provider failure without weakening consent or resource limits.
+
+## New proxy protection defaults
+
+New proxy profiles now explicitly select `proxy_only` WebRTC, automatic identity,
+and proxy DNS for SOCKS4/SOCKS5. The options editor starts with SOCKS5 and DNS enabled,
+matching quick setup. Strict WebRTC can prevent calls without a TURN-over-TCP path
+through the proxy; it is not a claim that all browser traffic is covered. HTTP/HTTPS
+have no equivalent Firefox `proxyDNS` toggle. Explicit bypasses remain visible.
+
+This is a creation default, not a migration. Saved manual policies, DNS choices and
+the existing automatic recommendation remain unchanged. Built-in browser/system
+routing and Off retain their existing semantics. No new permission or network probe
+is introduced. Save still does not apply these settings.
+
+## Remembered visible-map loading (unreleased candidate)
+
+The owner requested automatic viewport loading. The first map enablement remains explicit
+and disclosed. Successful explicit authorization remembers only a boolean
+`ni.map.autoload.v1`; no viewed coordinates, credentials or routing state are stored there.
+After that choice, opening the identity map automatically creates a fresh generation-bound
+session. Panning/zooming uses the renderer's existing viewport requests and bounded broker.
+No bulk/offline map download or new provider is introduced.
+
+An automatic opening can only reuse an existing direct-IP grant; it never raises a
+permission prompt. Missing consent, blocked routing, missing credentials, provider bypasses
+and stale generations still fail closed. Closing the panel or changing editor destroys
+the old renderer/session. Unload or unchecking automatic loading clears the remembered
+choice and stops the current map. No hidden retry loop runs after an error.
+
+Publication remains blocked until the owner accepts the updated final pages.

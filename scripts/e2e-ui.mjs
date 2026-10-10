@@ -1,3 +1,7 @@
+import { runVaultChecks } from "./run-vault-checks.mjs";
+import { DELAYED_OPTIONS_STARTUP } from "./delayed-options-startup.mjs";
+import { createDraftFixture } from "./draft-probe-fixture.mjs";
+import { runDraftChecks } from "./run-draft-checks.mjs";
 /**
  * End-to-end UI tests against real Firefox.
  *
@@ -14,7 +18,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, readdir, writeFile, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import net from "node:net";
 import path from "node:path";
@@ -32,13 +36,23 @@ const { values } = parseArgs({
     firefox: { type: "string" },
     timeout: { type: "string", default: "90" },
     screenshots: { type: "string" },
+    light: { type: "boolean", default: false },
+    review: { type: "boolean", default: false },
+    scale: { type: "string", default: "1" },
     "live-map": { type: "boolean", default: false },
+    "draft-check": { type: "boolean", default: false },
+    "vault-check": { type: "boolean", default: false },
+    "delayed-init": { type: "boolean", default: false },
+    "draft-evidence": { type: "string" },
   },
 });
 
 const firefoxPath =
   values.firefox ?? (existsSync(WINDOWS_DEVELOPER_EDITION) ? WINDOWS_DEVELOPER_EDITION : undefined);
 const timeoutMs = Number(values.timeout) * 1000;
+if (!["1", "1.25", "1.5", "2"].includes(values.scale)) throw new Error("Unsupported UI scale");
+if (values.screenshots && values.scale !== "1")
+  throw new Error("Store captures require native scale");
 
 const redact = (value) =>
   String(value).replace(/moz-extension:\/\/[a-z0-9-]+/gi, "moz-extension://<extension>");
@@ -271,9 +285,13 @@ async function main() {
     process.exit(2);
   }
 
+  if (values["delayed-init"] && !values["draft-check"])
+    throw new Error("Delayed startup requires the isolated draft fixture");
+  let sourceDirectory = path.join(root, "dist");
   const failures = [];
   let client = null,
     liveMap = null,
+    draftFixture = null,
     firefox = null,
     directory = null;
   const check = (ok, label) => {
@@ -320,6 +338,21 @@ async function main() {
       ];
       liveMap = await createLiveMapProxy(9999);
     }
+    if (values["draft-check"]) {
+      if (values["live-map"] || values.screenshots)
+        throw new Error("Draft tests require their own isolated profile");
+      directory = await mkdtemp(path.join(tmpdir(), "ni-draft-check-"));
+      const profile = path.join(directory, "profile");
+      await mkdir(profile);
+      draftFixture = await createDraftFixture(directory, profile);
+      profileArgs = ["--firefox-profile", profile, "--keep-profile-changes"];
+      if (values["delayed-init"]) {
+        sourceDirectory = path.join(directory, "instrumented-extension");
+        await cp(path.join(root, "dist"), sourceDirectory, { recursive: true });
+        const bundle = path.join(sourceDirectory, "options/options.js");
+        await writeFile(bundle, DELAYED_OPTIONS_STARTUP + (await readFile(bundle, "utf8")));
+      }
+    }
     const marionettePort = await freePort();
     const cli = path.join(root, "node_modules", "web-ext", "bin", "web-ext.js");
     firefox = spawn(
@@ -328,12 +361,18 @@ async function main() {
         cli,
         "run",
         "--source-dir",
-        path.join(root, "dist"),
+        sourceDirectory,
         ...profileArgs,
         "--no-input",
         "--no-reload",
         `--pref=marionette.port=${marionettePort}`,
-        ...(values.screenshots ? ["--pref=ui.systemUsesDarkTheme=1"] : []),
+        `--pref=layout.css.devPixelsPerPx=${values.scale}`,
+        ...(values.screenshots || values["draft-evidence"]
+          ? [
+              `--pref=ui.systemUsesDarkTheme=${values.light ? 0 : 1}`,
+              `--pref=layout.css.prefers-color-scheme.content-override=${values.light ? 1 : 0}`,
+            ]
+          : []),
         "--arg=--marionette",
         "--arg=-remote-allow-system-access",
         ...(liveMap
@@ -369,7 +408,7 @@ async function main() {
       capabilities: {
         alwaysMatch: {
           browserName: "firefox",
-          acceptInsecureCerts: liveMap === null,
+          acceptInsecureCerts: liveMap === null && draftFixture === null,
           unhandledPromptBehavior: "dismiss",
         },
       },
@@ -474,6 +513,11 @@ async function main() {
       );
     }
     async function click(selector) {
+      if (
+        ["#duplicate", "#delete", "#deactivate"].includes(selector) &&
+        (await execute('return !!document.querySelector(".more-actions:not([open])");'))
+      )
+        await click(".more-actions > summary");
       const found = (
         await client.send("WebDriver:FindElement", { using: "css selector", value: selector })
       )?.value;
@@ -496,6 +540,9 @@ async function main() {
         return {lat:document.getElementById("field-latitude").value, lng:document.getElementById("field-longitude").value, center:m.dataset.center, zoom:m.dataset.zoom};`);
     }
     async function point(selector, x = 0.5, y = 0.5) {
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       return execute(
         `const e=document.querySelector(arguments[0]); e.scrollIntoView({block:"center"}); const r=e.getBoundingClientRect(); return {x:Math.round(r.left+r.width*arguments[1]), y:Math.round(r.top+r.height*arguments[2])};`,
         [selector, x, y],
@@ -519,6 +566,100 @@ async function main() {
       });
     }
 
+    if (values["vault-check"]) {
+      await runVaultChecks({
+        client,
+        call,
+        execute,
+        click,
+        fill,
+        waitFor,
+        check,
+        optionsUrl,
+        popupUrl,
+      });
+      if (failures.length) throw new Error(failures.join("; "));
+      log("PASSED: encrypted vault UI and suspension checks in real Firefox.");
+      return;
+    }
+    if (draftFixture) {
+      try {
+        await runDraftChecks({
+          delayedInit: values["delayed-init"],
+          capture: values["draft-evidence"]
+            ? async (name) => {
+                const output = path.resolve(values["draft-evidence"]);
+                await mkdir(output, { recursive: true });
+                await client.send("WebDriver:SetWindowRect", {
+                  width: name.startsWith("options") ? 1280 : 500,
+                  height: 900,
+                });
+                check(
+                  await execute(
+                    'return !document.querySelector("#protection-summary, #quick-protection-summary, [data-i18n=draftShortDisclosure]");',
+                  ),
+                  "Main surfaces omit the owner-rejected summary rows",
+                );
+                for (const language of ["zh_CN", "en"]) {
+                  await fill({ "ui-language": language });
+                  await waitFor(
+                    `return document.documentElement.lang === ${JSON.stringify(language === "zh_CN" ? "zh-CN" : "en")};`,
+                  );
+                  check(
+                    await execute(
+                      `return matchMedia("(prefers-color-scheme: dark)").matches === ${!values.light};`,
+                    ),
+                    "Review capture uses the requested native color scheme",
+                  );
+                  check(
+                    await execute("return document.documentElement.scrollWidth <= innerWidth;"),
+                    `Review capture has no horizontal overflow (${language})`,
+                  );
+                  if (name.startsWith("options")) {
+                    await client.send("WebDriver:SetWindowRect", { width: 500, height: 900 });
+                    check(
+                      await execute("return document.documentElement.scrollWidth <= innerWidth;"),
+                      `Narrow settings page has no horizontal overflow (${language})`,
+                    );
+                    await client.send("WebDriver:SetWindowRect", { width: 1280, height: 900 });
+                  }
+                  await execute("document.activeElement?.blur(); window.scrollTo(0, 0);");
+                  const screenshot = await client.send("WebDriver:TakeScreenshot", { full: true });
+                  await writeFile(
+                    path.join(
+                      output,
+                      `${name.replace(/-zh$/, "")}-${language}-${values.light ? "light" : "dark"}.png`,
+                    ),
+                    Buffer.from(screenshot.value, "base64"),
+                    { flag: "wx" },
+                  );
+                }
+                await fill({ "ui-language": "en" });
+                await waitFor('return document.documentElement.lang === "en";');
+              }
+            : undefined,
+          client,
+          execute,
+          call,
+          click,
+          fill,
+          waitFor,
+          check,
+          fixture: draftFixture,
+          optionsUrl,
+          popupUrl,
+        });
+      } catch (error) {
+        log(`Draft fixture observations: ${JSON.stringify(draftFixture.seen)}`);
+        log(
+          `Draft UI diagnostic: ${JSON.stringify(await execute('return {status: document.getElementById("draft-status")?.textContent, state: document.getElementById("draft-status")?.dataset.state, geo: document.getElementById("field-geoip-policy")?.value};'))}`,
+        );
+        throw error;
+      }
+      if (failures.length) throw new Error(failures.join("; "));
+      log("PASSED: isolated draft checks in real Firefox, local TLS with verification enabled.");
+      return;
+    }
     // Store images use this same real-Firefox fixture and shipped UI. Only
     // synthetic local proxy coordinates are entered; GeoIP is explicitly off.
     if (values.screenshots) {
@@ -527,6 +668,19 @@ async function main() {
       const images = [];
       let mapRequestEvidence = null;
       const capture = async (name, selector, offset = 24, frame = null) => {
+        // Every visible auto-loaded map must finish, including after reopening the
+        // editor in Chinese. An earlier ready canvas does not qualify a new session.
+        if (
+          liveMap &&
+          (await execute(`return !!document.getElementById("section-identity")?.open
+            && !document.getElementById("profile-form")?.hidden
+            && !!document.getElementById("map-autoload")?.checked;`))
+        ) {
+          await waitFor(
+            'return document.getElementById("location-map-surface").dataset.online === "ready";',
+            2400,
+          );
+        }
         if (frame === "picker") {
           await execute(
             `document.getElementById("location-map").closest("fieldset").scrollIntoView({block:"start"}); window.scrollBy(0, -16);`,
@@ -539,9 +693,9 @@ async function main() {
         else await execute("window.scrollTo(0, 0);");
         await execute("document.activeElement?.blur();");
         await new Promise((resolve) => setTimeout(resolve, 150));
-        const result = await client.send("WebDriver:TakeScreenshot", { full: false });
+        const result = await client.send("WebDriver:TakeScreenshot", { full: values.review });
         let encoded = result.value;
-        if (frame) {
+        if (frame && !values.review) {
           // Reframe real pixels at native scale: either identity + audit or the
           // complete Identity & Privacy fieldset. The picker includes its legend,
           // policy controls, override warning, map, attribution, provider/privacy
@@ -577,17 +731,17 @@ async function main() {
           encoded = framed.value.image;
         }
         const bytes = Buffer.from(encoded, "base64");
-        if (bytes.readUInt32BE(16) !== 1280 || bytes.readUInt32BE(20) !== 800) {
+        if (!values.review && (bytes.readUInt32BE(16) !== 1280 || bytes.readUInt32BE(20) !== 800)) {
           throw new Error(`Unexpected screenshot dimensions for ${name}`);
         }
         await writeFile(path.join(directory, name), bytes);
         images.push({
           file: name,
-          width: 1280,
-          height: 800,
+          width: bytes.readUInt32BE(16),
+          height: bytes.readUInt32BE(20),
           sha256: createHash("sha256").update(bytes).digest("hex"),
         });
-        log(`Wrote ${name} (1280 × 800)`);
+        log(`Wrote ${name} (${bytes.readUInt32BE(16)} × ${bytes.readUInt32BE(20)})`);
       };
       // Size by content viewport, not OS-dependent browser decoration height.
       await client.send("WebDriver:SetWindowRect", { width: 1280, height: 900 });
@@ -603,9 +757,13 @@ async function main() {
       await click("#new-profile");
       await fill({
         "field-name": "Tokyo · Local demo",
+        "field-proxy-type": liveMap ? "http" : "socks5",
         "field-proxy-host": "127.0.0.1",
         "field-proxy-port": String(liveMap?.port ?? 9999),
       });
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       await click("#field-mode-manual");
       await fill({
         "field-geoip-policy": "disabled",
@@ -623,8 +781,14 @@ async function main() {
         'return document.getElementById("options-status").textContent.includes("Asia/Tokyo");',
       );
       await capture("02-profile-management.png");
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       if (liveMap) {
         await startMapRequestEvidence();
+        if (!(await execute('return document.getElementById("section-identity").open;'))) {
+          await click("#section-identity > summary");
+        }
         await click("#load-online-map");
         await waitFor(
           `return document.getElementById("location-map-surface").dataset.online === "ready";`,
@@ -688,6 +852,43 @@ async function main() {
       await capture("01-active-profile.png");
       await click("#toggle-details");
       await capture("03-identity-audit.png", "#details-panel", 0, "audit");
+      await click("#toggle-details");
+      await fill({ "ui-language": "zh_CN" });
+      await waitFor('return document.documentElement.lang === "zh-CN";');
+      await capture("05-switcher-chinese.png");
+      await click("#quick-add-toggle");
+      await execute('document.body.style.marginTop = "16px";');
+      await fill({ "quick-host": "127.0.0.1", "quick-port": "10808" });
+      await capture("06-quick-add-chinese.png");
+      await client.send("WebDriver:Navigate", { url: optionsUrl });
+      await waitFor(
+        'return document.documentElement.lang === "zh-CN" && document.querySelectorAll("#profile-list li").length > 1;',
+      );
+      await execute(
+        'const row = [...document.querySelectorAll("#profile-list li")].find(e => e.querySelector(".name span")?.textContent === "Tokyo · Local demo"); if (!row) throw new Error("Demo profile missing"); row.click();',
+      );
+      await waitFor(
+        'return document.getElementById("form-title").textContent === "Tokyo · Local demo";',
+      );
+      await capture("07-options-chinese.png");
+      await capture("08-help-community-chinese.png", ".page-footer", 16);
+      await execute('document.getElementById("section-identity").open = true;');
+      await capture("09-identity-controls-chinese.png", "#section-identity", 16);
+      if (values.review) {
+        await execute('document.querySelectorAll("details").forEach(e => e.open = true);');
+        await capture("10-all-settings-expanded-chinese.png");
+        await execute(`document.querySelector('[data-profile-id="builtin-direct"]').click();`);
+        await capture("11-firefox-network-chinese.png");
+        await click("#new-profile");
+        await execute('document.querySelectorAll("details").forEach(e => e.open = true);');
+        await capture("12-new-profile-defaults-chinese.png");
+        await client.send("WebDriver:Navigate", { url: popupUrl });
+        await waitFor('return document.documentElement.lang === "zh-CN";');
+        await click("#quick-add-toggle");
+        await execute('document.querySelectorAll("details").forEach(e => e.open = true);');
+        await capture("13-quick-auth-protection-chinese.png");
+      }
+
       const userAgent = await execute("return navigator.userAgent;");
       const manifest = JSON.parse(await readFile(path.join(root, "dist", "manifest.json"), "utf8"));
       const sourceHashes = {};
@@ -823,11 +1024,26 @@ async function main() {
       "Built-in Direct is read-only",
     );
     await click("#new-profile");
+    check(
+      await execute(
+        'return !document.getElementById("section-identity").open && !document.getElementById("section-advanced").open;',
+      ),
+      "New proxy keeps identity and advanced configuration collapsed",
+    );
+    check(
+      await execute(
+        'return document.getElementById("field-proxy-type").value === "socks5" && document.getElementById("field-proxy-dns").checked && document.getElementById("field-webrtc").value === "proxy_only" && document.getElementById("field-mode-auto").checked;',
+      ),
+      "New proxy defaults enable SOCKS DNS, strict WebRTC and automatic identity",
+    );
     await fill({
       "field-name": "UI proxy",
       "field-proxy-host": "127.0.0.1",
       "field-proxy-port": "9999",
     });
+    if (!(await execute('return document.getElementById("section-identity").open;'))) {
+      await click("#section-identity > summary");
+    }
     await click("#field-mode-manual");
     await fill({
       "field-geoip-policy": "disabled",
@@ -930,8 +1146,121 @@ async function main() {
       `return document.URL === ${JSON.stringify(optionsUrl)} && document.getElementById("field-name").value === "UI proxy";`,
     );
 
+    const optionsBeforeLanguage = (await call({ type: "state:get" })).state;
+    check(
+      optionsBeforeLanguage.status === "idle" && optionsBeforeLanguage.activeProfileId === null,
+      "Popup Off waits for committed background teardown before language checks",
+    );
+    await fill({ "field-name": "Unsaved bilingual draft", "ui-language": "zh_CN" });
+    await waitFor(
+      'return document.documentElement.lang === "zh-CN" && document.getElementById("save").textContent === "保存";',
+    );
+    check(
+      await execute(
+        'return document.getElementById("field-name").value === "Unsaved bilingual draft" && document.getElementById("guide-body").textContent.includes("配置的作用");',
+      ),
+      "Options language translates guidance without discarding edits",
+    );
+    check(
+      (await call({ type: "state:get" })).state.generation === optionsBeforeLanguage.generation,
+      "Options language does not apply a profile",
+    );
+    await fill({ "ui-language": "en" });
+    await waitFor('return document.documentElement.lang === "en";');
     await client.send("WebDriver:Navigate", { url: popupUrl });
     await waitFor(`return !!document.querySelector('[data-profile-id="${id}"]');`);
+    const beforeLanguage = (await call({ type: "state:get" })).state;
+    await fill({ "ui-language": "zh_CN" });
+    await waitFor(
+      'return document.documentElement.lang === "zh-CN" && document.getElementById("quick-save").textContent === "保存";',
+    );
+    check(
+      (await call({ type: "state:get" })).state.generation === beforeLanguage.generation,
+      "Changing interface language never reactivates the route",
+    );
+    await client.send("WebDriver:Navigate", { url: popupUrl });
+    await waitFor(
+      'return document.documentElement.lang === "zh-CN" && document.getElementById("ui-language").value === "zh_CN";',
+    );
+    await fill({ "ui-language": "en" });
+    await waitFor(
+      'return document.documentElement.lang === "en" && document.getElementById("quick-save").textContent === "Save";',
+    );
+    check(
+      await execute(
+        'return Array.from(document.querySelectorAll("a")).some(a => a.href === "https://linux.do/" && a.rel.includes("noopener") && a.rel.includes("noreferrer"));',
+      ),
+      "Community link is visible and isolates its external browsing context",
+    );
+    const beforeSearch = (await call({ type: "state:get" })).state;
+    await fill({ "route-search": "does-not-match-any-profile" });
+    check(
+      await execute(
+        'return !document.getElementById("route-empty").hidden && document.querySelectorAll("#route-list button").length === 0;',
+      ),
+      "Search has an explicit empty state",
+    );
+    check(
+      (await call({ type: "state:get" })).state.generation === beforeSearch.generation,
+      "Filtering never switches or deactivates the route",
+    );
+    await fill({ "route-search": "" });
+    const beforeQuick = (await call({ type: "state:get" })).state;
+    await click("#quick-add-toggle");
+    check(
+      await execute(
+        'return document.body.dataset.view === "add" && getComputedStyle(document.querySelector(".identity-card")).display === "none" && document.activeElement.id === "quick-host";',
+      ),
+      "Quick setup is a focused view with host focus",
+    );
+    await fill({
+      "quick-host": "preserved.example",
+      "quick-username": "fixture-user",
+      "quick-password": "fixture-password",
+    });
+    await click("#quick-add-toggle");
+    check(
+      await execute(
+        'return document.body.dataset.view === "routes" && document.getElementById("quick-password").value === "" && document.getElementById("quick-username").value === "" && document.activeElement.id === "quick-add-toggle";',
+      ),
+      "Back restores switcher focus and clears credential drafts",
+    );
+    await click("#quick-add-toggle");
+    check(
+      await execute('return document.getElementById("quick-host").value === "preserved.example";'),
+      "Back retains the non-secret endpoint draft",
+    );
+    await fill({ "quick-host": "socks5://[::1]:10808", "quick-name": "Quick local fixture" });
+    await click("#quick-save");
+    await waitFor(
+      'return document.getElementById("quick-status").textContent.startsWith("Saved.");',
+    );
+    const afterQuick = (await call({ type: "state:get" })).state;
+    const quickProfiles = await call({ type: "profiles:list" });
+    const quickProfile = quickProfiles.profiles.find((p) => p.name === "Quick local fixture");
+    check(
+      quickProfile?.proxy.type === "socks5" &&
+        quickProfile.proxy.host === "::1" &&
+        quickProfile.proxy.port === 10808,
+      "Popup quick setup parses IPv6 and saves a validated proxy",
+    );
+    check(
+      afterQuick.generation === beforeQuick.generation &&
+        afterQuick.activeProfileId === beforeQuick.activeProfileId,
+      "Popup Save does not activate or resolve identity",
+    );
+    await fill({ "quick-host": "http://fixture-secret:fixture-password@localhost:8080" });
+    await click("#quick-save");
+    await waitFor(
+      'return document.getElementById("quick-status").textContent.includes("Remove credentials");',
+    );
+    check(
+      !(await call({ type: "profiles:list" })).profiles.some((p) =>
+        JSON.stringify(p).includes("fixture-secret"),
+      ),
+      "Credential-bearing pasted URL is not saved",
+    );
+    await click("#quick-add-toggle");
     await click(`[data-profile-id="${id}"]`);
     await waitFor(
       'return document.getElementById("identity-timezone").textContent === "Asia/Tokyo";',
@@ -977,21 +1306,21 @@ async function main() {
     await fill({ "field-proxy-port": "9997", "field-timezone": "America/New_York" });
     await click("#save-activate");
     await waitFor(
-      'return document.getElementById("options-status").textContent.includes("Europe/Paris");',
+      'return document.getElementById("options-status").textContent.includes("America/New_York");',
     );
     const applied = (await call({ type: "state:get" })).state;
     check(
       applied.generation > saved.generation &&
-        applied.proxy.port === 9998 &&
-        applied.identity.timezone === "Europe/Paris" &&
-        applied.appliedRevision === savedRevision,
-      "Apply commits saved routing and identity together",
+        applied.proxy.port === 9997 &&
+        applied.identity.timezone === "America/New_York" &&
+        applied.appliedRevision > savedRevision,
+      "Save and enable commits the current form routing and identity together",
     );
     check(
       (await execute('return document.getElementById("field-proxy-port").value === "9997";')) &&
         (await call({ type: "profiles:list" })).profiles.find((p) => p.id === id).revision ===
-          savedRevision,
-      "Apply neither saves nor discards unsaved form edits",
+          applied.appliedRevision,
+      "Save and enable saves the visible form rather than an older revision",
     );
 
     await fill({ "field-latitude": "35", "field-longitude": "139" });
@@ -1164,10 +1493,27 @@ async function main() {
       "Automatic preview permits panning but never selects on click",
     );
     await click("#deactivate");
+    // WebDriver click completion does not await the async runtime mutation.
+    await waitFor(`return (document.getElementById("profile-form").hidden
+      ? document.getElementById("direct-deactivate")
+      : document.getElementById("deactivate")).disabled;`);
     check(
       (await call({ type: "state:get" })).state.activeProfileId === null,
       "Final Off releases the test profile",
     );
+    await client.send("WebDriver:SetWindowRect", { width: 600, height: 800 });
+    for (const language of ["zh_CN", "en"]) {
+      await fill({ "ui-language": language });
+      await waitFor(
+        `return document.documentElement.lang === ${JSON.stringify(language === "zh_CN" ? "zh-CN" : "en")};`,
+      );
+      check(
+        await execute(
+          "return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1;",
+        ),
+        `Options remain horizontally contained in a narrow window (${language})`,
+      );
+    }
   } finally {
     if (client !== null) client.close();
     let stopped = false;
@@ -1177,6 +1523,7 @@ async function main() {
     } finally {
       try {
         if (liveMap) await liveMap.close();
+        if (draftFixture) await draftFixture.close();
       } finally {
         if (directory && stopped) await rm(directory, { recursive: true, force: true });
         else if (directory)

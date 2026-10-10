@@ -1,3 +1,8 @@
+import { bindVaultControls } from "../shared/vault-ui";
+import { bindDraftCheck } from "../shared/draft-check";
+import { parseDraftRequest } from "../shared/draft-probe";
+import { bindLanguageControl } from "../shared/language-control";
+import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n";
 /**
  * Options page: profile CRUD and management.
  *
@@ -22,7 +27,13 @@ import {
   parseStateResponse,
   type ProfilesResponse,
 } from "../shared/messages";
-import { ensureDirectIpConsent, onRuntimeMessage, request } from "../shared/runtime";
+import {
+  ensureDirectIpConsent,
+  onRuntimeMessage,
+  request,
+  readMapAutoload,
+  writeMapAutoload,
+} from "../shared/runtime";
 import type { RuntimeState } from "../shared/state";
 import {
   accuracyRadiusPixels,
@@ -47,11 +58,14 @@ import {
 } from "./form";
 
 const guideBody = requireElement<HTMLElement>("#guide-body");
-for (const section of GUIDE) {
-  guideBody.append(
-    el("h3", { text: section.title }),
-    el("p", { className: "hint", text: section.body }),
-  );
+function renderGuide(): void {
+  clear(guideBody);
+  for (const section of GUIDE) {
+    guideBody.append(
+      el("h3", { text: lt(section.title) }),
+      el("p", { className: "hint", text: lt(section.body) }),
+    );
+  }
 }
 
 const ui = {
@@ -114,20 +128,114 @@ let runtimeState: RuntimeState | null = null;
 let activeProfileId: string | null = null;
 let credentialProfileIds: string[] = [];
 let selectedId: string | null = null;
+// A late initial storage snapshot must never replace work begun in the editor.
+let editorRevision = 0;
 let manualUserEdited = false;
 let resolvedSeed: LocationSeed | null = null;
+let draftSeed: LocationSeed | null = null;
+
+const draftCheck = bindDraftCheck({
+  fields: [
+    ui.proxyType,
+    ui.proxyHost,
+    ui.proxyPort,
+    ui.proxyUsername,
+    ui.password,
+    ui.removeCredentials,
+    ui.proxyDns,
+    ui.geoIpPolicy,
+  ],
+  status: requireElement<HTMLElement>("#draft-status"),
+  retry: requireElement<HTMLButtonElement>("#draft-retry"),
+  read: () => {
+    if (ui.form.hidden || ui.geoIpPolicy.value === "disabled") return null;
+    const values = readForm();
+    const intent = credentialsIntentFrom(values);
+    const proxy = {
+      type: values.proxyType,
+      host: values.proxyHost,
+      port: Number(values.proxyPort),
+      proxyDNS: values.proxyDns,
+      bypassHosts: [],
+      authenticationRequired:
+        !values.removeCredentials && selectedProfile()?.proxy.authenticationRequired === true,
+    };
+    const parsed = parseDraftRequest({
+      type: "draft:probe",
+      owner: "ui-draft-validation",
+      input: {
+        proxy,
+        ...(selectedId ? { profileId: selectedId } : {}),
+        ...(intent.action === "clear"
+          ? { credentials: null }
+          : intent.action === "set"
+            ? { credentials: { username: intent.username, password: intent.password } }
+            : {}),
+      },
+    });
+    return parsed.ok && parsed.value.type === "draft:probe" ? parsed.value.input : null;
+  },
+  invalidated: () => {
+    draftSeed = null;
+    resolvedSeed = null;
+    if (!ui.form.hidden && ui.modeAuto.checked) {
+      if (ui.geolocationPolicy.value === "follow") {
+        ui.latitude.value = "";
+        ui.longitude.value = "";
+        syncMapSelection(true);
+        renderLocationMap();
+      }
+      if (ui.timezonePolicy.value === "follow") ui.timezone.value = "";
+    }
+  },
+  resolved: (identity) => {
+    draftSeed = { ...identity, accuracy: 20000 };
+    resolvedSeed = draftSeed;
+    if (ui.modeAuto.checked && ui.timezonePolicy.value === "follow")
+      ui.timezone.value = identity.timezone ?? "";
+    // A preview must never overwrite the user's manual location or policies.
+    if (ui.modeAuto.checked && ui.geolocationPolicy.value === "follow") {
+      ui.latitude.value = identity.latitude === undefined ? "" : String(identity.latitude);
+      ui.longitude.value = identity.longitude === undefined ? "" : String(identity.longitude);
+      ui.accuracy.value = "20000";
+      syncMapSelection(true);
+      renderLocationMap();
+    }
+  },
+});
 
 const map = new LocationMapModel();
 let onlineMap: OnlineMap | null = null;
 let mapSessionId: string | null = null;
 let onlineGeneration: number | null = null;
 let mapLoadEpoch = 0;
+const mapAutoload = requireElement<HTMLInputElement>("#map-autoload");
+let mapPreferenceVersion = 0;
+let mapPreferenceWrites: Promise<void> = Promise.resolve();
+function rememberMapAutoload(enabled: boolean): void {
+  const version = ++mapPreferenceVersion;
+  mapAutoload.checked = enabled;
+  mapPreferenceWrites = mapPreferenceWrites
+    .then(() => writeMapAutoload(enabled))
+    .catch(() => {
+      if (version !== mapPreferenceVersion) return;
+      mapAutoload.checked = false;
+      setMapStatus("Could not save automatic map preference. Enable the map again next time.");
+    });
+}
+
 const mapLoad = requireElement<HTMLButtonElement>("#load-online-map");
 const mapUnload = requireElement<HTMLButtonElement>("#unload-online-map");
 const mapOnlineStatus = requireElement<HTMLElement>("#map-online-status");
 const mapAttribution = requireElement<HTMLElement>(".location-map-attribution");
 
-function stopOnlineMap(message = "Online map off. Coordinates work offline."): void {
+let mapStatusText = "Online map off. Coordinates work offline.";
+function setMapStatus(text: string): void {
+  mapStatusText = text;
+  mapOnlineStatus.textContent = lt(text);
+}
+
+function stopOnlineMap(reason = "Online map off. Coordinates work offline."): void {
   ++mapLoadEpoch;
   onlineMap?.remove();
   onlineMap = null;
@@ -136,25 +244,29 @@ function stopOnlineMap(message = "Online map off. Coordinates work offline."): v
     void request({ type: "map:close", sessionId: mapSessionId }, parseMapResponse);
   mapSessionId = null;
   mapLoad.disabled = false;
-  mapLoad.textContent = "Load online map";
+  mapLoad.textContent = message("loadOnlineMap");
   mapLoad.hidden = false;
   mapUnload.hidden = true;
-  mapAttribution.textContent = NO_TILES.attribution;
-  mapOnlineStatus.textContent = message;
+  mapAttribution.textContent = lt(NO_TILES.attribution);
+  setMapStatus(reason);
   ui.mapSurface.dataset.online = "off";
 }
 
-async function loadOnlineMap(): Promise<void> {
+async function loadOnlineMap(userGesture = true): Promise<void> {
   if (mapLoad.disabled || onlineMap !== null || ui.form.hidden) return;
   const state = runtimeState;
   if (state === null) return;
   const epoch = ++mapLoadEpoch;
   const generation = state.generation;
   mapLoad.disabled = true;
-  mapOnlineStatus.textContent = "Checking map consent and the applied route…";
-  if (!(await ensureDirectIpConsent(state.appliedRoute === "proxy" ? "proxy" : "direct"))) {
-    if (epoch === mapLoadEpoch)
+  setMapStatus("Checking map consent and the applied route…");
+  if (
+    !(await ensureDirectIpConsent(state.appliedRoute === "proxy" ? "proxy" : "direct", userGesture))
+  ) {
+    if (epoch === mapLoadEpoch) {
+      if (userGesture) rememberMapAutoload(false);
       stopOnlineMap("Public-IP permission was not granted. Coordinates still work offline.");
+    }
     return;
   }
   if (epoch !== mapLoadEpoch || ui.form.hidden) return;
@@ -172,9 +284,10 @@ async function loadOnlineMap(): Promise<void> {
     );
     return;
   }
+  if (userGesture) rememberMapAutoload(true);
   mapSessionId = opened.value.sessionId;
   onlineGeneration = generation;
-  mapOnlineStatus.textContent = "Loading OpenFreeMap through the applied route…";
+  setMapStatus("Loading OpenFreeMap through the applied route…");
   mapLoad.hidden = true;
   mapUnload.hidden = false;
   ui.mapSurface.dataset.online = "loading";
@@ -192,9 +305,10 @@ async function loadOnlineMap(): Promise<void> {
             );
           else {
             ui.mapSurface.dataset.online = "partial";
-            mapOnlineStatus.textContent =
-              "Some map data could not load. The displayed map may be incomplete; reload to try again.";
-            mapLoad.textContent = "Reload online map";
+            setMapStatus(
+              "Some map data could not load. The displayed map may be incomplete; reload to try again.",
+            );
+            mapLoad.textContent = message("reloadOnlineMap");
             mapLoad.disabled = false;
             mapLoad.hidden = false;
           }
@@ -202,8 +316,7 @@ async function loadOnlineMap(): Promise<void> {
       () => {
         if (epoch !== mapLoadEpoch) return;
         ui.mapSurface.dataset.online = "ready";
-        mapOnlineStatus.textContent =
-          "Online map loaded. Panning and zooming send the viewed area to OpenFreeMap.";
+        setMapStatus("Online map loaded. Panning and zooming send the viewed area to OpenFreeMap.");
       },
     );
     mapAttribution.replaceChildren();
@@ -224,10 +337,31 @@ async function loadOnlineMap(): Promise<void> {
   }
 }
 mapLoad.addEventListener("click", () => {
-  if (onlineMap !== null) stopOnlineMap();
+  if (onlineMap !== null) {
+    mapLoad.disabled = true;
+    mapLoad.hidden = true;
+    ui.mapSurface.dataset.online = "loading";
+    setMapStatus("Reloading map data through the applied route…");
+    try {
+      onlineMap.reload();
+    } catch {
+      stopOnlineMap("WebGL map unavailable. Coordinates still work offline.");
+    }
+    return;
+  }
   void loadOnlineMap();
 });
-mapUnload.addEventListener("click", () => stopOnlineMap());
+mapUnload.addEventListener("click", () => {
+  rememberMapAutoload(false);
+  stopOnlineMap();
+});
+mapAutoload.addEventListener("change", () => {
+  const enabled = mapAutoload.checked;
+  rememberMapAutoload(enabled);
+  if (enabled) void loadOnlineMap();
+  else stopOnlineMap();
+});
+
 let capture: { element: HTMLElement; id: number } | null = null;
 let wheelDelta = 0;
 let lastWheelAt = 0;
@@ -303,14 +437,16 @@ function writeForm(values: ProfileFormValues): void {
   updateVisibility();
 }
 
+let lastErrors: readonly string[] = [];
 function showErrors(errors: readonly string[]): void {
+  lastErrors = [...errors];
   if (errors.length === 0) {
     ui.errors.hidden = true;
     ui.errors.textContent = "";
     return;
   }
   ui.errors.hidden = false;
-  ui.errors.textContent = errors.join(" • ");
+  ui.errors.textContent = errors.map(lt).join(" • ");
 }
 
 function selectedProfile(): IdentityProfile | null {
@@ -342,14 +478,19 @@ function renderLocationMap(): void {
   const viewport = mapViewport();
   const point = map.selection;
   if (editableLocation() && ui.timezonePolicy.value === "manual") {
-    ui.identityWarning.textContent =
+    ui.identityWarning.textContent = lt(
       locationTimezoneWarning(Number(ui.longitude.value), ui.timezone.value, Date.now()) ??
-      "Custom overrides are applied as entered; they may differ from the observed network location.";
+        "Custom overrides are applied as entered; they may differ from the observed network location.",
+    );
   }
 
   onlineMap?.update(viewport);
   ui.mapNotice.hidden = false;
-  ui.mapNotice.textContent = `Center ${viewport.center.latitude.toFixed(3)}, ${viewport.center.longitude.toFixed(3)} · Zoom ${viewport.zoom}`;
+  ui.mapNotice.textContent = formatMessage("mapCamera", {
+    latitude: viewport.center.latitude.toFixed(3),
+    longitude: viewport.center.longitude.toFixed(3),
+    zoom: viewport.zoom,
+  });
   ui.mapSurface.dataset.zoom = String(viewport.zoom);
   ui.mapSurface.dataset.center = `${viewport.center.latitude},${viewport.center.longitude}`;
   ui.mapSurface.style.backgroundPosition = `${-viewport.center.longitude * 2 ** viewport.zoom}px ${viewport.center.latitude * 2 ** viewport.zoom}px`;
@@ -407,8 +548,9 @@ function updateVisibility(): void {
   ui.timezone.disabled = !isManual || ui.timezonePolicy.value !== "manual";
   ui.proxyAddressFields.hidden = ui.proxyType.value === "direct";
   ui.identityWarning.hidden = !isManual;
-  ui.identityWarning.textContent =
-    "Custom overrides are applied as entered. A manual location or timezone may disagree with the observed network location.";
+  ui.identityWarning.textContent = lt(
+    "Custom overrides are applied as entered. A manual location or timezone may disagree with the observed network location.",
+  );
   ui.useGeoIpLocation.disabled =
     resolvedSeed?.latitude === undefined || resolvedSeed.longitude === undefined;
   ui.mapSurface.classList.toggle("is-preview", !editableLocation());
@@ -417,14 +559,19 @@ function updateVisibility(): void {
   renderLocationMap();
   ui.removeCredentialsRow.hidden = !hasCredentials;
 
+  renderHints();
+  ui.proxyDns.disabled = !["socks4", "socks5"].includes(ui.proxyType.value);
+}
+
+function renderHints(): void {
   clear(ui.hints);
   for (const hint of proxyFieldHints(ui.proxyType.value)) {
-    ui.hints.append(el("li", { text: hint }));
+    ui.hints.append(el("li", { text: lt(hint) }));
   }
-  if (isManual) {
+  if (ui.modeManual.checked) {
     ui.hints.append(
       el("li", {
-        text: "Manual coordinates are applied to pages as-is, with the accuracy you provide.",
+        text: message("manualAccuracyNotice"),
       }),
     );
   }
@@ -439,20 +586,24 @@ function renderProfileList(): void {
     const isDirect = profile.id === BUILTIN_DIRECT_PROFILE_ID;
     const badges: Node[] = [];
     if (profile.id === activeProfileId) {
-      badges.push(el("span", { className: "badge", text: "active" }));
+      badges.push(el("span", { className: "badge", text: message("activeBadge") }));
     }
     if (credentialProfileIds.includes(profile.id)) {
-      badges.push(el("span", { className: "badge", text: "session credentials" }));
+      badges.push(el("span", { className: "badge", text: message("sessionCredentialsBadge") }));
     }
     if (isDirect) {
       badges.push(
-        el("span", { className: "badge", attrs: { "data-tone": "ok" }, text: "built-in" }),
+        el("span", {
+          className: "badge",
+          attrs: { "data-tone": "ok" },
+          text: message("builtInBadge"),
+        }),
       );
     }
 
     const subtitle = isDirect
       ? "Browser / system routing · Automatic identity"
-      : `${describeProxy(profile.proxy)} · ${profile.identity.mode} identity · WebRTC ${profile.webrtcPolicy}`;
+      : `${describeProxy(profile.proxy)} · ${profile.identity.mode === "auto" ? message("automaticLabel") : message("manualLabel")} · WebRTC ${profile.webrtcPolicy}`;
 
     const item = el("li", {
       attrs: {
@@ -466,11 +617,14 @@ function renderProfileList(): void {
       children: [
         el("div", {
           className: "name",
-          children: [el("span", { text: profile.name }), ...badges],
+          children: [
+            el("span", { text: isDirect ? message("browserRouting") : profile.name }),
+            ...badges,
+          ],
         }),
         el("div", {
           className: "meta",
-          text: subtitle,
+          text: lt(subtitle),
         }),
       ],
     });
@@ -486,6 +640,10 @@ function renderProfileList(): void {
 }
 
 function selectProfile(profileId: string | null): void {
+  editorRevision++;
+  draftCheck.cancel();
+  requireElement<HTMLDetailsElement>("#section-auth").open = false;
+  requireElement<HTMLDetailsElement>("#section-identity").open = false;
   stopOnlineMap();
   cancelMapInteraction();
   wheelDelta = 0;
@@ -504,13 +662,13 @@ function selectProfile(profileId: string | null): void {
     const profile = selectedProfile();
     writeForm(toFormValues(profile));
 
-    ui.formTitle.textContent = profile === null ? "New profile" : profile.name;
+    ui.formTitle.textContent = profile === null ? message("newProfile") : profile.name;
     ui.formBadge.hidden = profile === null || profile.id !== activeProfileId;
 
     const hasSelection = profile !== null;
     ui.delete.disabled = !hasSelection;
     ui.duplicate.disabled = !hasSelection;
-    ui.saveActivate.disabled = !hasSelection;
+    ui.saveActivate.disabled = false;
     ui.deactivate.disabled = activeProfileId === null;
 
     syncMapSelection();
@@ -534,10 +692,8 @@ function renderSaveStatus(): void {
     profile !== null &&
     profile.id === runtimeState?.activeProfileId &&
     (profile.revision ?? 1) !== runtimeState.appliedRevision;
-  ui.saveStatus.textContent = pending
-    ? "Saved changes are pending. Apply to update the active route."
-    : "Save stores edits. Apply activates the saved configuration; unsaved edits stay in the form.";
-  ui.saveActivate.textContent = "Apply";
+  ui.saveStatus.textContent = `${pending ? message("pendingDraftChanges") + " · " : ""}${message("enableDraftHint")}`;
+  ui.saveActivate.textContent = message("enableDraft");
 }
 
 function renderStatus(state: RuntimeState): void {
@@ -546,9 +702,17 @@ function renderStatus(state: RuntimeState): void {
   runtimeState = state;
   activeProfileId = state.activeProfileId;
   renderSaveStatus();
-  resolvedSeed = state.identity.geoIpLocation ?? null;
+  resolvedSeed =
+    draftSeed ??
+    (state.activeProfileId === selectedId ? (state.identity.geoIpLocation ?? null) : null);
   ui.useGeoIpLocation.disabled =
     resolvedSeed?.latitude === undefined || resolvedSeed.longitude === undefined;
+  renderRuntimeRows(state);
+  syncMapSelection();
+  renderLocationMap();
+}
+
+function renderRuntimeRows(state: RuntimeState): void {
   clear(ui.status);
 
   const addRow = (label: string, value: string, status: string): void => {
@@ -557,7 +721,7 @@ function renderStatus(state: RuntimeState): void {
         className: "row",
         attrs: { "data-status": status },
         children: [
-          el("span", { className: "label", text: label }),
+          el("span", { className: "label", text: lt(label) }),
           el("span", { className: "value", text: value }),
         ],
       }),
@@ -621,17 +785,18 @@ function renderStatus(state: RuntimeState): void {
   );
 
   for (const check of state.audit.checks) {
-    addRow(check.label, check.detail ?? "", check.status);
+    addRow(check.label, lt(check.detail ?? ""), check.status);
   }
 
   if (state.lastError !== undefined) {
     addRow("Last error", state.lastError.message, "error");
   }
-  syncMapSelection();
-  renderLocationMap();
 }
 
-async function reload(selectAfter: string | null = null): Promise<ProfilesResponse | null> {
+async function reload(
+  selectAfter: string | null = null,
+  initialEditorRevision?: number,
+): Promise<ProfilesResponse | null> {
   const [profilesResponse, stateResponse] = await Promise.all([
     request({ type: "profiles:list" }, parseProfilesResponse),
     request({ type: "state:get" }, parseStateResponse),
@@ -653,12 +818,16 @@ async function reload(selectAfter: string | null = null): Promise<ProfilesRespon
     (selectedId !== null && profiles.some((profile) => profile.id === selectedId)
       ? selectedId
       : BUILTIN_DIRECT_PROFILE_ID);
-  selectProfile(desiredSelection);
+  if (initialEditorRevision === undefined || initialEditorRevision === editorRevision)
+    selectProfile(desiredSelection);
+  else renderProfileList();
   return snapshot;
 }
 
 async function saveProfile(): Promise<IdentityProfile | null> {
   const values = readForm();
+  if (values.name.trim() === "")
+    values.name = `${values.proxyType.toUpperCase()} ${values.proxyHost}:${values.proxyPort}`;
   const id = values.id ?? createProfileId();
   const parsed = parseProfile(toProfileInput({ ...values, id }, id));
 
@@ -737,7 +906,9 @@ async function deleteSelected(): Promise<void> {
   if (profile === null || profile.id === BUILTIN_DIRECT_PROFILE_ID) return;
   if (
     !window.confirm(
-      `Delete${profile.id === activeProfileId ? " and deactivate" : ""} the profile “${profile.name}”?`,
+      formatMessage(profile.id === activeProfileId ? "deleteActiveProfile" : "deleteProfile", {
+        name: profile.name,
+      }),
     )
   )
     return;
@@ -785,6 +956,9 @@ for (const field of [ui.geoIpPolicy, ui.geolocationPolicy, ui.timezonePolicy])
   field.addEventListener("change", updateVisibility);
 
 // Event Listeners
+ui.form.addEventListener("input", () => {
+  editorRevision++;
+});
 ui.form.addEventListener("submit", (event) => {
   event.preventDefault();
   void saveProfile();
@@ -796,9 +970,19 @@ ui.newProfile.addEventListener("click", () => {
 });
 
 async function applySelected(): Promise<void> {
-  const profile = selectedProfile();
-  if (profile === null) return;
-  await activateProfileById(profile.id, true);
+  if (ui.form.inert) return;
+  draftCheck.cancel();
+  ui.form.inert = true;
+  ui.list.inert = true;
+  ui.newProfile.disabled = true;
+  try {
+    const profile = await saveProfile();
+    if (profile !== null) await activateProfileById(profile.id);
+  } finally {
+    ui.form.inert = false;
+    ui.list.inert = false;
+    ui.newProfile.disabled = false;
+  }
 }
 
 ui.saveActivate.addEventListener("click", () => {
@@ -833,6 +1017,15 @@ ui.directDeactivate.addEventListener("click", () => {
 
 ui.refreshIdentity.addEventListener("click", () => {
   void refreshIdentity();
+});
+
+requireElement<HTMLDetailsElement>("#section-identity").addEventListener("toggle", (event) => {
+  if (!(event.currentTarget as HTMLDetailsElement).open) {
+    stopOnlineMap();
+    cancelMapInteraction();
+  } else if (mapAutoload.checked) {
+    void loadOnlineMap(false);
+  }
 });
 
 ui.proxyType.addEventListener("change", () => {
@@ -1004,6 +1197,27 @@ onRuntimeMessage((message) => {
 });
 
 void (async () => {
-  await reload();
+  const initialEditorRevision = editorRevision;
+  const initialVersion = mapPreferenceVersion;
+  try {
+    const enabled = await readMapAutoload();
+    if (initialVersion === mapPreferenceVersion) mapAutoload.checked = enabled;
+  } catch {
+    /* Missing preference must never initiate a map request. */
+  }
+  await bindLanguageControl(() => {
+    renderGuide();
+    renderHints();
+    showErrors(lastErrors);
+    renderProfileList();
+    setMapStatus(mapStatusText);
+    mapLoad.textContent = message(onlineMap ? "reloadOnlineMap" : "loadOnlineMap");
+    if (!onlineMap) mapAttribution.textContent = message("localGrid");
+    renderSaveStatus();
+    if (runtimeState) renderRuntimeRows(runtimeState);
+    if (selectedProfile() === null) ui.formTitle.textContent = message("newProfile");
+  });
+  if (!(await bindVaultControls())) return;
+  await reload(null, initialEditorRevision);
   renderProfileList();
 })();

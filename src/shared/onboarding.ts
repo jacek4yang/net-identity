@@ -57,7 +57,7 @@ export function explainRuntimeError(code: string | undefined, message: string): 
     case "provider_error":
       return `${message} Check that the proxy can reach the internet, then press Refresh Identity. Native geolocation remains blocked while controlled.`;
     case "proxy_error":
-      return `${message} Check the proxy host, port, and password. The password is kept only until Firefox exits.`;
+      return `${message} Check the proxy host, port, and password. Enable the encrypted vault to keep credentials across restarts.`;
     case "schema_unsupported":
       return `${message} Do not delete the extension data; a newer version is required to read it.`;
     default:

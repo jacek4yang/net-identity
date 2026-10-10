@@ -1,0 +1,1085 @@
+{
+  "extensionName": {
+    "message": "Net Identity"
+  },
+  "extensionDescription": {
+    "message": "Firefox 代理配置管理，配合页面可见位置、时区和 WebRTC 控制。"
+  },
+  "language": {
+    "message": "Language / 语言"
+  },
+  "languageAuto": {
+    "message": "自动"
+  },
+  "addProxy": {
+    "message": "+ 添加代理"
+  },
+  "addProxyLegend": {
+    "message": "添加代理"
+  },
+  "protocol": {
+    "message": "协议"
+  },
+  "host": {
+    "message": "主机或代理地址"
+  },
+  "port": {
+    "message": "端口"
+  },
+  "profileNameOptional": {
+    "message": "配置名称（可选）"
+  },
+  "sessionAuth": {
+    "message": "代理认证"
+  },
+  "username": {
+    "message": "用户名"
+  },
+  "password": {
+    "message": "密码"
+  },
+  "authNotice": {
+    "message": "未启用保险库时，退出 Firefox 后凭据会丢失。SOCKS4 不支持认证。"
+  },
+  "pasteNotice": {
+    "message": "地址已含端口时可留空端口栏。地址中明确指定的协议优先，不会自动探测；账号密码请单独填写。"
+  },
+  "save": {
+    "message": "保存"
+  },
+  "saveActivate": {
+    "message": "保存并启用"
+  },
+  "manageProfiles": {
+    "message": "设置／管理配置"
+  },
+  "currentIdentity": {
+    "message": "当前身份"
+  },
+  "route": {
+    "message": "路由"
+  },
+  "location": {
+    "message": "位置"
+  },
+  "zone": {
+    "message": "时区"
+  },
+  "refresh": {
+    "message": "刷新"
+  },
+  "details": {
+    "message": "详情"
+  },
+  "hideDetails": {
+    "message": "收起详情"
+  },
+  "diagnostics": {
+    "message": "诊断与详情"
+  },
+  "routing": {
+    "message": "路由"
+  },
+  "endpoint": {
+    "message": "端点"
+  },
+  "ipVerification": {
+    "message": "IP 验证"
+  },
+  "firefoxProxy": {
+    "message": "Firefox 代理"
+  },
+  "identityProtection": {
+    "message": "身份设置与保护"
+  },
+  "coordinates": {
+    "message": "坐标"
+  },
+  "webrtcPolicy": {
+    "message": "WebRTC 策略"
+  },
+  "frameShim": {
+    "message": "页面适配"
+  },
+  "consistencyChecks": {
+    "message": "一致性检查"
+  },
+  "off": {
+    "message": "关闭"
+  },
+  "offDescription": {
+    "message": "释放 WebRTC 与模拟身份控制"
+  },
+  "detailsNotice": {
+    "message": "浏览器／系统路由不设置扩展代理，仍遵循 Firefox 和系统配置。启用保险库可加密保存代理凭据，否则仅保留当前会话。"
+  },
+  "availableRoutes": {
+    "message": "可用路由"
+  },
+  "networkRoutes": {
+    "message": "网络路由"
+  },
+  "quickAddLabel": {
+    "message": "快捷添加代理"
+  },
+  "diagnosticsLabel": {
+    "message": "详情与诊断"
+  },
+  "inactive": {
+    "message": "未启用"
+  },
+  "consistent": {
+    "message": "✓ 一致"
+  },
+  "partial": {
+    "message": "部分生效"
+  },
+  "error": {
+    "message": "错误"
+  },
+  "activating": {
+    "message": "正在启用…"
+  },
+  "resolving": {
+    "message": "正在解析…"
+  },
+  "active": {
+    "message": "已启用"
+  },
+  "proxyUnavailable": {
+    "message": "代理不可用"
+  },
+  "credentialsRequired": {
+    "message": "需要认证凭据"
+  },
+  "routingBlocked": {
+    "message": "路由已阻止"
+  },
+  "proxyUncertain": {
+    "message": "代理连接状态待确认"
+  },
+  "browserRouting": {
+    "message": "使用 Firefox 原有网络设置"
+  },
+  "noProxy": {
+    "message": "未启用代理"
+  },
+  "directDetail": {
+    "message": "遵循 Firefox 原有网络设置"
+  },
+  "noRoute": {
+    "message": "未启用路由"
+  },
+  "noneOff": {
+    "message": "无（已关闭）"
+  },
+  "verified": {
+    "message": "已通过出口查询验证"
+  },
+  "unverified": {
+    "message": "未验证"
+  },
+  "noTabs": {
+    "message": "尚无标签页报告"
+  },
+  "saving": {
+    "message": "正在保存配置…"
+  },
+  "saved": {
+    "message": "已保存。保存不代表连接可用，也不会改变当前路由。"
+  },
+  "applying": {
+    "message": "已保存，正在应用路由；身份查询可能稍后完成…"
+  },
+  "appliedSeeStatus": {
+    "message": "已保存，请查看当前路由和身份状态以确认启用结果。"
+  },
+  "operationUnconfirmed": {
+    "message": "无法确认操作结果，请检查配置列表后重试。"
+  },
+  "socks4NoAuth": {
+    "message": "SOCKS4 不支持认证，请选择 SOCKS5、HTTP 或 HTTPS。"
+  },
+  "endpointTooLong": {
+    "message": "代理地址过长。"
+  },
+  "hostWhitespace": {
+    "message": "请输入不含空白字符的主机地址。"
+  },
+  "uriCredentials": {
+    "message": "请移除地址中的凭据，在单独的认证字段中填写。"
+  },
+  "percentEndpoint": {
+    "message": "不支持百分号编码的代理地址，请直接填写主机地址。"
+  },
+  "chooseProtocol": {
+    "message": "请选择 HTTP、HTTPS、SOCKS4 或 SOCKS5。"
+  },
+  "endpointOnly": {
+    "message": "仅填写代理主机和端口，不要包含路径或查询参数。"
+  },
+  "ipv6Close": {
+    "message": "请用 ] 结束 IPv6 地址。"
+  },
+  "ipv6Port": {
+    "message": "请使用 [IPv6]:端口 格式。"
+  },
+  "validHost": {
+    "message": "请输入有效主机名、IPv4 或带方括号的 IPv6 地址。"
+  },
+  "validPort": {
+    "message": "请输入 1 至 65535 的端口。"
+  },
+  "ipv6Brackets": {
+    "message": "请给 IPv6 地址加方括号，例如 [::1]:1080。"
+  },
+  "profileLimit": {
+    "message": "已达到配置数量上限。"
+  },
+  "nameTooLong": {
+    "message": "配置名称过长。"
+  },
+  "nameUsed": {
+    "message": "配置名称已被使用，请换一个名称。"
+  },
+  "ok": {
+    "message": "正常"
+  },
+  "notConfigured": {
+    "message": "未配置"
+  },
+  "unavailable": {
+    "message": "不可用"
+  },
+  "manual": {
+    "message": "手动"
+  },
+  "providerError": {
+    "message": "服务提供方错误"
+  },
+  "controlledOther": {
+    "message": "由其他扩展控制"
+  },
+  "stale": {
+    "message": "已过期"
+  },
+  "pending": {
+    "message": "待完成"
+  },
+  "errorLower": {
+    "message": "错误"
+  },
+  "credentialsTraffic": {
+    "message": "需要代理凭据。流量仍受此配置限制。"
+  },
+  "blockedTraffic": {
+    "message": "流量已阻止，不会直连。代理恢复后请重试此配置。"
+  },
+  "refreshConsent": {
+    "message": "刷新浏览器路由配置会向 GeoIP 提供方发送您的公网 IP，需授权后继续。"
+  },
+  "languageSaveFailed": {
+    "message": "无法保存语言偏好，请重试。"
+  },
+  "searchProfiles": {
+    "message": "搜索代理"
+  },
+  "noMatchingProfiles": {
+    "message": "没有匹配的配置。当前线路保持不变。"
+  },
+  "backToRoutes": {
+    "message": "← 返回线路"
+  },
+  "profilesPage": {
+    "message": "Net Identity · 配置管理"
+  },
+  "profilesGuide": {
+    "message": "配置如何工作"
+  },
+  "profilesIntro": {
+    "message": "添加代理，自动检测，随时切换。"
+  },
+  "profiles": {
+    "message": "配置"
+  },
+  "addProxyOption": {
+    "message": "+ 添加代理"
+  },
+  "noProfiles": {
+    "message": "还没有代理配置。点击“+ 添加代理”开始。"
+  },
+  "directLabel": {
+    "message": "使用 Firefox 原有网络设置"
+  },
+  "builtIn": {
+    "message": "内置"
+  },
+  "activeLabel": {
+    "message": "已启用"
+  },
+  "directLead": {
+    "message": "不设置扩展代理，继续使用 Firefox 和系统的路由设置。"
+  },
+  "proxyLabel": {
+    "message": "代理"
+  },
+  "directValue": {
+    "message": "使用 Firefox 原有网络设置"
+  },
+  "directHint": {
+    "message": "不会覆盖 Firefox 设置中的代理"
+  },
+  "defaultLabel": {
+    "message": "默认"
+  },
+  "webrtcDefaultHint": {
+    "message": "Firefox 默认的 IP 地址处理策略"
+  },
+  "identityLabel": {
+    "message": "身份"
+  },
+  "automaticLabel": {
+    "message": "自动"
+  },
+  "directConsentHint": {
+    "message": "检测出口 IP；直连查询需要先获得许可"
+  },
+  "directImmutable": {
+    "message": "内置的浏览器路由不能修改、复制或删除。如需完全关闭模拟身份，请点击“停用”，或在弹窗中选择“关闭”。"
+  },
+  "activateDirect": {
+    "message": "启用浏览器路由"
+  },
+  "allowGeoipRefresh": {
+    "message": "允许 GeoIP 查询／刷新"
+  },
+  "deactivateLabel": {
+    "message": "停用"
+  },
+  "newProfile": {
+    "message": "新建配置"
+  },
+  "basicSection": {
+    "message": "基本设置"
+  },
+  "profileName": {
+    "message": "配置名称"
+  },
+  "proxyProtocol": {
+    "message": "代理协议"
+  },
+  "customDirect": {
+    "message": "浏览器路由（自定义身份）"
+  },
+  "httpProxy": {
+    "message": "HTTP 代理"
+  },
+  "httpsProxy": {
+    "message": "HTTPS 代理"
+  },
+  "socks4Proxy": {
+    "message": "SOCKS4 代理"
+  },
+  "socks5Proxy": {
+    "message": "SOCKS5 代理"
+  },
+  "hostShort": {
+    "message": "主机"
+  },
+  "portShort": {
+    "message": "端口"
+  },
+  "authentication": {
+    "message": "认证"
+  },
+  "proxyUsername": {
+    "message": "代理用户名"
+  },
+  "proxyPassword": {
+    "message": "代理密码"
+  },
+  "sessionCredentialsHint": {
+    "message": "启用保险库可加密保存凭据并在重启后保留，否则仅保留本次会话。两项留空保留已有凭据，填写任意一项替换整组。"
+  },
+  "clearCredentials": {
+    "message": "保存时清除凭据（点击“应用”后才从当前线路移除）"
+  },
+  "identityPrivacy": {
+    "message": "身份与隐私"
+  },
+  "automaticMode": {
+    "message": "自动：通过代理检测公网出口 IP"
+  },
+  "manualMode": {
+    "message": "手动：自定义坐标、精度和时区"
+  },
+  "publicGeoip": {
+    "message": "公网 IP／GeoIP"
+  },
+  "automaticIpwho": {
+    "message": "自动（ipwho.is）"
+  },
+  "disabledLookup": {
+    "message": "停用（不查询）"
+  },
+  "geolocationLabel": {
+    "message": "地理位置"
+  },
+  "followGeoip": {
+    "message": "跟随 GeoIP"
+  },
+  "manualCoordinates": {
+    "message": "手动坐标"
+  },
+  "unavailableNative": {
+    "message": "不可用（不提供真实位置）"
+  },
+  "followLocation": {
+    "message": "跟随解析的位置"
+  },
+  "manualTimezone": {
+    "message": "手动 IANA 时区"
+  },
+  "localGrid": {
+    "message": "本地坐标网格 · 无地图影像"
+  },
+  "mapUnavailable": {
+    "message": "地图影像不可用，坐标功能仍可使用。"
+  },
+  "providerTerms": {
+    "message": "服务商条款"
+  },
+  "loadOnlineMap": {
+    "message": "加载在线地图"
+  },
+  "unloadOnlineMap": {
+    "message": "关闭在线地图"
+  },
+  "useGeoipLocation": {
+    "message": "使用 GeoIP 位置"
+  },
+  "mapInteractionHint": {
+    "message": "手动模式下，拖动地图平移，点击地图放置标记，或直接拖动标记。"
+  },
+  "latitude": {
+    "message": "纬度"
+  },
+  "longitude": {
+    "message": "经度"
+  },
+  "accuracyMetres": {
+    "message": "精度（米）"
+  },
+  "ianaTimezone": {
+    "message": "时区（IANA）"
+  },
+  "advanced": {
+    "message": "高级设置"
+  },
+  "proxyDnsHint": {
+    "message": "通过代理解析 DNS（Firefox 对 SOCKS 代理应用此设置）"
+  },
+  "bypassHosts": {
+    "message": "绕过代理的主机（每行一个，也可用逗号或分号分隔）"
+  },
+  "webrtcHandling": {
+    "message": "WebRTC IP 地址处理策略"
+  },
+  "webrtcAutomatic": {
+    "message": "自动（按线路推荐）"
+  },
+  "webrtcExplicitDefault": {
+    "message": "默认（明确指定）"
+  },
+  "webrtcPublicOnly": {
+    "message": "仅公网地址"
+  },
+  "webrtcPreferProxy": {
+    "message": "UDP 优先使用代理"
+  },
+  "webrtcStrict": {
+    "message": "仅代理（最严格）"
+  },
+  "runtimeDetails": {
+    "message": "运行详情"
+  },
+  "runtimeAuditHint": {
+    "message": "当前身份状态与一致性检查"
+  },
+  "refreshIdentity": {
+    "message": "刷新身份"
+  },
+  "apply": {
+    "message": "应用"
+  },
+  "duplicate": {
+    "message": "复制"
+  },
+  "delete": {
+    "message": "删除"
+  },
+  "collectionNotice": {
+    "message": "启用配置时可能向 ipwho.is 查询出口 IP。使用代理时，服务商看到的是代理地址；使用浏览器路由时，仅在获得许可后发送你自己的公网 IP。位置选择器默认离线；明确同意并加载在线地图后，会向 OpenFreeMap 发送当前连接的公网 IP 和查看区域。坐标及地图交互均可离线使用。没有遥测，也不远程加载代码。"
+  },
+  "shimLimitNotice": {
+    "message": "网页地理位置和时区修改属于兼容层，复杂的网页脚本仍可能识别这些修改，并不保证无法通过浏览器指纹识别。"
+  },
+  "guideText0": {
+    "message": "配置的作用"
+  },
+  "guideText1": {
+    "message": "配置同时控制 Firefox 连接方式、网页可见的位置与时区，以及 WebRTC 地址处理。选择浏览器路由或代理即可启用；关闭可释放身份与 WebRTC 控制。保存仅保存修改，保存并启用会应用配置。"
+  },
+  "guideText2": {
+    "message": "浏览器路由"
+  },
+  "guideText3": {
+    "message": "使用 Firefox 自身的连接方式，不会关闭你在 Firefox 或系统中设置的代理。如需通过指定服务器转发流量，请选择 HTTP、HTTPS 或 SOCKS 代理。"
+  },
+  "guideText4": {
+    "message": "自动或手动位置"
+  },
+  "guideText5": {
+    "message": "自动模式查询连接对外显示的位置，精度约为 20 公里，并非 GPS 定位。使用代理时查询代理出口，使用浏览器路由时会先请求许可，再查询你的公网地址。手动模式支持填写坐标或在地图上选择位置；即使地图影像加载失败，坐标功能仍可用。"
+  },
+  "guideText6": {
+    "message": "WebRTC"
+  },
+  "guideText7": {
+    "message": "WebRTC 策略限制网页可获取的网络地址。如果其他扩展或 Firefox 策略已控制此设置，本扩展不会覆盖，并会提示原因。"
+  },
+  "guideText8": {
+    "message": "出现故障时"
+  },
+  "guideText9": {
+    "message": "代理不可达或缺少密码时，新的身份无法完成，网页继续使用之前的模拟位置，避免暴露真实位置。刷新身份会重试查询。对于 Firefox 不允许注入的框架，网页仍可能看到计算机时区；这个限制会明确报告。"
+  },
+  "savedPending": {
+    "message": "已保存的修改尚未应用。点击“应用”更新当前线路。"
+  },
+  "saveApplyNotice": {
+    "message": "保存用于保存修改；应用用于启用已保存的配置，未保存的编辑仍留在表单中。"
+  },
+  "manualOverrideNotice": {
+    "message": "自定义设置会原样应用；手动位置或时区可能与检测到的网络位置不一致。"
+  },
+  "manualOverrideShort": {
+    "message": "自定义设置会原样应用，可能与检测到的网络位置不同。"
+  },
+  "longitudeTimezoneWarning": {
+    "message": "手动时区与此经度看起来相距较远；仍会按你的选择原样应用。"
+  },
+  "manualAccuracyNotice": {
+    "message": "手动坐标会按你提供的精度原样应用到网页。"
+  },
+  "socks4AuthHint": {
+    "message": "Firefox 不支持 SOCKS4 认证，填写的用户名和密码不会生效。"
+  },
+  "httpAuthHint": {
+    "message": "HTTP/HTTPS 代理使用 Basic 认证；若代理发出认证挑战，仅向匹配的代理提供凭据。"
+  },
+  "socks5AuthHint": {
+    "message": "SOCKS5 用户名和密码交由 Firefox 用于 SOCKS 认证。"
+  },
+  "proxyDnsExplanation": {
+    "message": "代理 DNS 通过代理解析域名；Firefox 仅对 SOCKS 代理应用此设置。"
+  },
+  "mapOff": {
+    "message": "在线地图已关闭，坐标功能可离线使用。"
+  },
+  "mapConsent": {
+    "message": "正在检查地图许可和当前应用的线路…"
+  },
+  "mapDenied": {
+    "message": "未获得公网 IP 权限，坐标功能仍可离线使用。"
+  },
+  "mapUnavailableOffline": {
+    "message": "在线地图不可用，坐标功能仍可离线使用。"
+  },
+  "mapLoading": {
+    "message": "正在通过当前线路加载 OpenFreeMap…"
+  },
+  "mapWebglUnavailable": {
+    "message": "当前线路无法加载地图，或 WebGL 不可用；坐标功能仍可离线使用。"
+  },
+  "mapLoaded": {
+    "message": "在线地图已加载，平移与缩放会向 OpenFreeMap 发送查看区域。"
+  },
+  "mapWebglOffline": {
+    "message": "WebGL 地图不可用，坐标功能仍可离线使用。"
+  },
+  "mapReloading": {
+    "message": "正在通过当前线路重新加载地图数据…"
+  },
+  "reloadOnlineMap": {
+    "message": "重新加载在线地图"
+  },
+  "mapRouteChanged": {
+    "message": "线路已变更，请为当前线路重新加载在线地图。"
+  },
+  "profileRuntime": {
+    "message": "配置"
+  },
+  "networkHealth": {
+    "message": "网络健康状态"
+  },
+  "publicIp": {
+    "message": "公网 IP"
+  },
+  "firefoxProxySettings": {
+    "message": "Firefox 代理设置"
+  },
+  "consistencyLabel": {
+    "message": "一致性"
+  },
+  "lastError": {
+    "message": "最近错误"
+  },
+  "activeBadge": {
+    "message": "已启用"
+  },
+  "sessionCredentialsBadge": {
+    "message": "已保存凭据"
+  },
+  "builtInBadge": {
+    "message": "内置"
+  },
+  "browserAutomaticIdentity": {
+    "message": "沿用 Firefox 网络 · 自动身份"
+  },
+  "profilesListAria": {
+    "message": "配置列表"
+  },
+  "availableProfilesAria": {
+    "message": "可用配置"
+  },
+  "profileEditorAria": {
+    "message": "配置编辑器"
+  },
+  "locationPickerAria": {
+    "message": "位置选择器：方向键平移地图，聚焦标记后用方向键移动选点"
+  },
+  "selectedLocationAria": {
+    "message": "已选位置标记"
+  },
+  "zoomInAria": {
+    "message": "放大"
+  },
+  "zoomOutAria": {
+    "message": "缩小"
+  },
+  "profileNameExample": {
+    "message": "例如：家庭代理、实验室"
+  },
+  "mapPartial": {
+    "message": "部分地图数据未加载，当前地图可能不完整，可重新加载重试。"
+  },
+  "defaultProtectionNotice": {
+    "message": "新代理默认启用 SOCKS 代理 DNS、仅代理 WebRTC，并自动跟随出口位置与时区。部分通话需要 TURN/TCP 支持。已有配置保留原设置。"
+  },
+  "helpLabel": {
+    "message": "帮助"
+  },
+  "supportLink": {
+    "message": "帮助／问题反馈"
+  },
+  "communityLink": {
+    "message": "社区资源 · LINUX DO"
+  },
+  "communityNotice": {
+    "message": "独立社区资源，不表示官方背书或合作关系。"
+  },
+  "manualLabel": {
+    "message": "手动"
+  },
+  "mapCamera": {
+    "message": "中心 {latitude}, {longitude} · 缩放 {zoom}"
+  },
+  "framesSynced": {
+    "message": "{current}/{total} 个框架已同步"
+  },
+  "deleteProfile": {
+    "message": "删除配置“{name}”？"
+  },
+  "deleteActiveProfile": {
+    "message": "停用并删除配置“{name}”？"
+  },
+  "mapPrivacyBefore": {
+    "message": "加载在线地图会把当前连接的公网 IP 和查看区域发送给"
+  },
+  "mapPrivacyAfter": {
+    "message": "，它可能使用 Cloudflare，并将安全事件 IP 日志保留最多 30 天。请求使用已应用的线路，不采用尚未保存的代理编辑。浏览器路由或关闭状态还需要 Firefox 的可选公网 IP 权限。加载前不会请求地图。"
+  },
+  "validationAccuracy": {
+    "message": "精度必须是正数，单位为米，最大 1,000,000。"
+  },
+  "validationCountryText": {
+    "message": "国家代码必须为文本。"
+  },
+  "validationCountry": {
+    "message": "国家代码必须为两个字母，例如 US。"
+  },
+  "validationPublicIp": {
+    "message": "公网 IP 必须是有效的 IPv4 或 IPv6 地址。"
+  },
+  "validationProxyRequired": {
+    "message": "需要提供代理配置。"
+  },
+  "validationHost": {
+    "message": "代理主机必须是域名、IPv4 或 IPv6 地址。"
+  },
+  "validationPort": {
+    "message": "代理端口必须是 1 至 65535 之间的整数。"
+  },
+  "validationProxyUser": {
+    "message": "代理用户名为空或过长。"
+  },
+  "validationAuthFlag": {
+    "message": "代理认证要求必须是布尔值。"
+  },
+  "validationIdentity": {
+    "message": "需要提供身份配置。"
+  },
+  "validationCoordinatePair": {
+    "message": "纬度和经度必须同时填写。"
+  },
+  "validationGeoipPolicy": {
+    "message": "GeoIP 策略无效。"
+  },
+  "validationGeolocationPolicy": {
+    "message": "地理位置策略无效。"
+  },
+  "validationTimezonePolicy": {
+    "message": "时区策略无效。"
+  },
+  "validationProvider": {
+    "message": "不支持此 GeoIP 服务商。"
+  },
+  "validationLatitude": {
+    "message": "手动模式需要填写纬度。"
+  },
+  "validationLongitude": {
+    "message": "手动模式需要填写经度。"
+  },
+  "validationManualAccuracy": {
+    "message": "手动模式需要填写精度，单位为米。"
+  },
+  "validationManualZone": {
+    "message": "手动模式需要填写 IANA 时区。"
+  },
+  "validationProfile": {
+    "message": "配置必须是对象。"
+  },
+  "validationProfileId": {
+    "message": "配置标识缺失或格式错误。"
+  },
+  "validationProfileName": {
+    "message": "请填写配置名称，最多 64 个字符。"
+  },
+  "validationRevision": {
+    "message": "配置修订号无效。"
+  },
+  "validationWebrtcMode": {
+    "message": "WebRTC 模式无效。"
+  },
+  "validationProfileInvalid": {
+    "message": "配置无效。"
+  },
+  "validationCredentialObject": {
+    "message": "认证信息必须是对象。"
+  },
+  "validationCredentialPair": {
+    "message": "请填写用户名或密码。"
+  },
+  "validationUserText": {
+    "message": "用户名必须为文本。"
+  },
+  "validationPasswordText": {
+    "message": "密码必须为文本。"
+  },
+  "validationUserLength": {
+    "message": "用户名过长。"
+  },
+  "validationPasswordLength": {
+    "message": "密码过长。"
+  },
+  "validationCredentialEmpty": {
+    "message": "认证信息不能为空。"
+  },
+  "auditProxyConfigured": {
+    "message": "代理已配置"
+  },
+  "auditPublicIp": {
+    "message": "公网出口 IP 解析"
+  },
+  "auditGeoip": {
+    "message": "GeoIP 解析"
+  },
+  "auditTimezone": {
+    "message": "时区可用性"
+  },
+  "auditLocation": {
+    "message": "位置可用性"
+  },
+  "auditWebrtc": {
+    "message": "WebRTC 策略应用"
+  },
+  "auditPageShim": {
+    "message": "网页兼容层"
+  },
+  "auditNoProfile": {
+    "message": "当前未启用任何配置。"
+  },
+  "auditNoIdentity": {
+    "message": "当前未应用身份。"
+  },
+  "auditProviderFailed": {
+    "message": "GeoIP 服务商请求失败。"
+  },
+  "auditNoPublicIp": {
+    "message": "尚未获取公网 IP。"
+  },
+  "auditUnverifiedIp": {
+    "message": "无法核实配置中的公网 IP。"
+  },
+  "auditNoLocation": {
+    "message": "服务商未返回位置数据。"
+  },
+  "auditNoTimezone": {
+    "message": "没有可用时区。"
+  },
+  "auditNoCoordinates": {
+    "message": "没有可用坐标。"
+  },
+  "auditNoPageReport": {
+    "message": "尚未收到已打开标签页的兼容层报告。"
+  },
+  "validationHosthttp": {
+    "message": "http 代理需要填写主机。"
+  },
+  "validationPorthttp": {
+    "message": "http 代理需要填写端口。"
+  },
+  "validationHosthttps": {
+    "message": "https 代理需要填写主机。"
+  },
+  "validationPorthttps": {
+    "message": "https 代理需要填写端口。"
+  },
+  "validationHostsocks4": {
+    "message": "socks4 代理需要填写主机。"
+  },
+  "validationPortsocks4": {
+    "message": "socks4 代理需要填写端口。"
+  },
+  "validationHostsocks5": {
+    "message": "socks5 代理需要填写主机。"
+  },
+  "validationPortsocks5": {
+    "message": "socks5 代理需要填写端口。"
+  },
+  "communityShort": {
+    "message": "LINUX DO 社区"
+  },
+  "firefoxProxyDetail": {
+    "message": "类型：{type} · 控制权：{control}"
+  },
+  "webrtcDetail": {
+    "message": "要求：{desired} · 实际：{actual} · 状态：{status}"
+  },
+  "privacyDiagnostic0": {
+    "message": "页面适配已加载，但尚未报告状态。"
+  },
+  "privacyDiagnostic1": {
+    "message": "Firefox 未配置浏览器级代理。"
+  },
+  "privacyDiagnostic2": {
+    "message": "使用 Firefox 自身的连接设置，不覆盖 Firefox 已配置的代理。"
+  },
+  "privacyDiagnostic3": {
+    "message": "当前 Firefox 版本不允许扩展修改 WebRTC 策略。"
+  },
+  "privacyDiagnostic4": {
+    "message": "WebRTC 策略由其他扩展控制；Net Identity 未修改它。"
+  },
+  "privacyDiagnostic5": {
+    "message": "无法读取当前 Firefox 的 WebRTC 策略。"
+  },
+  "privacyDiagnostic6": {
+    "message": "Firefox 拒绝了 WebRTC 策略变更。"
+  },
+  "privacyDiagnostic7": {
+    "message": "Firefox 接受了变更，但尚未报告实际生效的策略。"
+  },
+  "privacyDiagnostic8": {
+    "message": "Firefox 拒绝释放 WebRTC 策略控制权。"
+  },
+  "privacyDiagnostic9": {
+    "message": "Firefox 已清除扩展的 WebRTC 策略，但尚未报告恢复后的值。"
+  },
+  "consentDiagnostic0": {
+    "message": "Firefox 尚未确认安装时的数据收集同意，因此没有进行 GeoIP 查询。"
+  },
+  "consentDiagnostic1": {
+    "message": "直连配置会将你的真实公网 IP 发送给 GeoIP 服务商。查询前需要你允许这项可选的数据收集。"
+  },
+  "consentDiagnostic2": {
+    "message": "地图资源未获允许。"
+  },
+  "consentDiagnostic3": {
+    "message": "地图请求已取消。"
+  },
+  "consentDiagnostic4": {
+    "message": "地图数据不可用。"
+  },
+  "consentDiagnostic5": {
+    "message": "时区必须是有效的 IANA 标识符，例如 Asia/Shanghai。"
+  },
+  "browserRoutingExplanation": {
+    "message": "可能直连，也可能使用浏览器或系统代理。"
+  },
+  "mapAutoload": {
+    "message": "同意后自动加载当前视野的地图"
+  },
+  "mapAutoloadNotice": {
+    "message": "启用后，打开地图即自动加载当前视野；拖动和缩放时通过已应用的线路加载对应区域。取消勾选即可保持离线。"
+  },
+  "mapAutoloadSaveFailed": {
+    "message": "无法保存自动加载选择，下次需要重新启用地图。"
+  },
+  "firefoxSettingsConflict": {
+    "message": "其他扩展正在控制 Firefox 代理设置，请检查是否存在冲突。"
+  },
+  "firefoxSettingsUnverified": {
+    "message": "无法确认 Firefox 代理设置，或该设置受浏览器策略控制。"
+  },
+  "firefoxSettingsRecorded": {
+    "message": "已读取 Firefox 原有代理设置。未被绕过的网页请求使用选中的代理；明确配置的绕过规则仍遵循 Firefox 设置。"
+  },
+  "draftIdle": {
+    "message": "填写地址和端口，自动检测。"
+  },
+  "draftWaiting": {
+    "message": "准备检测…"
+  },
+  "draftChecking": {
+    "message": "检测中…当前线路不变。"
+  },
+  "draftSuccess": {
+    "message": "可启用 ·"
+  },
+  "draftNetwork": {
+    "message": "草稿未验证成功。请检查地址、端口、认证和网络后重试，当前线路不变。"
+  },
+  "draftTimeout": {
+    "message": "草稿检测超时，代理或查询服务可能暂时不可用。输入已保留，可重新检测。"
+  },
+  "draftCredentials": {
+    "message": "此配置需要先填写已保存的用户名和密码。"
+  },
+  "draftBusy": {
+    "message": "其他草稿正在检测，请稍后重试。"
+  },
+  "draftCancelled": {
+    "message": "已取消草稿检测。"
+  },
+  "draftProvider": {
+    "message": "位置服务未返回可用结果，不代表代理一定故障。"
+  },
+  "draftDisclosure": {
+    "message": "自动检测仅通过填写的代理访问 ipwho.is，预览出口 IP、大致位置和时区，不保存或启用配置，也不会无限重试。"
+  },
+  "draftRetry": {
+    "message": "重新检测"
+  },
+  "enableDraft": {
+    "message": "保存并启用"
+  },
+  "enableDraftHint": {
+    "message": "检测不切换线路，启用后生效。"
+  },
+  "draftConsent": {
+    "message": "Firefox 尚未确认必需的数据授权，未发送草稿检测请求。"
+  },
+  "pendingDraftChanges": {
+    "message": "已保存的修改尚未启用。"
+  },
+  "draftPartial": {
+    "message": "代理有响应，但查询服务缺少部分位置或时区信息。尚未启用，实测出口："
+  },
+  "socksDnsHint": {
+    "message": "代理 DNS 通过代理解析域名。Firefox 仅对 SOCKS 代理提供此选项。"
+  },
+  "privacyLimits": {
+    "message": "隐私与限制"
+  },
+  "authenticationOptional": {
+    "message": "认证 · 可选"
+  },
+  "customSettings": {
+    "message": "自定义设置"
+  },
+  "quickCustomizeHint": {
+    "message": "保存后可在配置页调整 DNS、WebRTC、位置和时区。"
+  },
+  "moreActions": {
+    "message": "更多操作"
+  },
+  "connectionNotes": {
+    "message": "连接说明"
+  },
+  "turningOff": {
+    "message": "正在关闭…"
+  },
+  "vaultPassword": {
+    "message": "主密码"
+  },
+  "vaultConfirm": {
+    "message": "再次输入主密码"
+  },
+  "vaultSetupTitle": {
+    "message": "加密保存配置"
+  },
+  "vaultLockedTitle": {
+    "message": "解锁你的配置"
+  },
+  "vaultUnlockedTitle": {
+    "message": "加密保险库 · 已解锁"
+  },
+  "vaultDamagedTitle": {
+    "message": "保险库需要处理"
+  },
+  "vaultSetupHint": {
+    "message": "在此设备上加密保存配置和代理密码。请使用至少 12 个字符的强主密码。重启 Firefox 后解锁一次，忘记密码无法找回。启用前配置未加密，代理密码仅在本次会话保存。"
+  },
+  "vaultUnlockedHint": {
+    "message": "配置和凭据已加密保存。请保留加密备份。退出浏览器、停用或升级插件后可能需要重新解锁。这不能保护已被入侵且已解锁的设备。"
+  },
+  "vaultLockedHint": {
+    "message": "保存的数据仍然保留。解锁后继续使用。之前启用的路由在解锁前保持阻断；之前关闭的路由保持关闭。"
+  },
+  "vaultEnable": {
+    "message": "启用加密"
+  },
+  "vaultUnlock": {
+    "message": "解锁"
+  },
+  "vaultExport": {
+    "message": "下载加密备份"
+  },
+  "vaultExportPrevious": {
+    "message": "上一份加密修订"
+  },
+  "vaultRestore": {
+    "message": "恢复加密备份"
+  },
+  "vaultRestoreHint": {
+    "message": "仅适用于空白安装。选择备份文件，并在上方输入备份的主密码。恢复后将继续备份中保存的路由。不会覆盖现有配置。"
+  },
+  "vaultOperationFailed": {
+    "message": "操作未完成。请检查主密码（至少 12 个字符）、备份和可用存储空间。现有数据已保留，恢复备份需要空白安装。"
+  },
+  "vaultMismatch": {
+    "message": "两次输入的主密码不一致。"
+  }
+}

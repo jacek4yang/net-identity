@@ -14,6 +14,7 @@ import { MapRequestQueue } from "./map-request-queue";
 
 export interface OnlineMap {
   update(viewport: MapViewport): void;
+  reload(): void;
   remove(): void;
 }
 
@@ -28,6 +29,8 @@ export function createOnlineMap(
   let disposed = false;
   let loaded = false;
   let failed = false;
+  let reportedReady = false;
+  let revision = 0;
   const queue = new MapRequestQueue();
   const reportFailure = (kind: MapFailureKind) => {
     if (disposed) return;
@@ -35,6 +38,7 @@ export function createOnlineMap(
     onError(mapFailureMustStop(loaded, kind));
   };
   addProtocol(protocol, async (parameters, abortController) => {
+    const requestRevision = revision;
     let failureKind: MapFailureKind = "unavailable";
     try {
       const url = parameters.url.replace(`${protocol}://`, "https://");
@@ -77,6 +81,7 @@ export function createOnlineMap(
       // MapLibre can catch a glyph error and substitute a local missing glyph.
       // Report genuine data failures here, before that fallback hides the error.
       if (
+        requestRevision === revision &&
         !abortController.signal.aborted &&
         !(error instanceof DOMException && error.name === "AbortError")
       )
@@ -120,16 +125,32 @@ export function createOnlineMap(
   renderer.on("error", () => {
     reportFailure("unavailable");
   });
-  renderer.on("load", () => {
+  const notifyReady = () => {
     loaded = true;
-    if (!disposed && !failed) onReady();
-  });
+    if (!disposed && !failed && !reportedReady) {
+      reportedReady = true;
+      onReady();
+    }
+  };
+  renderer.on("load", notifyReady);
+  renderer.on("idle", notifyReady);
   renderer.getCanvas().addEventListener("webglcontextlost", () => {
     reportFailure("blocked");
   });
   renderer.getCanvas().setAttribute("aria-hidden", "true");
   renderer.getCanvas().tabIndex = -1;
   return {
+    reload() {
+      if (disposed) return;
+      ++revision;
+      failed = false;
+      loaded = false;
+      reportedReady = false;
+      // Reload data in the live context. Destroy/recreate can race Firefox's
+      // asynchronous context disposal, even when only one canvas is visible.
+      // Keep the same bounded queue: old RPCs hold their slots until settlement.
+      renderer.setStyle(MAP_STYLE_URL, { diff: false });
+    },
     update(next) {
       if (disposed) return;
       renderer.resize();

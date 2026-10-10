@@ -59,7 +59,7 @@ a signed build, a real proxy or a second Firefox version.
       latitude/longitude fields stay on the same point.
 - [ ] Pan and zoom without changing the selected coordinates; drag the marker to change
       selection. Type coordinates and confirm the marker and viewport update.
-- [ ] Save without changing runtime, then Apply the saved revision. A page's geolocation matches the selected point and the page
+- [ ] Save without changing runtime, then Save and enable the visible form. A page's geolocation matches the selected point and the page
       timezone matches the chosen zone.
 - [ ] Before **Load online map**, confirm the local grid and typed coordinates work
       without map requests. Enable the map explicitly and confirm real streets/labels,
@@ -73,7 +73,7 @@ a signed build, a real proxy or a second Firefox version.
       loading requires optional personal-data consent. Do not equate this with control of
       every Firefox-protected browser-service request.
 - [ ] Apply/Off, permission revocation, editor closure and background restart invalidate
-      map authorization; no online map session silently resumes from durable storage.
+      map authorization; a remembered preference must obtain a fresh checked session, never restore an old session from durable storage.
 - [ ] Run `e2e:map-fallback` and the actual WebGL `e2e:map` rendering gate. The latter
       needs a display/Mesa context (CI uses Xvfb); a no-WebGL fallback pass cannot satisfy
       the imagery gate. Test trust roots are confined to disposable harness profiles.
@@ -120,6 +120,23 @@ manifest ID/version, production payload and normal Firefox permanent signature-e
 installation. Only then finalize the public GitHub Release. Pending review is an external
 blocker, never a successful user release. Verify canonical AMO URL and default update
 channel, then update README in a separate documentation PR if needed.
+
+## Quick-setup candidate additions
+
+- [ ] Valid endpoint typing previews only the draft proxy; ordinary traffic remains on
+      the active route. Closing/editing cancels stale results and does not save a profile.
+- [ ] Wrong proxy credentials can be corrected; an unreachable draft never falls back
+      to the active route or Direct. Options GeoIP Disabled suppresses draft checks.
+- [ ] Save remains non-activating; Save and enable uses the current form, including
+      credentials, exactly once. A failed save must not activate stale data.
+- [ ] Previously chosen DNS, WebRTC and manual identity settings survive upgrade.
+- [ ] First online-map enablement is explicit; remembered loading rechecks current
+      route/credentials/consent. Unload/uncheck clears it; no hidden retry loop occurs.
+- [ ] English/Chinese, light/dark, narrow-window layout and keyboard controls pass;
+      owner accepts the actual final UI before publication.
+- [ ] Reviewer metadata and privacy copy disclose automatic draft lookup and remembered
+      map loading; no unchanged-runtime or no-lookup-before-activation claim remains.
+- [ ] `e2e:draft` and its deterministic `--delayed-init` variant pass alongside the other ten Firefox harnesses.
 
 ## Candidate-specific checks
 
@@ -172,8 +189,16 @@ channel, then update README in a separate documentation PR if needed.
 - [ ] Regenerate any changed store screenshots from actual UI with honest provenance.
       Preserve v1.1.3 publication evidence and do not treat manually uploaded AMO preview IDs
       as a trusted listing-workflow receipt or automatically overwrite/adopt them
-- [ ] After merging the release PR, rerun quality/package, all ten deterministic Firefox
+- [ ] After merging the release PR, rerun quality/package, all fourteen deterministic Firefox
       suites and required CI on the exact clean main commit; create a new immutable tag only
       after these gates pass. Do not change v1.1.3 or any historical submission/assets
 - [ ] Use the existing listed submission/finalizer, then verify permanent signed installation
       and public AMO/GitHub release evidence. Update current-release docs only after publication
+
+### Encrypted vault
+
+- [ ] Enable from actual UI with matching master passwords; wrong confirmation writes nothing.
+- [ ] Full Firefox exit locks active traffic; wrong password preserves data; unlock restores only applied configuration.
+- [ ] Event-page suspension does not require re-entry. A previously Off route remains Off.
+- [ ] Inspect durable storage for ciphertext only, and test encrypted backup on an empty installation.
+- [ ] Keep historical failures and run vault UI + vault authenticated full-restart harnesses on the release head.

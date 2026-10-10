@@ -11,11 +11,24 @@ describe("optional real-provider listing capture", () => {
   it("requires a manual opt-in and grants no write credentials", () => {
     const source = workflow();
     expect(source).toContain("workflow_dispatch:");
-    expect(source).toContain("if: inputs.capture_public_map");
+    expect(source).toContain(
+      "github.event_name == 'workflow_dispatch' && inputs.capture_public_map",
+    );
+    expect(source).toContain("types: [labeled]");
+    expect(source).toContain("github.event.label.name == 'preview-real-map'");
+    expect(source).toContain("github.event.pull_request.head.repo.full_name == github.repository");
+    expect(source).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
     expect(source).toContain("default: false");
     expect(source).toContain("contents: read");
     expect(source).toContain("persist-credentials: false");
-    expect(source).not.toMatch(/pull_request:|push:|schedule:|secrets\./);
+    expect(source).not.toMatch(/pull_request_target:|push:|schedule:|secrets\./);
+  });
+
+  it("requires installed Chinese fonts and bounds external package setup", () => {
+    expect(workflow()).toContain("fonts-noto-cjk");
+    expect(workflow()).toContain("fc-list :lang=zh family");
+    expect(workflow()).toContain("timeout-minutes: 8");
+    expect(workflow()).toContain("Acquire::https::Timeout=30");
   });
 
   it("requires deterministic actual rendering before requesting public map data", () => {
@@ -32,6 +45,13 @@ describe("optional real-provider listing capture", () => {
     expect(readFileSync(".github/workflows/firefox-invariants.yml", "utf8")).not.toContain(
       "--live-map",
     );
+  });
+
+  it("selects HTTP for the CONNECT-only live fixture instead of the new SOCKS default", () => {
+    expect(readFileSync("scripts/e2e-ui.mjs", "utf8")).toContain(
+      '"field-proxy-type": liveMap ? "http" : "socks5"',
+    );
+    expect(readFileSync("scripts/live-map-proxy.mjs", "utf8")).toContain('server.on("connect"');
   });
 
   it("exports candidate evidence without replacing or publishing existing assets", () => {

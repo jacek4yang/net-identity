@@ -1,22 +1,26 @@
 /** Pure popup status copy: do not present uncertain network evidence as an outage. */
 import type { RuntimeState, RuntimeStatus } from "../shared/state";
 
-const LIFECYCLE_LABELS: Record<RuntimeStatus, string> = {
+export type PopupStatus = RuntimeStatus | "deactivating";
+
+const LIFECYCLE_LABELS: Record<PopupStatus, string> = {
   idle: "Off",
+  deactivating: "Turning off…",
   activating: "Activating…",
   resolving: "Resolving…",
   ready: "Active",
   error: "Error",
 };
-const LIFECYCLE_TONES: Record<RuntimeStatus, string> = {
+const LIFECYCLE_TONES: Record<PopupStatus, string> = {
   idle: "pending",
+  deactivating: "pending",
   activating: "pending",
   resolving: "pending",
   ready: "ok",
   error: "bad",
 };
 
-export function describePopupStatus(state: RuntimeState | RuntimeStatus): {
+export function describePopupStatus(state: RuntimeState | PopupStatus): {
   label: string;
   tone: string;
 } {

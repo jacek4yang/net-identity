@@ -1,7 +1,17 @@
-# net-identity
+# Net Identity
 
 A Firefox network identity manager that keeps **proxy, public IP, geolocation, timezone
 and WebRTC behaviour consistent**.
+
+[Install for Firefox](https://addons.mozilla.org/en-US/firefox/addon/net-identity/) ·
+[简体中文](README.zh-CN.md) · [Quick setup and migration](docs/QUICKSTART.md) ·
+[Support](https://github.com/jacek4yang/net-identity/issues)
+
+You supply the proxy; Net Identity does not sell proxy access or provide a VPN service.
+
+**Candidate branch:** popup quick setup, search, bilingual UI and stricter new-profile
+protection are in development and are not yet public AMO features. Existing releases
+remain immutable. See [the candidate interaction record](docs/UX-2.0.md).
 
 **Firefox only.** There is no Chrome/Edge/Safari support and no cross-browser
 abstraction layer: the extension uses Firefox's native `browser.*` APIs (`proxy.onRequest`,
@@ -20,8 +30,8 @@ normal Firefox. The failed 1.1.4 attempt remains immutable. See [release history
 
 ## Why it exists
 
-Renting a proxy is easy; keeping a browser consistent with it is not. A proxy alone
-usually still leaks:
+A proxy changes the network route, but page-visible identity and browser policy need
+separate attention. The extension addresses these distinct concerns:
 
 | Leak                                                | What net-identity does                                                         |
 | --------------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -37,8 +47,9 @@ usually still leaks:
 - **One-click routes:** Off, built-in Direct and user profiles in a compact popup.
   Direct uses Firefox/system routing; Off releases synthetic identity and WebRTC control.
   Direct needs no setup or GeoIP consent to switch routing.
-- **Save / Apply:** Save stores edits without changing runtime. Saved changes remain
-  pending until Apply. Refresh keeps the applied configuration.
+- **Draft check / enable:** Typing a complete proxy endpoint previews its exit identity
+  without changing the active route. Save only stages edits; Save and enable commits
+  the current form. Refresh keeps the applied configuration.
 - **Independent identity policies:** GeoIP automatic/disabled, geolocation follow/manual/
   unavailable, timezone follow/manual, and WebRTC automatic or an explicit Firefox policy.
 
@@ -46,8 +57,10 @@ usually still leaks:
   (create, edit, duplicate, delete, activate).
 - **Proxy support** for `direct`, `http`, `https`, `socks4` and `socks5`, with bypass
   lists (hosts, `*.domain`, IP literals, IPv4 CIDR) and loopback always bypassed.
-- **Proxy authentication** with session-only usernames and passwords:
-  session-only credentials, preemptive Basic for HTTP/HTTPS, strict challenge matching
+- **Encrypted local vault (candidate):** save profiles and proxy passwords behind a master
+  password, with encrypted backups and upgrade-safe migration. [Storage boundaries](docs/ENCRYPTED-VAULT.md).
+- **Proxy authentication:** session-only before vault setup; persistent ciphertext after setup.
+  Preemptive Basic for HTTP/HTTPS, strict challenge matching
   for proxies that demand `407`.
 - **Automatic identity**: the public egress IP is observed through the active proxy and
   the derived country/region/city/timezone/coordinates are applied everywhere.
@@ -216,7 +229,7 @@ npm run e2e:websocket
    - **Automatic** – the proxy's observed egress identity is resolved and applied.
    - **Manual** – enter latitude, longitude, accuracy and an IANA timezone.
 6. Pick a WebRTC policy and **Save**.
-7. Click **Save**, then **Apply**, or click the saved profile row in the popup. The popup shows the resulting identity, the audit and the state of
+7. Click **Save and enable**, or save for later and click the saved profile row in the popup. The popup shows the resulting identity, the audit and the state of
    open pages.
 
 ## Proxy support
@@ -270,8 +283,9 @@ stay direct.
 
 - Applies `privacy.network.webRTCIPHandlingPolicy` on activation, after checking
   `levelOfControl`.
-- New proxy profiles default to `disable_non_proxied_udp`; `proxy_only` is available as
-  the strictest option; WebRTC is never disabled entirely.
+- On this candidate branch, new proxies select strict `proxy_only`. Previously saved
+  automatic/manual choices remain unchanged. Strict mode can prevent calls without
+  TURN over TCP through the proxy; it does not disable the entire WebRTC API.
 - If another extension or an enterprise policy controls the setting, the UI says
   _controlled by another extension_ instead of pretending it succeeded.
 - Deactivating a profile calls `BrowserSetting.clear()`, so Firefox restores the
@@ -333,7 +347,7 @@ tests/            vitest unit tests (no browser required)
   local CONNECT fixture and checks that a correct password is accepted without a 407
   loop, and a wrong password is challenged only a bounded number of times. No public
   provider or upstream service is contacted.
-- `npm run e2e:ui` – checks the real popup, profile Save/Apply and offline map interactions.
+- `npm run e2e:ui` – checks the real popup, profile Save/enable and offline map interactions.
 - `npm run e2e:map-fallback` – checks explicitly disabled WebGL, editable fallback,
   map-broker consent, route-generation cancellation and blocked unbrokered requests.
 - `LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a npm run e2e:map -- --firefox /path/to/firefox`
@@ -440,3 +454,13 @@ verified 1.1.5 candidate capture. They use a labeled local demonstration profile
 credentials. The map capture shows actual OpenFreeMap geography and visible attribution;
 [its review](store-assets/screenshots/capture-review.json) verifies the production source
 hashes and pixels. These remain unsigned-candidate UI evidence, not signing or listing approval.
+
+## Community and help
+
+[Report a problem](https://github.com/jacek4yang/net-identity/issues), read the
+[quick-start guide](docs/QUICKSTART.md), or follow [private vulnerability reporting](SECURITY.md).
+
+Community resource: [LINUX DO](https://linux.do/). This is an independent community
+link, not an endorsement, sponsorship, security audit or reciprocal partnership.
+
+- `npm run e2e:draft` checks isolated automatic draft detection with local SOCKS/HTTP and verified fixture TLS.

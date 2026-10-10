@@ -238,6 +238,15 @@ async function main() {
         [message],
       );
     const click = async (selector) => {
+      if (
+        (selector.startsWith("#map-") ||
+          selector.startsWith("#field-mode-") ||
+          selector === "#load-online-map" ||
+          selector === "#unload-online-map") &&
+        !(await execute('return document.getElementById("section-identity").open;'))
+      ) {
+        await click("#section-identity > summary");
+      }
       const element = (
         await client.send("WebDriver:FindElement", { using: "css selector", value: selector })
       ).value;
@@ -392,6 +401,9 @@ async function main() {
     );
     // The production renderer and pixel assertions below prove WebGL support.
     // Do not allocate a disposable probe context before testing its real lifecycle.
+    if (!(await execute('return document.getElementById("section-identity").open;'))) {
+      await click("#section-identity > summary");
+    }
     await click("#load-online-map");
 
     if (values["no-webgl"]) {
@@ -412,6 +424,18 @@ async function main() {
         ),
         "WebGL fallback leaves picker interactive",
       );
+      await click("#field-mode-auto");
+      const readOnly = await readMap();
+      await pointer(await point("#location-map-surface"));
+      const afterReadOnly = await readMap();
+      log(
+        `Fallback automatic preview: ${JSON.stringify({ before: readOnly, after: afterReadOnly, mode: await execute("return {auto:document.getElementById('field-mode-auto').checked,manual:document.getElementById('field-mode-manual').checked,preview:document.getElementById('location-map-surface').classList.contains('is-preview')};") })}`,
+      );
+      check(
+        afterReadOnly.lat === readOnly.lat && afterReadOnly.lng === readOnly.lng,
+        "Automatic preview remains read-only without WebGL",
+      );
+      await click("#field-mode-manual");
     } else {
       await waitFor(`return document.querySelector('#location-map-tiles canvas')?.width>0;`);
       await waitFor(
@@ -538,14 +562,20 @@ async function main() {
             Buffer.from(partial, "base64"),
           );
         }
+        await execute(
+          "window.__reloadCanvas = document.querySelector('#location-map-tiles canvas');",
+        );
         fixture.setFailRaster(false);
+        if (!(await execute('return document.getElementById("section-identity").open;'))) {
+          await click("#section-identity > summary");
+        }
         await click("#load-online-map");
         await waitFor(
           `return document.getElementById('location-map-surface').dataset.online==='ready';`,
         );
         check(
           await execute(
-            `return document.querySelectorAll('#location-map-tiles canvas').length===1;`,
+            `return document.querySelectorAll('#location-map-tiles canvas').length===1 && document.querySelector('#location-map-tiles canvas')===window.__reloadCanvas;`,
           ),
           `Reload cycle ${reloadCycle}: immediate Reload recovers partial data without duplicate canvases`,
         );
@@ -616,10 +646,16 @@ async function main() {
       const readOnly = await readMap();
       await pointer(await point("#location-map-surface"));
       const afterReadOnly = await readMap();
+      log(
+        `Automatic preview transition: ${JSON.stringify({ before: readOnly, after: afterReadOnly, mode: await execute("return {auto:document.getElementById('field-mode-auto').checked,manual:document.getElementById('field-mode-manual').checked,preview:document.getElementById('location-map-surface').classList.contains('is-preview')};") })}`,
+      );
       check(
         afterReadOnly.lat === readOnly.lat && afterReadOnly.lng === readOnly.lng,
         "Automatic preview remains read-only over loaded geographic imagery",
       );
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
       await click("#field-mode-manual");
       await click("#unload-online-map");
       await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===0;`);
@@ -630,12 +666,48 @@ async function main() {
         fixture.requests.length === afterUnload,
         "Unload removes canvas and stops subsequent viewport requests",
       );
+      if (!(await execute('return document.getElementById("section-identity").open;'))) {
+        await click("#section-identity > summary");
+      }
+      await click("#load-online-map");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      await click("#section-identity > summary");
+      await waitFor(
+        `return document.querySelectorAll('#location-map-tiles canvas').length===0 && document.getElementById('location-map-surface').dataset.online==='off';`,
+      );
+      await click("#section-identity > summary");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      check(
+        await execute(`return document.getElementById('map-autoload').checked;`),
+        "Reopening the map reloads its view after the explicit remembered opt-in",
+      );
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      await client.send("WebDriver:Navigate", { url: optionsURL });
+      await waitFor(`return !!document.querySelector('[data-profile-id="${profile.id}"]');`);
+      await click(`[data-profile-id="${profile.id}"]`);
+      await click("#section-identity > summary");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
+      check(
+        await execute(`return document.getElementById('map-autoload').checked;`),
+        "Automatic map choice survives options-page reload without a second enable click",
+      );
+      await click("#map-autoload");
+      await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===0;`);
+      await click("#section-identity > summary");
+      await click("#section-identity > summary");
+      await pause(150);
+      check(
+        await execute(
+          `return !document.getElementById('map-autoload').checked && document.querySelectorAll('#location-map-tiles canvas').length===0;`,
+        ),
+        "Disabling automatic loading keeps the reopened map offline",
+      );
       await click("#load-online-map");
       await waitFor(`return document.querySelectorAll('#location-map-tiles canvas').length===1;`);
       await click("#new-profile");
       check(
         await execute(`return document.querySelectorAll('#location-map-tiles canvas').length===0;`),
-        "Opening another editor revokes per-editor opt-in and destroys the old map",
+        "Opening another editor destroys the old map before any new visible view loads",
       );
     }
 

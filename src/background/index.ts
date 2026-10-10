@@ -1,3 +1,7 @@
+import { VaultStore } from "../vault/store";
+import { createVaultHandler } from "../vault/messages";
+import { DraftProbeBroker } from "./draft-probe";
+import { parseDraftRequest } from "../shared/draft-probe";
 /**
  * Background entry point: the only file that wires the Firefox APIs to the
  * testable modules.
@@ -38,11 +42,40 @@ import {
 
 const now = (): number => Date.now();
 
-const profileStore = createProfileStore(fromBrowserStorageArea(browser.storage.local));
-const sessionArea = fromBrowserStorageArea(browser.storage.session);
+const vault = new VaultStore(
+  fromBrowserStorageArea(browser.storage.local),
+  fromBrowserStorageArea(browser.storage.session),
+);
+const profileStore = createProfileStore(vault.profiles);
+const sessionArea = vault.secrets;
 const credentialStore = createCredentialStore(sessionArea);
 const targetStore = createActiveTargetStore(sessionArea);
 const geoProvider = createDefaultGeoIpProvider();
+const draftBroker = new DraftProbeBroker({
+  extensionUrl: browser.runtime.getURL(""),
+  consent: async () => {
+    try {
+      return Array.isArray((await browser.permissions.getAll()).data_collection);
+    } catch {
+      return false;
+    }
+  },
+  credentials: async (id, proxy) => {
+    const saved = (await profileStore.load()).profiles.find((profile) => profile.id === id);
+    // Never send a saved secret to a newly typed server. Re-enter credentials to
+    // authorize that new endpoint; unchanged endpoints can reuse this session.
+    if (
+      !saved ||
+      saved.proxy.type !== proxy.type ||
+      saved.proxy.host !== proxy.host ||
+      saved.proxy.port !== proxy.port
+    )
+      return null;
+    return credentialStore.get(id);
+  },
+  fetch: (url, init) => fetch(url, init),
+  newId: () => crypto.randomUUID(),
+});
 
 /** Resolves the privacy setting, degrading gracefully on unusual builds. */
 const webrtcSetting = readWebRtcSetting();
@@ -211,7 +244,10 @@ function addSettingListener(
 // WebSocket bypass the active profile.
 browser.proxy.onRequest.addListener(
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  (details) => controller.decideProxyForRequest(details.url, details.requestId),
+  (details) =>
+    draftBroker.isProbe(details.url)
+      ? draftBroker.route(details)
+      : controller.decideProxyForRequest(details.url, details.requestId),
   {
     urls: ["<all_urls>"],
   },
@@ -221,6 +257,7 @@ browser.proxy.onRequest.addListener(
 // be reconstructed; a proxy.onRequest error must never become a direct request.
 browser.webRequest.onBeforeRequest.addListener(
   async (details) => {
+    if (draftBroker.isProbe(details.url)) return { cancel: !draftBroker.allows(details) };
     if (await controller.shouldBlockRequest(details.url)) return { cancel: true };
     // proxy.onRequest (including its cooldown) runs before webRequest. Recheck
     // the ephemeral generation after that decision, never permit stale map work.
@@ -249,6 +286,14 @@ const proxyAuthAttempts = createAuthAttemptTracker();
 
 browser.webRequest.onAuthRequired.addListener(
   (details) => {
+    if (draftBroker.isProbe(details.url)) {
+      const credentials = draftBroker.auth(details, {
+        isProxy: details.isProxy === true,
+        challengerHost: details.challenger?.host,
+        challengerPort: details.challenger?.port,
+      });
+      return credentials === null ? { cancel: true } : { authCredentials: credentials };
+    }
     const requestId = details.requestId;
     if (typeof requestId !== "string" || !proxyAuthAttempts.claim(requestId)) return undefined;
     const credentials = controller.decideProxyAuth({
@@ -274,13 +319,13 @@ browser.webRequest.onCompleted.addListener(releaseProxyAuthAttempt, { urls: ["<a
 browser.webRequest.onErrorOccurred.addListener(releaseProxyAuthAttempt, { urls: ["<all_urls>"] });
 browser.webRequest.onCompleted.addListener(
   (details) => {
-    controller.recordNetworkSuccess(details);
+    if (!draftBroker.isProbe(details.url)) controller.recordNetworkSuccess(details);
   },
   { urls: ["<all_urls>"] },
 );
 browser.webRequest.onErrorOccurred.addListener(
   (details) => {
-    controller.recordNetworkFailure(details);
+    if (!draftBroker.isProbe(details.url)) controller.recordNetworkFailure(details);
   },
   { urls: ["<all_urls>"] },
 );
@@ -294,7 +339,49 @@ const handleMessage = createMessageHandler({
   startupReady: () => startup,
 });
 
+const handleVault = createVaultHandler(vault, async () => {
+  await startup;
+  startup = controller.initialize();
+  await startup;
+});
+
 browser.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (
+    isPlainObject(message) &&
+    typeof message.type === "string" &&
+    message.type.startsWith("vault:")
+  ) {
+    if (
+      sender.id !== browser.runtime.id ||
+      !["options/options.html", "popup/popup.html"].some(
+        (path) => sender.url === browser.runtime.getURL(path),
+      )
+    )
+      return undefined;
+    return handleVault(message);
+  }
+  if (
+    isPlainObject(message) &&
+    typeof message.type === "string" &&
+    message.type.startsWith("draft:")
+  ) {
+    if (
+      sender.id !== browser.runtime.id ||
+      !["options/options.html", "popup/popup.html"].some(
+        (path) => sender.url === browser.runtime.getURL(path),
+      )
+    )
+      return undefined;
+    const parsed = parseDraftRequest(message);
+    if (!parsed.ok) return Promise.resolve({ ok: false, error: "invalid" });
+    const owner = `${sender.url}:${sender.tab?.id ?? "popup"}:${parsed.value.owner}`;
+    if (parsed.value.type === "draft:cancel") {
+      draftBroker.cancel(owner);
+      return Promise.resolve({ ok: false, error: "cancelled" });
+    }
+    return draftBroker.probe(owner, parsed.value.input);
+  }
+
   if (
     isPlainObject(message) &&
     typeof message.type === "string" &&

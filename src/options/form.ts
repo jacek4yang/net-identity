@@ -9,7 +9,7 @@
  * Neither username nor password is part of the profile shape: it is returned separately so it
  * can be routed to session storage only.
  */
-import type { IdentityProfile } from "../profile/schema";
+import { NEW_PROXY_WEBRTC_POLICY, type IdentityProfile } from "../profile/schema";
 
 export interface ProfileFormValues {
   id: string | undefined;
@@ -125,13 +125,13 @@ export function toFormValues(profile: IdentityProfile | null): ProfileFormValues
     return {
       id: undefined,
       name: "",
-      proxyType: "http",
+      proxyType: "socks5",
       proxyHost: "",
-      proxyPort: "8080",
+      proxyPort: "1080",
       proxyUsername: "",
       password: "",
       removeCredentials: false,
-      proxyDns: false,
+      proxyDns: true,
       bypassHosts: "localhost\n127.0.0.1\n::1",
       identityMode: "auto",
       geoIpPolicy: "automatic",
@@ -141,7 +141,7 @@ export function toFormValues(profile: IdentityProfile | null): ProfileFormValues
       longitude: "",
       accuracy: "1000",
       timezone: "",
-      webrtcPolicy: "automatic",
+      webrtcPolicy: NEW_PROXY_WEBRTC_POLICY,
     };
   }
 

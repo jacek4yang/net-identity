@@ -46,6 +46,7 @@ describe("popup network health status", () => {
       "Credentials required",
     );
     expect(describePopupStatus(state({ appliedRoute: "blocked" })).label).toBe("Routing blocked");
+    expect(describePopupStatus("deactivating")).toEqual({ label: "Turning off…", tone: "pending" });
     expect(describePopupStatus("idle")).toEqual({ label: "Off", tone: "pending" });
     expect(describePopupStatus("activating").label).toBe("Activating…");
   });

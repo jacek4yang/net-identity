@@ -8,89 +8,117 @@
     <link rel="stylesheet" href="maplibre.css" />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Net Identity — Profiles</title>
+    <title data-i18n="profilesPage">Net Identity — Profiles</title>
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
-    <details class="panel" id="guide">
-      <summary>How profiles work</summary>
-      <div id="guide-body"></div>
-    </details>
-
     <header class="page-header">
+      <img class="brand-icon" src="../icons/icon-48.png" width="40" height="40" alt="" />
       <div class="header-content">
-        <h1>Net Identity — Profiles</h1>
-        <p class="subtitle">
+        <h1 data-i18n="profilesPage">Net Identity — Profiles</h1>
+        <p class="subtitle" data-i18n="profilesIntro">
           Manage routing profiles, identity spoofing (geolocation &amp; timezone), and WebRTC
           policies. Firefox only.
         </p>
+      </div>
+      <div class="options-language">
+        <label for="ui-language" data-i18n="language">Language / 语言</label>
+        <select id="ui-language">
+          <option value="auto" data-i18n="languageAuto">Auto</option>
+          <option value="en">English</option>
+          <option value="zh_CN">简体中文</option>
+        </select>
+        <p id="language-error" role="status" hidden></p>
       </div>
     </header>
 
     <main class="layout">
       <!-- Profiles Sidebar -->
-      <section class="panel profiles-sidebar" aria-label="Profiles list">
+      <section
+        class="panel profiles-sidebar"
+        aria-label="Profiles list"
+        data-i18n-aria="profilesListAria"
+      >
         <div class="panel-header">
-          <h2>Profiles</h2>
-          <button id="new-profile" type="button" class="btn-sm">+ Add proxy</button>
+          <h2 data-i18n="profiles">Profiles</h2>
+          <button id="new-profile" type="button" class="btn-sm" data-i18n="addProxyOption">
+            + Add proxy
+          </button>
         </div>
         <ul
           id="profile-list"
           class="profile-list"
           role="listbox"
           aria-label="Available profiles"
+          data-i18n-aria="availableProfilesAria"
         ></ul>
-        <p id="list-empty" class="empty" hidden>
+        <p id="list-empty" class="empty" hidden data-i18n="noProfiles">
           No proxy profiles configured yet. Click "+ Add proxy" to create one.
         </p>
       </section>
 
       <!-- Profile Editor Panel -->
-      <section class="panel editor-panel" aria-label="Profile editor">
+      <section
+        class="panel editor-panel"
+        aria-label="Profile editor"
+        data-i18n-aria="profileEditorAria"
+      >
         <!-- Direct View (Read-Only) -->
         <div id="direct-view" hidden>
           <div class="panel-header">
             <div class="title-with-badges">
-              <h2>Direct</h2>
-              <span class="badge" data-tone="ok">Built-in</span>
-              <span id="direct-active-badge" class="badge" hidden>Active</span>
+              <h2 data-i18n="directLabel">Direct</h2>
+              <span class="badge" data-tone="ok" data-i18n="builtIn">Built-in</span>
+              <span id="direct-active-badge" class="badge" hidden data-i18n="activeLabel"
+                >Active</span
+              >
             </div>
           </div>
           <div class="direct-description">
-            <p class="direct-lead">
+            <p class="direct-lead" data-i18n="directLead">
               Net Identity does not configure an extension proxy; Firefox and system routing apply
               as normal.
             </p>
             <div class="direct-specs">
               <div class="spec-card">
-                <span class="spec-label">Proxy</span>
-                <span class="spec-value">Direct (browser / system routing)</span>
-                <span class="spec-hint"
+                <span class="spec-label" data-i18n="proxyLabel">Proxy</span>
+                <span class="spec-value" data-i18n="directValue"
+                  >Direct (browser / system routing)</span
+                >
+                <span class="spec-hint" data-i18n="directHint"
                   >Does not override a proxy configured in Firefox settings</span
                 >
               </div>
               <div class="spec-card">
                 <span class="spec-label">WebRTC</span>
-                <span class="spec-value">Default</span>
-                <span class="spec-hint">Firefox default IP handling policy</span>
+                <span class="spec-value" data-i18n="defaultLabel">Default</span>
+                <span class="spec-hint" data-i18n="webrtcDefaultHint"
+                  >Firefox default IP handling policy</span
+                >
               </div>
               <div class="spec-card">
-                <span class="spec-label">Identity</span>
-                <span class="spec-value">Automatic</span>
-                <span class="spec-hint"
+                <span class="spec-label" data-i18n="identityLabel">Identity</span>
+                <span class="spec-value" data-i18n="automaticLabel">Automatic</span>
+                <span class="spec-hint" data-i18n="directConsentHint"
                   >Observes egress IP; requires consent before direct IP lookup</span
                 >
               </div>
             </div>
-            <p class="hint">
+            <p class="hint" data-i18n="directImmutable">
               The built-in Direct route cannot be modified, duplicated, or deleted. To deactivate
               synthetic identity completely, click Deactivate or choose Off in the popup.
             </p>
           </div>
           <div class="actions">
-            <button id="direct-activate" type="button" class="primary">Activate Direct</button>
-            <button id="direct-resolve" type="button">Allow GeoIP lookup / Refresh</button>
-            <button id="direct-deactivate" type="button">Deactivate</button>
+            <button id="direct-activate" type="button" class="primary" data-i18n="activateDirect">
+              Activate Direct
+            </button>
+            <button id="direct-resolve" type="button" data-i18n="allowGeoipRefresh">
+              Allow GeoIP lookup / Refresh
+            </button>
+            <button id="direct-deactivate" type="button" data-i18n="deactivateLabel">
+              Deactivate
+            </button>
           </div>
         </div>
 
@@ -99,39 +127,28 @@
           <div class="panel-header">
             <div class="title-with-badges">
               <h2 id="form-title">New profile</h2>
-              <span id="form-badge" class="badge" hidden>Active</span>
+              <span id="form-badge" class="badge" hidden data-i18n="activeLabel">Active</span>
             </div>
           </div>
 
           <!-- Section A: Basic Configuration -->
           <fieldset class="editor-section">
-            <legend class="section-title">Basic</legend>
-            <label class="field">
-              <span class="field-label">Profile name</span>
-              <input
-                id="field-name"
-                type="text"
-                maxlength="64"
-                autocomplete="off"
-                placeholder="e.g. Home Proxy, Lab"
-              />
-            </label>
-
+            <legend class="section-title" data-i18n="basicSection">Basic</legend>
             <div class="grid">
               <label class="field">
-                <span class="field-label">Proxy protocol</span>
+                <span class="field-label" data-i18n="proxyProtocol">Proxy protocol</span>
                 <select id="field-proxy-type">
-                  <option value="direct">Direct (custom identity)</option>
-                  <option value="http">HTTP proxy</option>
-                  <option value="https">HTTPS proxy</option>
-                  <option value="socks4">SOCKS4 proxy</option>
-                  <option value="socks5">SOCKS5 proxy</option>
+                  <option value="direct" data-i18n="customDirect">Direct (custom identity)</option>
+                  <option value="http" data-i18n="httpProxy">HTTP proxy</option>
+                  <option value="https" data-i18n="httpsProxy">HTTPS proxy</option>
+                  <option value="socks4" data-i18n="socks4Proxy">SOCKS4 proxy</option>
+                  <option value="socks5" data-i18n="socks5Proxy">SOCKS5 proxy</option>
                 </select>
               </label>
 
               <div class="grid" id="proxy-address-fields">
                 <label class="field">
-                  <span class="field-label">Host</span>
+                  <span class="field-label" data-i18n="hostShort">Host</span>
                   <input
                     id="field-proxy-host"
                     type="text"
@@ -140,7 +157,7 @@
                   />
                 </label>
                 <label class="field">
-                  <span class="field-label">Port</span>
+                  <span class="field-label" data-i18n="portShort">Port</span>
                   <input
                     id="field-proxy-port"
                     type="number"
@@ -154,173 +171,267 @@
             </div>
           </fieldset>
 
+          <p id="draft-status" role="status" aria-live="polite"></p>
+          <button id="draft-retry" type="button" data-i18n="draftRetry">Check again</button>
           <!-- Section B: Authentication -->
-          <fieldset class="editor-section" id="section-auth">
-            <legend class="section-title">Authentication</legend>
-            <div class="grid">
-              <label class="field">
-                <span class="field-label">Proxy username</span>
-                <input id="field-proxy-username" type="text" autocomplete="off" />
-              </label>
-              <label class="field">
-                <span class="field-label">Proxy password</span>
-                <input id="field-password" type="password" autocomplete="new-password" />
-              </label>
-            </div>
-            <p class="hint">
-              Usernames and passwords are kept for this Firefox session only. Leave both blank to
-              keep existing credentials. Enter either field to replace the pair; enter the username
-              again when changing the password.
-            </p>
-            <label class="checkbox" id="remove-credentials-row">
-              <input id="field-remove-credentials" type="checkbox" />
-              <span>Clear credentials on Save (Apply to remove from the active route)</span>
-            </label>
-          </fieldset>
-
-          <!-- Section C: Identity -->
-          <fieldset class="editor-section">
-            <legend class="section-title">Identity &amp; Privacy</legend>
-            <div class="identity-mode-group">
-              <label class="radio">
-                <input type="radio" name="identityMode" value="auto" id="field-mode-auto" />
-                <span>Automatic — observe public egress IP through the proxy</span>
-              </label>
-              <label class="radio">
-                <input type="radio" name="identityMode" value="manual" id="field-mode-manual" />
-                <span>Manual — set custom coordinates, accuracy, and timezone</span>
-              </label>
-            </div>
-
-            <div id="identity-policies" class="grid" hidden>
-              <label class="field"
-                ><span>Public IP / GeoIP</span
-                ><select id="field-geoip-policy">
-                  <option value="automatic">Automatic (ipwho.is)</option>
-                  <option value="disabled">Disabled (no lookup)</option>
-                </select></label
-              >
-              <label class="field"
-                ><span>Geolocation</span
-                ><select id="field-geolocation-policy">
-                  <option value="follow">Follow GeoIP</option>
-                  <option value="manual">Manual coordinates</option>
-                  <option value="disabled">Unavailable (never native)</option>
-                </select></label
-              >
-              <label class="field"
-                ><span>Timezone</span
-                ><select id="field-timezone-policy">
-                  <option value="follow">Follow resolved location</option>
-                  <option value="manual">Manual IANA timezone</option>
-                </select></label
-              >
-            </div>
-            <p id="identity-warning" class="hint" role="status" hidden></p>
-            <div class="location-map" id="location-map">
-              <div
-                class="location-map-surface"
-                id="location-map-surface"
-                role="application"
-                aria-label="Location picker; arrow keys pan, marker arrow keys move selection"
-                tabindex="0"
-              >
-                <div class="location-map-tiles" id="location-map-tiles"></div>
-                <div class="location-map-accuracy" id="location-map-accuracy" hidden></div>
-                <div
-                  class="location-map-marker"
-                  id="location-map-marker"
-                  role="button"
-                  aria-label="Selected location marker"
-                  tabindex="0"
-                ></div>
-                <div class="location-map-zoom">
-                  <button id="map-zoom-in" type="button" aria-label="Zoom in">+</button>
-                  <button id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
-                </div>
-                <div class="location-map-attribution">Local coordinate grid ? No map imagery</div>
-                <div class="location-map-notice" id="location-map-notice" hidden>
-                  Map imagery unavailable — coordinates still work.
-                </div>
-              </div>
-              <p class="hint map-privacy">
-                Load online map sends your connection’s public IP and viewed map area to
-                <a href="https://openfreemap.org/privacy/" target="_blank" rel="noopener noreferrer"
-                  >OpenFreeMap</a
-                >, which may use Cloudflare and keep incident IP logs for up to 30 days. Requests
-                use the currently applied route, not unsaved proxy edits. Direct or Off also
-                requires Firefox’s optional public-IP permission. No map requests are made until you
-                load it.
-                <a href="https://openfreemap.org/tos/" target="_blank" rel="noopener noreferrer"
-                  >Provider terms</a
-                >
-              </p>
-              <div class="map-toolbar">
-                <button id="load-online-map" type="button" class="btn-sm">Load online map</button>
-                <button id="unload-online-map" type="button" class="btn-sm" hidden>
-                  Unload online map
-                </button>
-                <button id="use-geoip-location" type="button" class="btn-sm">
-                  Use GeoIP location
-                </button>
-                <span class="hint map-mode-hint"
-                  >In manual mode, drag map to pan, click map to place marker, or drag marker.</span
-                >
-              </div>
-              <p id="map-online-status" class="hint" role="status">
-                Online map off. Coordinates work offline.
-              </p>
-            </div>
-
-            <div id="manual-fields">
+          <details class="editor-section-collapsible" id="section-auth">
+            <summary data-i18n="authenticationOptional">Authentication (optional)</summary>
+            <div class="collapsible-content">
               <div class="grid">
                 <label class="field">
-                  <span class="field-label">Latitude</span>
-                  <input
-                    id="field-latitude"
-                    type="number"
-                    step="any"
-                    min="-90"
-                    max="90"
-                    placeholder="e.g. 37.7749"
-                  />
+                  <span class="field-label" data-i18n="proxyUsername">Proxy username</span>
+                  <input id="field-proxy-username" type="text" autocomplete="off" />
                 </label>
                 <label class="field">
-                  <span class="field-label">Longitude</span>
-                  <input
-                    id="field-longitude"
-                    type="number"
-                    step="any"
-                    min="-180"
-                    max="180"
-                    placeholder="e.g. -122.4194"
-                  />
-                </label>
-                <label class="field">
-                  <span class="field-label">Accuracy (metres)</span>
-                  <input id="field-accuracy" type="number" min="1" step="1" placeholder="1000" />
-                </label>
-                <label class="field">
-                  <span class="field-label">Timezone (IANA)</span>
-                  <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
+                  <span class="field-label" data-i18n="proxyPassword">Proxy password</span>
+                  <input id="field-password" type="password" autocomplete="new-password" />
                 </label>
               </div>
+              <p class="hint" data-i18n="sessionCredentialsHint">
+                Usernames and passwords are kept for this Firefox session only. Leave both blank to
+                keep existing credentials. Enter either field to replace the pair; enter the
+                username again when changing the password.
+              </p>
+              <label class="checkbox" id="remove-credentials-row">
+                <input id="field-remove-credentials" type="checkbox" />
+                <span data-i18n="clearCredentials"
+                  >Clear credentials on Save (Apply to remove from the active route)</span
+                >
+              </label>
             </div>
-          </fieldset>
+          </details>
+
+          <!-- Advanced identity controls do not obstruct basic proxy setup. -->
+          <details class="editor-section-collapsible" id="section-identity">
+            <summary data-i18n="identityPrivacy">Identity &amp; Privacy</summary>
+            <fieldset class="editor-section">
+              <legend class="section-title" data-i18n="identityPrivacy">
+                Identity &amp; Privacy
+              </legend>
+              <div class="identity-mode-group">
+                <label class="radio">
+                  <input type="radio" name="identityMode" value="auto" id="field-mode-auto" />
+                  <span data-i18n="automaticMode"
+                    >Automatic — observe public egress IP through the proxy</span
+                  >
+                </label>
+                <label class="radio">
+                  <input type="radio" name="identityMode" value="manual" id="field-mode-manual" />
+                  <span data-i18n="manualMode"
+                    >Manual — set custom coordinates, accuracy, and timezone</span
+                  >
+                </label>
+              </div>
+
+              <div id="identity-policies" class="grid" hidden>
+                <label class="field"
+                  ><span data-i18n="publicGeoip">Public IP / GeoIP</span
+                  ><select id="field-geoip-policy">
+                    <option value="automatic" data-i18n="automaticIpwho">
+                      Automatic (ipwho.is)
+                    </option>
+                    <option value="disabled" data-i18n="disabledLookup">
+                      Disabled (no lookup)
+                    </option>
+                  </select></label
+                >
+                <label class="field"
+                  ><span data-i18n="geolocationLabel">Geolocation</span
+                  ><select id="field-geolocation-policy">
+                    <option value="follow" data-i18n="followGeoip">Follow GeoIP</option>
+                    <option value="manual" data-i18n="manualCoordinates">Manual coordinates</option>
+                    <option value="disabled" data-i18n="unavailableNative">
+                      Unavailable (never native)
+                    </option>
+                  </select></label
+                >
+                <label class="field"
+                  ><span data-i18n="zone">Timezone</span
+                  ><select id="field-timezone-policy">
+                    <option value="follow" data-i18n="followLocation">
+                      Follow resolved location
+                    </option>
+                    <option value="manual" data-i18n="manualTimezone">Manual IANA timezone</option>
+                  </select></label
+                >
+              </div>
+              <p id="identity-warning" class="hint" role="status" hidden></p>
+              <div class="location-map" id="location-map">
+                <div
+                  class="location-map-surface"
+                  id="location-map-surface"
+                  role="application"
+                  aria-label="Location picker; arrow keys pan, marker arrow keys move selection"
+                  data-i18n-aria="locationPickerAria"
+                  tabindex="0"
+                >
+                  <div class="location-map-tiles" id="location-map-tiles"></div>
+                  <div class="location-map-accuracy" id="location-map-accuracy" hidden></div>
+                  <div
+                    class="location-map-marker"
+                    id="location-map-marker"
+                    role="button"
+                    aria-label="Selected location marker"
+                    data-i18n-aria="selectedLocationAria"
+                    tabindex="0"
+                  ></div>
+                  <div class="location-map-zoom">
+                    <button
+                      id="map-zoom-in"
+                      type="button"
+                      aria-label="Zoom in"
+                      data-i18n-aria="zoomInAria"
+                    >
+                      +
+                    </button>
+                    <button
+                      id="map-zoom-out"
+                      type="button"
+                      aria-label="Zoom out"
+                      data-i18n-aria="zoomOutAria"
+                    >
+                      −
+                    </button>
+                  </div>
+                  <div class="location-map-attribution">Local coordinate grid · No map imagery</div>
+                  <div
+                    class="location-map-notice"
+                    id="location-map-notice"
+                    hidden
+                    data-i18n="mapUnavailable"
+                  >
+                    Map imagery unavailable — coordinates still work.
+                  </div>
+                </div>
+                <p class="hint map-privacy">
+                  <span data-i18n="mapPrivacyBefore"
+                    >Load online map sends your connection’s public IP and viewed map area to</span
+                  >
+                  <a
+                    href="https://openfreemap.org/privacy/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >OpenFreeMap</a
+                  ><span data-i18n="mapPrivacyAfter"
+                    >, which may use Cloudflare and keep incident IP logs for up to 30 days.
+                    Requests use the currently applied route, not unsaved proxy edits. Direct or Off
+                    also requires Firefox’s optional public-IP permission. No map requests are made
+                    until you load it.</span
+                  >
+                  <a
+                    href="https://openfreemap.org/tos/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-i18n="providerTerms"
+                    >Provider terms</a
+                  >
+                </p>
+                <label class="hint"
+                  ><input id="map-autoload" type="checkbox" />
+                  <span data-i18n="mapAutoload"
+                    >Automatically load the visible map after consent</span
+                  ></label
+                >
+                <p class="hint" data-i18n="mapAutoloadNotice">
+                  Once enabled, opening this map loads its current view. Panning and zooming load
+                  the relevant area through the applied route. Turn this off to stay offline.
+                </p>
+                <div class="map-toolbar">
+                  <button id="load-online-map" type="button" class="btn-sm">Load online map</button>
+                  <button
+                    id="unload-online-map"
+                    type="button"
+                    class="btn-sm"
+                    hidden
+                    data-i18n="unloadOnlineMap"
+                  >
+                    Unload online map
+                  </button>
+                  <button
+                    id="use-geoip-location"
+                    type="button"
+                    class="btn-sm"
+                    data-i18n="useGeoipLocation"
+                  >
+                    Use GeoIP location
+                  </button>
+                  <span class="hint map-mode-hint" data-i18n="mapInteractionHint"
+                    >In manual mode, drag map to pan, click map to place marker, or drag
+                    marker.</span
+                  >
+                </div>
+                <p id="map-online-status" class="hint" role="status">
+                  Online map off. Coordinates work offline.
+                </p>
+              </div>
+
+              <div id="manual-fields">
+                <div class="grid">
+                  <label class="field">
+                    <span class="field-label" data-i18n="latitude">Latitude</span>
+                    <input
+                      id="field-latitude"
+                      type="number"
+                      step="any"
+                      min="-90"
+                      max="90"
+                      placeholder="e.g. 37.7749"
+                    />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="longitude">Longitude</span>
+                    <input
+                      id="field-longitude"
+                      type="number"
+                      step="any"
+                      min="-180"
+                      max="180"
+                      placeholder="e.g. -122.4194"
+                    />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="accuracyMetres">Accuracy (metres)</span>
+                    <input id="field-accuracy" type="number" min="1" step="1" placeholder="1000" />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="ianaTimezone">Timezone (IANA)</span>
+                    <input id="field-timezone" type="text" placeholder="America/Los_Angeles" />
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </details>
 
           <!-- Section D: Advanced (collapsed by default) -->
           <details class="editor-section-collapsible" id="section-advanced">
-            <summary>Advanced</summary>
+            <summary data-i18n="advanced">Advanced</summary>
             <div class="collapsible-content">
+              <label class="field">
+                <span class="field-label" data-i18n="profileName">Profile name</span>
+                <input
+                  id="field-name"
+                  type="text"
+                  maxlength="64"
+                  autocomplete="off"
+                  placeholder="e.g. Home Proxy, Lab"
+                  data-i18n-placeholder="profileNameExample"
+                />
+              </label>
+
+              <p class="hint" data-i18n="defaultProtectionNotice">
+                New proxies use proxy DNS for SOCKS, strict proxy-only WebRTC, and automatic
+                location/timezone. Some calls need TURN over TCP. Existing profiles keep their
+                settings.
+              </p>
               <label class="checkbox">
                 <input id="field-proxy-dns" type="checkbox" />
-                <span
+                <span data-i18n="proxyDnsHint"
                   >Resolve DNS names through the proxy (applied by Firefox to SOCKS proxies)</span
                 >
               </label>
 
               <label class="field">
-                <span class="field-label"
+                <span class="field-label" data-i18n="bypassHosts"
                   >Bypass hosts (one per line, comma or semicolon separated)</span
                 >
                 <textarea
@@ -332,13 +443,25 @@
               </label>
 
               <label class="field">
-                <span class="field-label">WebRTC IP handling policy</span>
+                <span class="field-label" data-i18n="webrtcHandling"
+                  >WebRTC IP handling policy</span
+                >
                 <select id="field-webrtc">
-                  <option value="automatic">Automatic (recommended for route)</option>
-                  <option value="default">Default (explicit policy)</option>
-                  <option value="default_public_interface_only">Public addresses only</option>
-                  <option value="disable_non_proxied_udp">Prefer the proxy for UDP</option>
-                  <option value="proxy_only">Proxy only (strictest)</option>
+                  <option value="automatic" data-i18n="webrtcAutomatic">
+                    Automatic (recommended for route)
+                  </option>
+                  <option value="default" data-i18n="webrtcExplicitDefault">
+                    Default (explicit policy)
+                  </option>
+                  <option value="default_public_interface_only" data-i18n="webrtcPublicOnly">
+                    Public addresses only
+                  </option>
+                  <option value="disable_non_proxied_udp" data-i18n="webrtcPreferProxy">
+                    Prefer the proxy for UDP
+                  </option>
+                  <option value="proxy_only" data-i18n="webrtcStrict">
+                    Proxy only (strictest)
+                  </option>
                 </select>
               </label>
             </div>
@@ -346,11 +469,20 @@
 
           <!-- Section E: Runtime details (collapsed by default) -->
           <details class="editor-section-collapsible" id="section-runtime">
-            <summary>Runtime details</summary>
+            <summary data-i18n="runtimeDetails">Runtime details</summary>
             <div class="collapsible-content">
               <div class="runtime-header">
-                <span class="hint">Active identity status and consistency audit</span>
-                <button id="refresh-identity" type="button" class="btn-sm">Refresh Identity</button>
+                <span class="hint" data-i18n="runtimeAuditHint"
+                  >Active identity status and consistency audit</span
+                >
+                <button
+                  id="refresh-identity"
+                  type="button"
+                  class="btn-sm"
+                  data-i18n="refreshIdentity"
+                >
+                  Refresh Identity
+                </button>
               </div>
               <div id="options-status" class="status"></div>
             </div>
@@ -361,30 +493,71 @@
 
           <!-- Actions -->
           <div class="actions">
-            <button id="save" type="submit" class="primary">Save</button>
-            <button id="save-activate" type="button" class="accent" disabled>Apply</button>
-            <button id="duplicate" type="button">Duplicate</button>
-            <button id="delete" type="button" class="danger">Delete</button>
-            <button id="deactivate" type="button">Deactivate</button>
+            <button id="save" type="submit" data-i18n="save">Save</button>
+            <button id="save-activate" type="button" class="primary" data-i18n="enableDraft">
+              Apply
+            </button>
+            <details class="more-actions">
+              <summary data-i18n="moreActions">More</summary>
+              <div class="secondary-actions">
+                <button id="duplicate" type="button" data-i18n="duplicate">Duplicate</button>
+                <button id="delete" type="button" class="danger" data-i18n="delete">Delete</button>
+                <button id="deactivate" type="button" data-i18n="deactivateLabel">
+                  Deactivate
+                </button>
+              </div>
+            </details>
           </div>
 
-          <ul id="hints" class="hints"></ul>
+          <details class="technical-notes">
+            <summary data-i18n="connectionNotes">Connection notes</summary>
+            <ul id="hints" class="hints"></ul>
+          </details>
         </form>
       </section>
     </main>
 
     <footer class="page-footer">
-      <p>
-        Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that
-        provider the proxy address. A direct profile shows it your own public IP, and only after you
-        allow that collection. The location picker starts offline. Loading the online map shares
-        your connection’s public IP and viewed area with OpenFreeMap after explicit consent.
-        Coordinates and all map interactions work offline. No telemetry and no remotely loaded code.
-      </p>
-      <p>
-        Page-level geolocation and timezone changes are compatibility shims. They are observable by
-        sophisticated page scripts and are not a claim of fingerprinting invisibility.
-      </p>
+      <nav aria-label="Help" data-i18n-aria="helpLabel">
+        <a
+          href="https://github.com/jacek4yang/net-identity/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-i18n="supportLink"
+          >Support / Report an issue</a
+        >
+        ·
+        <a
+          href="https://linux.do/"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-i18n="communityLink"
+          >Community · LINUX DO</a
+        >
+      </nav>
+      <details class="footer-disclosure" id="privacy-info">
+        <summary data-i18n="privacyLimits">Privacy &amp; limits</summary>
+        <p data-i18n="communityNotice">
+          Independent community resource; no endorsement or affiliation is implied.
+        </p>
+        <p data-i18n="collectionNotice">
+          Activating a profile can request the egress IP from ipwho.is. A proxied profile shows that
+          provider the proxy address. A direct profile shows it your own public IP, and only after
+          you allow that collection. The location picker starts offline. Loading the online map
+          shares your connection’s public IP and viewed area with OpenFreeMap after explicit
+          consent. Coordinates and all map interactions work offline. No telemetry and no remotely
+          loaded code.
+        </p>
+        <p data-i18n="shimLimitNotice">
+          Page-level geolocation and timezone changes are compatibility shims. They are observable
+          by sophisticated page scripts and are not a claim of fingerprinting invisibility.
+        </p>
+        <p data-i18n="draftDisclosure"></p>
+      </details>
+      <details class="footer-disclosure" id="guide">
+        <summary data-i18n="profilesGuide">How profiles work</summary>
+        <div id="guide-body"></div>
+      </details>
     </footer>
 
     <script type="module" src="options.js"></script>

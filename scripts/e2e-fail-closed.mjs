@@ -19,6 +19,7 @@ const { values } = parseArgs({
     flap: { type: "boolean", default: false },
     restart: { type: "boolean", default: false },
     auth: { type: "boolean", default: false },
+    vault: { type: "boolean", default: false },
     timeout: { type: "string", default: "90" },
   },
 });
@@ -400,7 +401,18 @@ async function popupStatus(browser, profileId, expectedStatus) {
 }
 
 async function checkTraffic(browser, origin, phase) {
-  await browser.client.send("WebDriver:Navigate", { url: `http://127.0.0.1:${origin.pagePort}/` });
+  // A locked vault intentionally blocks even loopback HTTP: its bypass list is
+  // encrypted. Keep the probe document network-independent so cold-start tests
+  // measure the actual requests, not a blocked harness-page navigation. This
+  // ordinary opaque-origin page uses the same fetch/WebSocket probes and live
+  // positive controls before and after locking; no extension-origin exemption.
+  // Keep the HTTP document for other scenarios, especially the mixed HTTP/TLS
+  // flap fixture, whose security context is part of its positive control.
+  await browser.client.send("WebDriver:Navigate", {
+    url: values.vault
+      ? "data:text/html,<!doctype html><title>fail-closed probe</title>"
+      : `http://127.0.0.1:${origin.pagePort}/`,
+  });
   const response = await browser.client.send(
     "WebDriver:ExecuteAsyncScript",
     {
@@ -452,7 +464,8 @@ function assertSameRoute(state, initial, phase) {
     state.desiredRoute !== "proxy" ||
     state.appliedRoute !== "proxy" ||
     JSON.stringify(state.identity) !== JSON.stringify(initial.identity) ||
-    JSON.stringify(state.proxy) !== JSON.stringify(initial.proxy)
+    JSON.stringify(state.proxy) !== JSON.stringify(initial.proxy) ||
+    JSON.stringify(state.webrtc) !== JSON.stringify(initial.webrtc)
   ) {
     throw new Error(
       `${phase} changed selected route/generation/identity: ${JSON.stringify(state)}`,
@@ -758,6 +771,26 @@ async function main() {
           `session snapshot did not retain test credentials: ${JSON.stringify(lengths)}`,
         );
     }
+    if (values.vault) {
+      if (!values.restart || !values.auth) throw new Error("Vault checks require restart and auth");
+      const setup = await message(browser, {
+        type: "vault:setup",
+        password: "fixture vault master passphrase",
+      });
+      if (!setup?.ok || setup.status !== "unlocked") throw new Error("Vault setup failed");
+      const stored = await browser.client.send("WebDriver:ExecuteAsyncScript", {
+        script: `const done = arguments[arguments.length - 1];
+          (window.wrappedJSObject || window).browser.storage.local.get(null).then(data => {
+            const text = JSON.stringify(data);
+            done({encrypted: !!data["ni.vault.v1"], exposed: ["test-user", "test-password", "Proxy A", "fixture vault master passphrase"].some(value => text.includes(value))});
+          });`,
+        args: [],
+      });
+      const result = stored?.value ?? stored;
+      if (!result.encrypted || result.exposed)
+        throw new Error("Vault leaked plaintext into durable storage");
+      log("Encrypted vault migrated profiles, active target and proxy credentials");
+    }
     if (values.flap) {
       // Establish the local TLS exception through a real document navigation;
       // Firefox does not apply Marionette's cert override to first-use subresources.
@@ -918,22 +951,46 @@ async function main() {
         throw new Error(
           `cold startup leaked direct traffic: ${JSON.stringify({ cold, directHits })}`,
         );
+      if (values.vault) {
+        const locked = await message(browser, { type: "vault:get" });
+        if (locked?.status !== "locked")
+          throw new Error("Full Firefox exit did not lock the vault");
+        const wrong = await message(browser, {
+          type: "vault:unlock",
+          password: "wrong fixture master passphrase",
+        });
+        if (wrong?.ok || wrong?.status !== "locked")
+          throw new Error("Wrong master password unlocked the vault");
+        if (credentiallessFixtureConnections().length !== 0)
+          throw new Error("Locked vault allowed anonymous upstream traffic");
+        const unlocked = await message(browser, {
+          type: "vault:unlock",
+          password: "fixture vault master passphrase",
+        });
+        if (!unlocked?.ok || unlocked.status !== "unlocked")
+          throw new Error("Could not unlock preserved vault after full restart");
+        log(
+          "Full Firefox restart: locked traffic blocked; wrong password rejected; explicit unlock restored encrypted credentials",
+        );
+      }
       const restored = await message(browser, { type: "state:get" });
       if (restored?.state?.activeProfileId !== profile.id)
         throw new Error("restart deselected Proxy A");
       if (
         values.auth &&
+        !values.vault &&
         (restored.state.runtimeHealth !== "credentials_required" ||
           restored.state.proxy.hasCredentials !== false)
       )
         throw new Error(
           `missing SOCKS credentials were not reported: ${JSON.stringify(restored.state.runtimeHealth)}`,
         );
-      await popupStatus(
-        browser,
-        profile.id,
-        values.auth ? "Credentials required" : "Proxy connection uncertain",
-      );
+      if (!values.vault)
+        await popupStatus(
+          browser,
+          profile.id,
+          values.auth ? "Credentials required" : "Proxy connection uncertain",
+        );
       if (values.auth && credentiallessFixtureConnections().length !== 0)
         throw new Error(
           `credentialless cold startup reached fixture via dual-mode SOCKS: ${JSON.stringify(credentiallessFixtureConnections())}`,
@@ -958,7 +1015,7 @@ async function main() {
       socks = socksServer(seen, origin, values.auth);
       await listen(socks.server, socksPort);
     }
-    if (values.auth && values.restart) {
+    if (values.auth && values.restart && !values.vault) {
       const beforeAuthFailure = directHits.length;
       const denied = await checkTraffic(browser, origin, "missing-auth");
       if (

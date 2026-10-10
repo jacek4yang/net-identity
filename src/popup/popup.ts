@@ -1,3 +1,8 @@
+import { bindVaultControls } from "../shared/vault-ui";
+import { bindLanguageControl } from "../shared/language-control";
+import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n";
+import { filterProfiles } from "./profile-search";
+import { bindQuickAdd } from "./quick-add";
 /**
  * Popup view: compact quick-switching route switcher and identity surface.
  *
@@ -32,6 +37,8 @@ const elements = {
   consistencyBadge: requireElement<HTMLElement>("#consistency-badge"),
   routeOff: requireElement<HTMLButtonElement>("#route-off"),
   routeList: requireElement<HTMLElement>("#route-list"),
+  routeSearch: requireElement<HTMLInputElement>("#route-search"),
+  routeEmpty: requireElement<HTMLElement>("#route-empty"),
   manageProfiles: requireElement<HTMLButtonElement>("#manage-profiles"),
   identityRoute: requireElement<HTMLElement>("#identity-route"),
   identityIp: requireElement<HTMLElement>("#identity-ip"),
@@ -76,6 +83,8 @@ const CHECK_STATUS_LABELS: Record<AuditCheckStatus, string> = {
   error: "error",
 };
 
+let lastState: RuntimeState | undefined;
+let quickAddBusy = false;
 let knownProfiles: IdentityProfile[] = [];
 let currentActiveId: string | null = null;
 let currentStatus: RuntimeStatus = "idle";
@@ -83,9 +92,9 @@ let activatingProfileId: string | null = null;
 let isDeactivating = false;
 let displayedGeneration = -1;
 
-function setStatusPill(state: RuntimeState | RuntimeStatus): void {
+function setStatusPill(state: RuntimeState | RuntimeStatus | "deactivating"): void {
   const { label, tone } = describePopupStatus(state);
-  elements.statusText.textContent = label;
+  elements.statusText.textContent = lt(label);
   elements.statusPill.dataset.tone = tone;
 }
 
@@ -96,7 +105,7 @@ function renderError(message: string | null): void {
     return;
   }
   elements.errorBox.hidden = false;
-  elements.errorBox.textContent = message;
+  elements.errorBox.textContent = lt(message);
 }
 
 function describeEndpoint(state: RuntimeState): string {
@@ -110,15 +119,22 @@ function renderRoutes(): void {
   elements.routeOff.setAttribute("aria-checked", String(isOff));
   elements.routeOff.classList.toggle("is-activating", isDeactivating);
 
+  elements.routeOff.disabled = quickAddBusy;
   clear(elements.routeList);
 
-  for (const profile of knownProfiles) {
+  const matches = filterProfiles(
+    knownProfiles,
+    elements.routeSearch.value,
+    message("browserRouting"),
+  );
+  elements.routeEmpty.hidden = matches.length > 0;
+  for (const profile of matches) {
     const isDirect = isBuiltinDirectProfile(profile.id);
     const isActive = profile.id === currentActiveId;
     const isThisActivating = profile.id === activatingProfileId;
 
     const secondaryText = isDirect
-      ? "Browser / system routing"
+      ? message("browserRoutingExplanation")
       : `${profile.proxy.type.toUpperCase()} · ${profile.proxy.host ?? ""}:${String(profile.proxy.port ?? "")}`;
 
     const leadIcon = isDirect ? "🌐" : "🛡️";
@@ -143,8 +159,11 @@ function renderRoutes(): void {
         el("div", {
           className: "route-body",
           children: [
-            el("span", { className: "route-name", text: profile.name }),
-            el("span", { className: "route-desc", text: secondaryText }),
+            el("span", {
+              className: "route-name",
+              text: isDirect ? message("browserRouting") : profile.name,
+            }),
+            el("span", { className: "route-desc", text: lt(secondaryText) }),
           ],
         }),
         el("div", {
@@ -155,6 +174,7 @@ function renderRoutes(): void {
       ],
     });
 
+    item.disabled = quickAddBusy;
     elements.routeList.append(item);
   }
 }
@@ -164,8 +184,9 @@ function renderIdentity(state: RuntimeState): void {
   const isIdle = state.status === "idle";
 
   elements.identityRoute.textContent = isIdle
-    ? "None (Off)"
-    : (state.activeProfileName ?? (state.activeProfileId === null ? "Routing blocked" : "Direct"));
+    ? message("noneOff")
+    : (state.activeProfileName ??
+      (state.activeProfileId === null ? message("routingBlocked") : message("browserRouting")));
 
   if (isIdle) {
     elements.identityIp.textContent = "—";
@@ -185,32 +206,42 @@ function renderIdentity(state: RuntimeState): void {
 
   // Consistency badge
   const verdict = isIdle ? "inactive" : state.audit.verdict;
-  elements.consistencyBadge.textContent = VERDICT_LABELS[verdict] ?? verdict;
+  elements.consistencyBadge.textContent = lt(VERDICT_LABELS[verdict] ?? verdict);
   elements.consistencyBadge.dataset.tone = VERDICT_TONES[verdict] ?? "pending";
 }
 
 function renderDetails(state: RuntimeState): void {
-  elements.detailsEndpoint.textContent = describeEndpoint(state);
+  elements.detailsEndpoint.textContent = lt(describeEndpoint(state));
 
   elements.detailsIpVerified.textContent =
     state.status === "idle"
-      ? "No route active"
+      ? message("noRoute")
       : state.identity.publicIpVerified
-        ? "Verified via egress query"
-        : "Unverified";
+        ? message("verified")
+        : message("unverified");
 
-  elements.detailsFirefoxProxy.textContent = `proxyType=${state.firefoxProxy.proxyType} (${state.firefoxProxy.levelOfControl})`;
+  elements.detailsFirefoxProxy.textContent = formatMessage("firefoxProxyDetail", {
+    type: state.firefoxProxy.proxyType,
+    control: state.firefoxProxy.levelOfControl,
+  });
 
   elements.detailsCoordinates.textContent =
     state.identity.latitude !== undefined && state.identity.longitude !== undefined
       ? `${formatCoordinates(state.identity.latitude, state.identity.longitude)} (${formatAccuracy(state.identity.accuracy)})`
       : "—";
 
-  elements.detailsWebrtcDetail.textContent = `desired=${state.webrtc.desired}, actual=${state.webrtc.actual ?? "default"} (${state.webrtc.status})`;
+  elements.detailsWebrtcDetail.textContent = formatMessage("webrtcDetail", {
+    desired: state.webrtc.desired,
+    actual: state.webrtc.actual ?? "default",
+    status: state.webrtc.status,
+  });
 
   elements.detailsFrames.textContent = state.content.hasShim
-    ? `${String(state.content.currentFrameCount)}/${String(state.content.frameCount)} frames synced`
-    : "No open tabs reporting";
+    ? formatMessage("framesSynced", {
+        current: state.content.currentFrameCount ?? "?",
+        total: state.content.frameCount ?? "?",
+      })
+    : message("noTabs");
 
   // Detailed audit checks
   clear(elements.auditChecks);
@@ -218,11 +249,11 @@ function renderDetails(state: RuntimeState): void {
     const item = el("li", {
       className: "audit-item",
       children: [
-        el("span", { className: "audit-item-label", text: check.label }),
+        el("span", { className: "audit-item-label", text: lt(check.label) }),
         el("span", {
           className: "audit-item-status",
-          attrs: { "data-status": check.status, title: check.detail ?? "" },
-          text: CHECK_STATUS_LABELS[check.status] ?? check.status,
+          attrs: { "data-status": check.status, title: lt(check.detail ?? "") },
+          text: lt(CHECK_STATUS_LABELS[check.status] ?? check.status),
         }),
       ],
     });
@@ -232,6 +263,7 @@ function renderDetails(state: RuntimeState): void {
 
 function renderState(state: RuntimeState): void {
   if (state.generation < displayedGeneration) return;
+  lastState = state;
   displayedGeneration = state.generation;
   currentStatus = state.status;
   currentActiveId = state.activeProfileId;
@@ -243,14 +275,14 @@ function renderState(state: RuntimeState): void {
   renderDetails(state);
   renderRoutes();
 
-  elements.refreshButton.disabled = state.activeProfileId === null;
+  elements.refreshButton.disabled = quickAddBusy || state.activeProfileId === null;
 
   renderError(
     state.runtimeHealth === "credentials_required"
       ? "Proxy credentials are required. Traffic remains restricted to this profile."
       : state.runtimeHealth === "unavailable"
         ? "Traffic is blocked rather than sent directly. Retry this profile after the proxy returns."
-        : state.lastError === undefined
+        : state.lastError === undefined || state.lastError.code === "proxy_recovered"
           ? null
           : explainRuntimeError(state.lastError.code, state.lastError.message),
   );
@@ -263,14 +295,14 @@ function applyMutation(result: MutationResponse, profiles: ProfilesResponse | nu
     renderRoutes();
   }
   if (!result.ok && result.errors.length > 0) {
-    renderError(result.errors.join("; "));
+    renderError(result.errors.map(lt).join("; "));
   }
 }
 
 async function loadProfiles(): Promise<ProfilesResponse | null> {
   const response = await request({ type: "profiles:list" }, parseProfilesResponse);
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     return null;
   }
   knownProfiles = response.value.profiles;
@@ -289,7 +321,7 @@ async function activateRoute(profileId: string): Promise<void> {
 
   const response = await request({ type: "profiles:activate", profileId }, parseMutationResponse);
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     activatingProfileId = null;
     setStatusPill(currentStatus);
     renderRoutes();
@@ -306,13 +338,14 @@ async function deactivateRoute(): Promise<void> {
   }
 
   isDeactivating = true;
-  setStatusPill("idle");
+  // Off is only truthful after the background commits teardown.
+  setStatusPill("deactivating");
   renderRoutes();
   renderError(null);
 
   const response = await request({ type: "profiles:deactivate" }, parseMutationResponse);
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     isDeactivating = false;
     setStatusPill(currentStatus);
     renderRoutes();
@@ -341,7 +374,7 @@ async function refreshIdentity(): Promise<void> {
   elements.refreshButton.disabled = false;
 
   if (!response.ok) {
-    renderError(response.errors.join("; "));
+    renderError(response.errors.map(lt).join("; "));
     setStatusPill(currentStatus);
     return;
   }
@@ -353,10 +386,17 @@ function toggleDetailsVisibility(): void {
   const isHidden = elements.detailsPanel.hidden;
   elements.detailsPanel.hidden = !isHidden;
   elements.toggleDetails.setAttribute("aria-expanded", String(isHidden));
-  elements.toggleDetails.textContent = isHidden ? "Hide details" : "Details";
+  elements.toggleDetails.textContent = isHidden ? message("hideDetails") : message("details");
 }
 
 async function bootstrap(): Promise<void> {
+  await bindLanguageControl(() => {
+    if (lastState) renderState(lastState);
+    elements.toggleDetails.textContent = elements.detailsPanel.hidden
+      ? message("details")
+      : message("hideDetails");
+  });
+  if (!(await bindVaultControls())) return;
   const [stateResponse, profilesResponse] = await Promise.all([
     request({ type: "state:get" }, parseStateResponse),
     loadProfiles(),
@@ -392,6 +432,9 @@ requireElement<HTMLElement>(".routes-container").addEventListener("keydown", (ev
   rows[next]?.focus();
 });
 
+// Filtering is display-only and never changes the selected route.
+elements.routeSearch.addEventListener("input", renderRoutes);
+
 // Event bindings
 elements.routeOff.addEventListener("click", () => {
   void deactivateRoute();
@@ -417,6 +460,17 @@ onRuntimeMessage((message) => {
     return undefined;
   }
   return undefined;
+});
+
+bindQuickAdd({
+  profiles: () => knownProfiles,
+  reload: loadProfiles,
+  activate: activateRoute,
+  busy: (value) => {
+    quickAddBusy = value;
+    elements.refreshButton.disabled = value || currentActiveId === null;
+    renderRoutes();
+  },
 });
 
 void bootstrap();

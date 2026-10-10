@@ -22,6 +22,8 @@ const artifactsDir = path.resolve(
 /** Paths that must be present in a shippable package. */
 const REQUIRED_ENTRIES = [
   "manifest.json",
+  "_locales/en/messages.json",
+  "_locales/zh_CN/messages.json",
   "background.js",
   "content/bridge.js",
   "content/page-shim.js",

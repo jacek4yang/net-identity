@@ -1,32 +1,36 @@
 :root {
   color-scheme: light dark;
   --bg: #ffffff;
-  --panel: #f7f7f9;
-  --panel-nested: #eeeff3;
-  --fg: #15141a;
-  --fg-dim: #5b5b66;
-  --border: #d9d9e0;
-  --border-subtle: #eaeaf0;
-  --accent: #0060df;
-  --accent-hover: #004ecc;
+  --canvas: #f4f7f8;
+  --shadow: 0 4px 20px rgb(24 49 63 / 4%);
+  --panel: #f4f7f8;
+  --panel-nested: #e9eff1;
+  --fg: #18313f;
+  --fg-dim: #526875;
+  --border: #ccd7dd;
+  --border-subtle: #e5ebee;
+  --accent: #087f72;
+  --accent-hover: #05675d;
   --accent-fg: #ffffff;
-  --ok: #157a3a;
+  --ok: #16734b;
   --warn: #9a5b00;
   --bad: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1c1b22;
-    --panel: #26252d;
-    --panel-nested: #31303b;
-    --fg: #fbfbfe;
-    --fg-dim: #b1b1bb;
-    --border: #41414b;
-    --border-subtle: #2d2d38;
-    --accent: #0df;
-    --accent-hover: #00c7f2;
-    --accent-fg: #1c1b22;
+    --bg: #111d26;
+    --canvas: #0e1921;
+    --shadow: 0 4px 20px rgb(0 0 0 / 12%);
+    --panel: #192a35;
+    --panel-nested: #223844;
+    --fg: #eaf2f5;
+    --fg-dim: #afc3ce;
+    --border: #3c5361;
+    --border-subtle: #2b414e;
+    --accent: #72dec8;
+    --accent-hover: #96ebdb;
+    --accent-fg: #111d26;
     --ok: #4ade80;
     --warn: #fbbf24;
     --bad: #ff8a80;
@@ -39,9 +43,9 @@
 
 body {
   margin: 0 auto;
-  padding: 20px;
+  padding: 32px 24px;
   max-width: 1080px;
-  background: var(--bg);
+  background: var(--canvas);
   color: var(--fg);
   font:
     14px/1.5 system-ui,
@@ -52,12 +56,24 @@ body {
 
 /* Header & Guide */
 .page-header {
-  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.header-content {
+  flex: 1;
+  min-width: 220px;
+}
+.brand-icon {
+  flex: 0 0 auto;
 }
 
 .page-header h1 {
   margin: 0 0 4px;
-  font-size: 20px;
+  font-size: 23px;
+  letter-spacing: -0.035em;
   font-weight: 600;
 }
 
@@ -90,8 +106,8 @@ details summary {
 /* Layout */
 .layout {
   display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(420px, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 
@@ -102,10 +118,12 @@ details summary {
 }
 
 .panel {
-  background: var(--panel);
+  min-width: 0;
+  background: var(--bg);
+  box-shadow: var(--shadow);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px 16px;
+  border-radius: 16px;
+  padding: 20px;
   margin-bottom: 16px;
 }
 
@@ -149,7 +167,7 @@ details summary {
 .profile-list li {
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 12px 10px;
   cursor: pointer;
   background: transparent;
 }
@@ -160,8 +178,8 @@ details summary {
 }
 
 .profile-list li[aria-selected="true"] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
 }
 
 .profile-list li:focus-visible {
@@ -188,6 +206,8 @@ details summary {
 
 /* Badges */
 .badge {
+  flex-shrink: 0;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border);
@@ -253,6 +273,7 @@ details summary {
 
 /* Editor Sections */
 .editor-section {
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 12px 14px;
@@ -306,9 +327,10 @@ input[type="number"],
 select,
 textarea {
   width: 100%;
-  padding: 6px 8px;
+  min-height: 38px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--bg);
   color: var(--fg);
   font: inherit;
@@ -365,7 +387,7 @@ textarea {
   height: 280px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 12px;
   background:
     linear-gradient(to right, color-mix(in srgb, var(--fg) 10%, transparent) 1px, transparent 1px),
     linear-gradient(to bottom, color-mix(in srgb, var(--fg) 10%, transparent) 1px, transparent 1px),
@@ -518,10 +540,10 @@ textarea {
 }
 
 button {
-  min-height: 34px;
+  min-height: 36px;
   padding: 6px 12px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--bg);
   color: var(--fg);
   font: inherit;
@@ -680,4 +702,219 @@ button.danger:hover:not(:disabled) {
 }
 .location-map-tiles .maplibregl-canvas {
   position: absolute;
+}
+
+.options-language {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 0 auto;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.options-language select {
+  width: auto;
+}
+.options-language p {
+  flex-basis: 100%;
+}
+
+/* Quiet default surface: details retain the full controls and disclosures. */
+.editor-section {
+  border-radius: 10px;
+  background: var(--panel);
+}
+.editor-section-collapsible {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+.editor-section-collapsible > summary {
+  padding: 10px 2px;
+}
+#draft-status {
+  padding: 10px 12px;
+  margin: 8px 0;
+  border-radius: 9px;
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+#draft-status[data-state="success"] {
+  background: color-mix(in srgb, var(--ok) 8%, var(--bg));
+  color: var(--ok);
+}
+#draft-status[data-state="error"] {
+  color: var(--warn);
+}
+#draft-retry {
+  margin: 0 0 14px;
+  font-size: 12px;
+}
+.actions {
+  align-items: flex-start;
+}
+.more-actions > summary {
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+}
+.technical-notes {
+  color: var(--fg-dim);
+  font-size: 12px;
+  margin-top: 12px;
+}
+.page-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px 20px;
+  max-width: none;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.page-footer a {
+  color: var(--fg-dim);
+  text-decoration: none;
+}
+.page-footer a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.footer-disclosure {
+  flex: 1 1 180px;
+}
+.footer-disclosure > summary {
+  font-weight: 400;
+}
+.footer-disclosure[open] {
+  flex-basis: 100%;
+}
+.footer-disclosure[open] > summary {
+  margin-bottom: 12px;
+}
+#guide {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  body {
+    padding: 16px 12px;
+  }
+}
+
+/* Keep protocol, host and port legible as the settings page narrows. */
+#proxy-address-fields {
+  grid-template-columns: minmax(100px, 1fr) minmax(80px, 0.6fr);
+}
+.empty {
+  font-size: 12px;
+  line-height: 1.7;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+#draft-retry {
+  background: transparent;
+  border-color: transparent;
+  color: var(--fg-dim);
+}
+.actions {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+@media (max-width: 600px) {
+  .page-header {
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .header-content {
+    min-width: 180px;
+  }
+  .options-language {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+  .panel {
+    padding: 16px;
+  }
+  #proxy-address-fields {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Restrained feedback with no motion for users who request reduced animation. */
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  input,
+  select,
+  summary {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (forced-colors: active) {
+  button,
+  input,
+  select,
+  textarea,
+  .panel,
+  .route-item,
+  .identity-card {
+    border-color: ButtonText;
+    box-shadow: none;
+  }
+}
+
+/* Shared compact encrypted-vault surface. */
+.vault-panel {
+  margin: 12px 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--fg);
+  background: var(--bg);
+  font-size: 13px;
+}
+.vault-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.vault-panel form {
+  display: grid;
+  gap: 8px;
+  margin-block: 10px;
+}
+.vault-panel input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.vault-panel button {
+  margin: 4px 8px 4px 0;
+}
+.vault-panel .hint {
+  line-height: 1.6;
+}
+.vault-panel [hidden] {
+  display: none !important;
+}
+#vault-error {
+  color: var(--bad);
 }

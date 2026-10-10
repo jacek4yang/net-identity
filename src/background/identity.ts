@@ -255,12 +255,7 @@ export class ActivationController {
     const decide = () => {
       const result = decideFailClosedProxy(this.target, url);
       const endpoint = sanitizeProxyEndpoint(Array.isArray(result) ? result[0] : result);
-      if (
-        requestId !== undefined &&
-        endpoint !== null &&
-        (endpoint.type === "socks" || endpoint.type === "socks4") &&
-        this.target !== null
-      )
+      if (requestId !== undefined && endpoint !== null && this.target !== null)
         this.networkHealth.track(requestId, this.target.generation, url, endpoint);
       return result;
     };
@@ -377,6 +372,7 @@ export class ActivationController {
         return await this.failWith("schema_unsupported", migrationWarning);
       }
       if (stored.activeProfileId === null) {
+        this.routingIntent = "off";
         const idle = await this.composeIdleState(this.generation);
         if (this.generation !== epoch) return this.state;
         return await this.commit(idle, false);
@@ -422,6 +418,7 @@ export class ActivationController {
           credentials: snapshot.credentials,
         };
         this.appliedProfile = profile;
+        this.routingIntent = profile.proxy.type === "direct" ? "direct" : "proxy";
         return await this.commit(restored, false);
       }
 

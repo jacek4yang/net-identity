@@ -218,30 +218,44 @@ function locationStatus(identity: ResolvedIdentity, providerFailed: boolean): Au
 export function buildAuditReport(input: AuditInput): AuditReport {
   const { identity, proxy, webrtc, content, firefoxProxy } = input;
 
+  const knownFirefoxMode = ["none", "system", "manual", "autoConfig", "autoDetect"].includes(
+    firefoxProxy.proxyType,
+  );
   const firefoxProxyCheck: AuditCheck =
-    firefoxProxy.proxyType === "none"
+    firefoxProxy.levelOfControl === "controlled_by_other_extensions"
       ? check(
           "firefox_proxy",
           "Firefox proxy settings",
-          "ok",
-          "No Firefox-level proxy is configured.",
+          "controlled_by_other_extension",
+          "Another extension controls Firefox proxy settings; review that extension for conflicts.",
         )
-      : firefoxProxy.levelOfControl === "controlled_by_other_extensions" ||
-          firefoxProxy.levelOfControl === "controlled_by_this_extension"
+      : !knownFirefoxMode || firefoxProxy.levelOfControl !== "controllable_by_this_extension"
         ? check(
             "firefox_proxy",
             "Firefox proxy settings",
-            firefoxProxy.levelOfControl === "controlled_by_other_extensions"
-              ? "controlled_by_other_extension"
-              : "unavailable",
-            `Firefox reports proxyType=${firefoxProxy.proxyType} (${firefoxProxy.levelOfControl}). This extension routes requests itself and does not rewrite that setting.`,
-          )
-        : check(
-            "firefox_proxy",
-            "Firefox proxy settings",
             "unavailable",
-            `Firefox reports its own proxy configuration (proxyType=${firefoxProxy.proxyType}). A "direct" profile does not override Firefox's manual proxy settings.`,
-          );
+            "Firefox proxy settings could not be verified or are controlled by browser policy.",
+          )
+        : firefoxProxy.proxyType === "none"
+          ? check(
+              "firefox_proxy",
+              "Firefox proxy settings",
+              "ok",
+              "No Firefox-level proxy is configured.",
+            )
+          : proxy.configured
+            ? check(
+                "firefox_proxy",
+                "Firefox proxy settings",
+                "ok",
+                "Firefox's existing proxy settings were read. Non-bypassed web requests use the selected profile; explicit bypasses still follow Firefox settings.",
+              )
+            : check(
+                "firefox_proxy",
+                "Firefox proxy settings",
+                "unavailable",
+                `Firefox reports its own proxy configuration (proxyType=${firefoxProxy.proxyType}). A "direct" profile does not override Firefox's manual proxy settings.`,
+              );
 
   if (input.activeProfileId === null) {
     return {
