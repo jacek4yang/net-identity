@@ -58,7 +58,7 @@ from logs and metadata without changing the actual screenshot DOM.
 `ready` alone is not proof of geographic pixels. Inspect all four PNGs before
 copying any candidate into `store-assets/screenshots`:
 
-- Exactly 1280 × 800, readable complete extension UI; any uniform picker reduction is recorded
+- Exactly 1280 × 800, readable complete extension UI; any uniform region reduction is recorded
 - Fourth image shows actual recognizable geographic features and labels
 - OpenFreeMap, © OpenMapTiles and Data from OpenStreetMap attribution is visible
 - No fake success labels, remote-code substitutions or grid-only fallback
@@ -74,8 +74,8 @@ changes and publication. Do not modify historical release assets.
 The picker image centers the complete Identity & Privacy fieldset,
 including policies, map attribution, provider disclosure, status and coordinate inputs.
 A bounded taller source viewport and uniform reduction (at least 75%, never enlargement)
-can fit the complete picker into the store canvas. Metadata records its source box,
-viewport and scale; audit stays native scale. It still fails for clipped source content
+can fit the complete picker or identity/audit region into the store canvas. Metadata
+records its source box, viewport and scale. It still fails for clipped source content
 or a reduction below the readability bound. Full-size light/dark review images remain
 available independently. Capture metadata also records
 aggregate map/glyph request counts, returned bytes and peak pending RPCs. The temporary

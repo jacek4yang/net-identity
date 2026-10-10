@@ -1,6 +1,6 @@
 /** Validate the complete source region and return its uniform output scale.
- * Store artwork stays 1280x800. A taller picker may be reduced to at least 75%;
- * audit remains native scale. Never crop controls or enlarge rasterized pixels.
+ * Store artwork stays 1280x800. Taller complete regions may be reduced to at
+ * least 75%. Never crop controls or enlarge rasterized pixels.
  */
 export function captureFrameScale(frame, bounds, viewport) {
   if (frame !== "picker" && frame !== "audit") return null;
@@ -18,6 +18,5 @@ export function captureFrameScale(frame, bounds, viewport) {
     return null;
   const margin = frame === "picker" ? 8 : 16;
   const scale = Math.min(1, (1280 - margin * 2) / width, (800 - margin * 2) / height);
-  if (frame === "audit" && scale !== 1) return null;
   return scale >= 0.75 ? scale : null;
 }

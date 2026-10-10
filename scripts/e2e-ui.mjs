@@ -683,13 +683,18 @@ async function main() {
         }
         let restoreWindow = null;
         let framing = null;
-        if (frame === "picker" && !values.review) {
+        if (frame && !values.review) {
           const original = await client.send("WebDriver:GetWindowRect");
           restoreWindow = original.value ?? original;
-          const size = await execute(`return {viewport:innerHeight,
-            content:document.getElementById("location-map").closest("fieldset").getBoundingClientRect().height};`);
+          const size = await execute(
+            `
+            const top=(arguments[0]==="picker" ? document.getElementById("location-map").closest("fieldset") : document.querySelector(".identity-card")).getBoundingClientRect();
+            const bottom=(arguments[0]==="picker" ? document.getElementById("location-map").closest("fieldset") : document.querySelector("#details-panel")).getBoundingClientRect();
+            return {viewport:innerHeight,content:bottom.bottom-top.top};`,
+            [frame],
+          );
           const height = Math.max(800, Math.ceil(size.content) + 32);
-          if (height > 1200) throw new Error("Complete picker exceeds bounded artwork viewport");
+          if (height > 1200) throw new Error("Complete UI region exceeds bounded artwork viewport");
           await client.send("WebDriver:SetWindowRect", {
             width: restoreWindow.width,
             height: restoreWindow.height + height - size.viewport,
@@ -698,6 +703,10 @@ async function main() {
         if (frame === "picker") {
           await execute(
             `document.getElementById("location-map").closest("fieldset").scrollIntoView({block:"start"}); window.scrollBy(0, -16);`,
+          );
+        } else if (frame === "audit") {
+          await execute(
+            `document.querySelector(".identity-card").scrollIntoView({block:"start"}); window.scrollBy(0,-16);`,
           );
         } else if (selector)
           await execute(
@@ -711,8 +720,8 @@ async function main() {
         let encoded = result.value;
         if (frame && !values.review) {
           // Preserve the complete real fieldset, including attribution/disclosures.
-          // A taller source viewport allows bounded uniform reduction of the picker;
-          // audit stays native scale. Metadata records the source box and scale.
+          // A taller source viewport allows bounded uniform reduction of the whole
+          // region. Metadata records the source box and scale.
           // Never hide controls, crop overflowing content or synthesize UI pixels.
           const framed = await client.send("WebDriver:ExecuteAsyncScript", {
             script: `const done = arguments[arguments.length - 1];

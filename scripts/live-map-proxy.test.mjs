@@ -392,6 +392,6 @@ test("artwork framing preserves complete content with bounded uniform picker red
   assert.equal(captureFrameScale("picker", box(784), { width: 1279, height: 900 }), null);
   assert.equal(captureFrameScale("picker", box(784), { width: 1280, height: 1201 }), null);
   assert.equal(captureFrameScale("audit", box(768), viewport), 1);
-  assert.equal(captureFrameScale("audit", box(769), viewport), null);
+  assert.equal(captureFrameScale("audit", box(769), viewport), 768 / 769);
   assert.equal(captureFrameScale("unknown", box(768), viewport), null);
 });
