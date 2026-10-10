@@ -1090,5 +1090,14 @@
   },
   "savedAuthentication": {
     "message": "Saved — leave blank to keep"
+  },
+  "socksUsernameRequired": {
+    "message": "SOCKS5 authentication requires a username"
+  },
+  "socksUsernameBytes": {
+    "message": "SOCKS5 username must not exceed 255 UTF-8 bytes"
+  },
+  "socksPasswordBytes": {
+    "message": "SOCKS5 password must not exceed 255 UTF-8 bytes"
   }
 }

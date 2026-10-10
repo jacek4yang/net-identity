@@ -867,11 +867,13 @@ async function saveProfile(): Promise<IdentityProfile | null> {
   if (savePending) return null;
   savePending = true;
   ui.save.disabled = true;
+  ui.saveActivate.disabled = true;
   try {
     return await persistProfile();
   } finally {
     savePending = false;
     ui.save.disabled = false;
+    ui.saveActivate.disabled = false;
   }
 }
 
@@ -1276,6 +1278,9 @@ void (async () => {
   await bindLanguageControl(() => {
     renderGuide();
     renderHints();
+    const hasCredentials = selectedId !== null && credentialProfileIds.includes(selectedId);
+    ui.proxyUsername.placeholder = hasCredentials ? message("savedAuthentication") : "";
+    ui.password.placeholder = hasCredentials ? message("savedAuthentication") : "";
     showErrors(lastErrors);
     renderProfileList();
     setMapStatus(mapStatusText);
