@@ -83,3 +83,21 @@ API observer forwards original calls and responses unchanged, stores no URLs, ID
 payloads, and is removed once all requests settle. A successful capture requires glyph
 requests and at most eight pending map RPCs; these counters are test evidence, not
 production telemetry or a claim about peak queue depth inside the renderer.
+
+## Complex-script labels and capture fonts
+
+MapLibre 6.11.2 uses provider glyphs for individual codepoints with
+`localIdeographFontFamily: false`, but renders multi-codepoint grapheme clusters
+through the browser's local font stack. Sinhala and other complex-script labels
+therefore also depend on fonts available to the capture browser. Successful glyph
+requests and zero HTTP failures do not prove complete character coverage.
+
+The live-capture runner installs `fonts-noto-core` alongside `fonts-noto-cjk`,
+requires nonempty `fc-list :lang=si family` output, and includes that output in the
+bilingual review artifact. This records host font availability, not proof of
+correct pixels. Inspect the Sri Lanka local-script label in the world-zoom light
+and dark review images; readable English alone is insufficient. Missing local
+fonts can still affect other users' complex-script map labels. No remote font
+code or new font provider is enabled, and labels are not hidden to pass review.
+The deterministic `--no-local-cjk` map-render gate retains its isolated Latin-only font setup,
+so installed capture fonts cannot mask its provider-CJK glyph regression.

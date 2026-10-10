@@ -959,6 +959,12 @@
   "draftIdle": {
     "message": "填写地址和端口，自动检测。"
   },
+  "draftDisabled": {
+    "message": "公网 IP / GeoIP 已禁用，因此不会检测草稿。"
+  },
+  "draftUnchecked": {
+    "message": "此端点尚未检测。编辑端点或选择“重新检测”。"
+  },
   "draftWaiting": {
     "message": "准备检测…"
   },

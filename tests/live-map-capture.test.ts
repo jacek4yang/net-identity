@@ -35,9 +35,16 @@ describe("optional real-provider listing capture", () => {
     expect(source).not.toMatch(/pull_request_target:|push:|schedule:|secrets\./);
   });
 
-  it("requires installed Chinese fonts and bounds external package setup", () => {
+  it("requires CJK and Sinhala capture fonts and bounds external package setup", () => {
     expect(workflow()).toContain("fonts-noto-cjk");
     expect(workflow()).toContain("fc-list :lang=zh family");
+    expect(workflow()).toContain("fonts-noto-core");
+    expect(workflow()).toContain("fc-list :lang=si family");
+    expect(workflow()).toContain("test -s artifacts/capture-fonts/sinhala.txt");
+    expect(workflow()).toContain("artifacts/capture-fonts/*");
+    const gate = readFileSync("scripts/e2e-map.mjs", "utf8");
+    expect(gate).toContain("await isolateLatinFonts(directory)");
+    expect(gate).toContain("CJK U+65E5 coverage absent");
     expect(workflow()).toContain("timeout-minutes: 8");
     expect(workflow()).toContain("Acquire::https::Timeout=30");
   });

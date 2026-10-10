@@ -48,9 +48,10 @@ export function bindDraftCheck(deps: {
   status: HTMLElement;
   retry: HTMLButtonElement;
   read: () => DraftInput | null;
+  disabled?: () => boolean;
   resolved?: (identity: GeoIpResult) => void;
   invalidated?: () => void;
-}): DraftCheck {
+}): DraftCheck & { refresh: () => void } {
   const owner = crypto.randomUUID();
   let current: { state: DraftCheckState; result?: DraftResponse } = { state: "idle" };
   function render(): void {
@@ -62,7 +63,13 @@ export function bindDraftCheck(deps: {
       success: "draftSuccess",
       error: "draftNetwork",
     };
-    let text = message(keys[current.state]);
+    const disabled = deps.disabled?.() === true;
+    const idleKey = disabled
+      ? "draftDisabled"
+      : deps.read() === null
+        ? "draftIdle"
+        : "draftUnchecked";
+    let text = message(current.state === "idle" ? idleKey : keys[current.state]);
     const result = current.result;
     if (
       result?.ok &&
@@ -85,7 +92,7 @@ export function bindDraftCheck(deps: {
       text = message(errors[result.error]);
     }
     deps.status.textContent = text;
-    deps.retry.disabled = current.state === "checking" || current.state === "waiting";
+    deps.retry.disabled = disabled || current.state === "checking" || current.state === "waiting";
   }
   const check = new DraftCheck({
     send: async (type, input) => {
@@ -102,11 +109,12 @@ export function bindDraftCheck(deps: {
       render();
     },
   });
-  const schedule = () => check.schedule(deps.read());
+  const read = () => (deps.disabled?.() === true ? null : deps.read());
+  const schedule = () => check.schedule(read());
   for (const field of deps.fields) field.addEventListener("input", schedule);
-  deps.retry.addEventListener("click", () => check.schedule(deps.read(), 0));
+  deps.retry.addEventListener("click", () => check.schedule(read(), 0));
   window.addEventListener("pagehide", () => check.cancel());
   document.addEventListener("ni:language-changed", render);
   render();
-  return check;
+  return Object.assign(check, { refresh: render });
 }

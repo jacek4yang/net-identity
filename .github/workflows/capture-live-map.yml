@@ -45,8 +45,11 @@ jobs:
           printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
             | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
           sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y firefox openssl xvfb libgl1-mesa-dri fontconfig fonts-noto-cjk
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y firefox openssl xvfb libgl1-mesa-dri fontconfig fonts-noto-cjk fonts-noto-core
           test -n "$(fc-list :lang=zh family)"
+          mkdir -p artifacts/capture-fonts
+          fc-list :lang=si family | sort -u | tee artifacts/capture-fonts/sinhala.txt
+          test -s artifacts/capture-fonts/sinhala.txt
       - run: npm ci
       - run: npm run build:prod
       - name: Verify narrow live-capture proxy
@@ -87,6 +90,7 @@ jobs:
             artifacts/review-dark/*
             artifacts/review-light/*
             artifacts/draft-review/*
+            artifacts/capture-fonts/*
           if-no-files-found: error
       - name: Upload candidate images for visual review, not publication
         uses: actions/upload-artifact@v7
