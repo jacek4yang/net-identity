@@ -25,7 +25,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createLiveMapProxy } from "./live-map-proxy.mjs";
-import { captureFrameFits } from "./capture-frame.mjs";
+import { captureFrameScale } from "./capture-frame.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WINDOWS_DEVELOPER_EDITION = "C:\\Program Files\\Firefox Developer Edition\\firefox.exe";
@@ -681,6 +681,20 @@ async function main() {
             2400,
           );
         }
+        let restoreWindow = null;
+        let framing = null;
+        if (frame === "picker" && !values.review) {
+          const original = await client.send("WebDriver:GetWindowRect");
+          restoreWindow = original.value ?? original;
+          const size = await execute(`return {viewport:innerHeight,
+            content:document.getElementById("location-map").closest("fieldset").getBoundingClientRect().height};`);
+          const height = Math.max(800, Math.ceil(size.content) + 32);
+          if (height > 1200) throw new Error("Complete picker exceeds bounded artwork viewport");
+          await client.send("WebDriver:SetWindowRect", {
+            width: restoreWindow.width,
+            height: restoreWindow.height + height - size.viewport,
+          });
+        }
         if (frame === "picker") {
           await execute(
             `document.getElementById("location-map").closest("fieldset").scrollIntoView({block:"start"}); window.scrollBy(0, -16);`,
@@ -696,11 +710,10 @@ async function main() {
         const result = await client.send("WebDriver:TakeScreenshot", { full: values.review });
         let encoded = result.value;
         if (frame && !values.review) {
-          // Reframe real pixels at native scale: either identity + audit or the
-          // complete Identity & Privacy fieldset. The picker includes its legend,
-          // policy controls, override warning, map, attribution, provider/privacy
-          // disclosure, online state and all coordinate inputs. Never shorten or
-          // hide these to make a picture fit; fail if the whole region won't fit.
+          // Preserve the complete real fieldset, including attribution/disclosures.
+          // A taller source viewport allows bounded uniform reduction of the picker;
+          // audit stays native scale. Metadata records the source box and scale.
+          // Never hide controls, crop overflowing content or synthesize UI pixels.
           const framed = await client.send("WebDriver:ExecuteAsyncScript", {
             script: `const done = arguments[arguments.length - 1];
               const picker = document.getElementById("location-map")?.closest("fieldset");
@@ -708,8 +721,8 @@ async function main() {
               const bottom = (arguments[1] === "picker" ? picker : document.querySelector("#details-panel")).getBoundingClientRect();
               const x = Math.floor(top.left), y = Math.floor(top.top);
               const width = Math.ceil(top.right) - x, height = Math.ceil(bottom.bottom) - y;
-              const fits = (${captureFrameFits.toString()})(arguments[1], {x,y,width,height}, {width:innerWidth,height:innerHeight});
-              if (!fits) {
+              const scale = (${captureFrameScale.toString()})(arguments[1], {x,y,width,height}, {width:innerWidth,height:innerHeight});
+              if (scale === null) {
                 done({error: "Real UI region does not fit fully inside the capture: " + JSON.stringify({y,height,bottom:bottom.bottom})}); return;
               }
               const screenshot = new Image();
@@ -719,9 +732,11 @@ async function main() {
                 const context = canvas.getContext("2d");
                 context.fillStyle = getComputedStyle(document.body).backgroundColor;
                 context.fillRect(0, 0, 1280, 800);
+                const outputWidth = width * scale, outputHeight = height * scale;
                 context.drawImage(screenshot, x, y, width, height,
-                  Math.floor((1280 - width) / 2), Math.floor((800 - height) / 2), width, height);
-                done({image: canvas.toDataURL("image/png").split(",")[1]});
+                  (1280 - outputWidth) / 2, (800 - outputHeight) / 2, outputWidth, outputHeight);
+                done({image: canvas.toDataURL("image/png").split(",")[1],
+                  framing:{scale,source:{x,y,width,height},viewport:{width:innerWidth,height:innerHeight}}});
               };
               screenshot.onerror = () => done({error: "Could not decode the real Firefox capture"});
               screenshot.src = "data:image/png;base64," + arguments[0];`,
@@ -729,7 +744,9 @@ async function main() {
           });
           if (framed.value.error) throw new Error(framed.value.error);
           encoded = framed.value.image;
+          framing = framed.value.framing;
         }
+        if (restoreWindow) await client.send("WebDriver:SetWindowRect", restoreWindow);
         const bytes = Buffer.from(encoded, "base64");
         if (!values.review && (bytes.readUInt32BE(16) !== 1280 || bytes.readUInt32BE(20) !== 800)) {
           throw new Error(`Unexpected screenshot dimensions for ${name}`);
@@ -740,6 +757,7 @@ async function main() {
           width: bytes.readUInt32BE(16),
           height: bytes.readUInt32BE(20),
           sha256: createHash("sha256").update(bytes).digest("hex"),
+          ...(framing ? { framing } : {}),
         });
         log(`Wrote ${name} (${bytes.readUInt32BE(16)} × ${bytes.readUInt32BE(20)})`);
       };

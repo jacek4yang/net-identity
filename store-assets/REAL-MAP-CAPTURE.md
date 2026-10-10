@@ -58,7 +58,7 @@ from logs and metadata without changing the actual screenshot DOM.
 `ready` alone is not proof of geographic pixels. Inspect all four PNGs before
 copying any candidate into `store-assets/screenshots`:
 
-- Exactly 1280 × 800, readable native-scale extension UI
+- Exactly 1280 × 800, readable complete extension UI; any uniform picker reduction is recorded
 - Fourth image shows actual recognizable geographic features and labels
 - OpenFreeMap, © OpenMapTiles and Data from OpenStreetMap attribution is visible
 - No fake success labels, remote-code substitutions or grid-only fallback
@@ -71,9 +71,13 @@ its exact source commit. It explicitly requires visual review. The release owner
 final frozen-build recapture, version consistency, listing/privacy/caption
 changes and publication. Do not modify historical release assets.
 
-The picker image centers the complete Identity & Privacy fieldset at native scale,
+The picker image centers the complete Identity & Privacy fieldset,
 including policies, map attribution, provider disclosure, status and coordinate inputs.
-It fails rather than cropping those controls to fit. Capture metadata also records
+A bounded taller source viewport and uniform reduction (at least 75%, never enlargement)
+can fit the complete picker into the store canvas. Metadata records its source box,
+viewport and scale; audit stays native scale. It still fails for clipped source content
+or a reduction below the readability bound. Full-size light/dark review images remain
+available independently. Capture metadata also records
 aggregate map/glyph request counts, returned bytes and peak pending RPCs. The temporary
 API observer forwards original calls and responses unchanged, stores no URLs, IDs or
 payloads, and is removed once all requests settle. A successful capture requires glyph
