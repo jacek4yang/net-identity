@@ -24,7 +24,11 @@
     "style": "https://tiles.openfreemap.org/styles/liberty",
     "data": "live public provider data, not synthetic map geometry",
     "ready": true,
-    "attribution": ["OpenFreeMap", "© OpenMapTiles", "Data from OpenStreetMap"],
+    "attribution": [
+      "OpenFreeMap",
+      "© OpenMapTiles",
+      "Data from OpenStreetMap"
+    ],
     "requiresVisualReview": true,
     "requestEvidence": {
       "active": 0,
@@ -98,12 +102,36 @@
           "height": 800
         }
       }
+    },
+    {
+      "file": "05-switcher-chinese.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "3debe49d752dfbd6072f07b4ad61c3ca9789cd0f218f5a4c0aa63ec2d27d746d"
+    },
+    {
+      "file": "06-quick-add-chinese.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "df0acb7fe9d791730cc2ef72b66970bb15589853709424ad41140d8603e6ec50"
+    },
+    {
+      "file": "07-options-chinese.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "f931d3482b958d1bd6a78b7c18cdfc48dede94791e1e361b8f13281635708efa"
+    },
+    {
+      "file": "08-help-community-chinese.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "cf1f5083efb4e2e712fba8c4ee9a77235c4f76a90726f683f9838a4bf9d5af45"
+    },
+    {
+      "file": "09-identity-controls-chinese.png",
+      "width": 1280,
+      "height": 800,
+      "sha256": "8216ddaeeae10a9652859f937506d9303b4ba5b432cf36f6ff7edddeffddb8bd"
     }
-  ],
-  "selection": {
-    "source": "capture-source-metadata.txt",
-    "sourceImageCount": 9,
-    "selectedImageCount": 4,
-    "reason": "Canonical four AMO listing images; original capture metadata is preserved unchanged."
-  }
+  ]
 }
