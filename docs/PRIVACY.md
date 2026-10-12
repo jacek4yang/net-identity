@@ -2,7 +2,7 @@
 
 net-identity does not include telemetry, analytics, or remotely loaded program code.
 
-**Version scope:** this document describes the 1.2.0 source, including quick setup,
+**Version scope:** this document describes the 1.2.1 source, including quick setup,
 bilingual UI and the optional vault. Historical 1.1.5 retains its immutable tagged
 policy and package; see [release verification](RELEASING.md#published-115-2026-10-01).
 Preparing this policy does not itself submit, sign or publish an extension version.
