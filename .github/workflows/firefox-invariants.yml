@@ -35,7 +35,7 @@ jobs:
           printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
             | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
           sudo apt-get update
-          sudo apt-get install -y firefox firefox-devedition openssl libnss3-tools xvfb libgl1-mesa-dri fontconfig fonts-dejavu-core microsocks
+          sudo apt-get install -y firefox firefox-devedition openssl libnss3-tools xvfb libgl1-mesa-dri fontconfig fonts-dejavu-core microsocks orca speech-dispatcher speech-dispatcher-espeak-ng pulseaudio pulseaudio-utils dbus-x11 openbox xdotool
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -91,6 +91,17 @@ jobs:
 
       # Uploaded only on failure. The output contains loopback ports and the bundled
       # test proxy's throwaway user/pass; no repository secret ever reaches this job.
+      - name: Verify real Orca screen-reader task output
+        run: env -u MOZ_HEADLESS xvfb-run -a dbus-run-session -- bash scripts/run-screen-reader.sh
+
+      - name: Upload screen-reader evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: firefox-screen-reader
+          path: artifacts/screen-reader/
+          if-no-files-found: warn
+
       - name: Upload Firefox logs on failure
         if: failure()
         uses: actions/upload-artifact@v7
