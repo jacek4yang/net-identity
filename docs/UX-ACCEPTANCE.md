@@ -99,3 +99,28 @@ at this checkpoint. Keyboard samples and axe results do not replace that require
 review. Signed-candidate normal-Firefox installation remains a post-AMO gate.
 Do not publish based solely on the checks listed above; preserve the remaining
 acceptance and exact-head CI gates.
+
+## 2026-10-12 real Orca acceptance (supersedes NOT RUN checkpoint above)
+
+Exact implementation head `5084d835a7b7b8b3c4cb57afb7baedd8f3a73a15` passed
+[CI 38223027437](https://github.com/jacek4yang/net-identity/actions/runs/38223027437),
+including the genuine Orca speech-dispatcher backend on an isolated Linux Xvfb
+display. Eight EN/ZH x light/dark x options/popup authenticated-editor cases passed
+label announcements, native Tab to password role, ordinary-key echo positive
+control, no password-character echo, original-password preservation and Save
+feedback. The subsequent reopened saved-credential activation also passed.
+The same workflow retains protocol, independent microsocks, actual toolbar popup,
+visual/reflow, interruption, vault and outage regression gates.
+
+The initial reader harness selected and replaced existing password text; it now
+collapses the selection and asserts restoration before saving. A subsequent run
+showed Orca page narration consuming an editing key as browse-mode navigation;
+the harness now uses the normal Control key to stop narration before form editing.
+Neither failure was hidden or accepted as a passing run.
+
+This closes the previously unavailable real-reader task evidence for these tested
+authentication flows. It is not a full WCAG certification, every assistive tool or
+every possible human path. Remote WAN performance, comparative human studies and
+all forced-colors states remain unestablished. Signed candidate installation is
+still a mandatory post-AMO publication gate. Version-only release candidates must
+run their own exact-head gates; this implementation result cannot qualify them.
