@@ -76,6 +76,12 @@ export async function auditScreenReader({ client, execute, click, check, output,
     ]),
     "Native Tab reaches the protected password input",
   );
+  const originalPassword = await execute("return document.querySelector(arguments[0]).value;", [
+    password,
+  ]);
+  // Tab selects the existing password in Firefox. Collapse the selection before
+  // appending the synthetic canary, so this audit cannot replace saved credentials.
+  await nativeKeys("xdotool", ["key", "--clearmodifiers", "End"]);
   const passwordOffset = (await read()).length;
   await nativeKeys("xdotool", ["type", "--clearmodifiers", "--delay", "100", "qz97"]);
   await new Promise((resolve) => setTimeout(resolve, 700));
@@ -98,5 +104,14 @@ export async function auditScreenReader({ client, execute, click, check, output,
     "BackSpace",
     "BackSpace",
   ]);
+  const restoredPassword = await execute("return document.querySelector(arguments[0]).value;", [
+    password,
+  ]);
+  check(
+    restoredPassword === originalPassword,
+    "Screen-reader canary preserves the original password",
+  );
+  if (restoredPassword !== originalPassword)
+    throw new Error("Screen-reader audit changed the password; refusing to save");
   await observe("Save feedback", () => click(save), language === "zh_CN" ? "已保存" : "Saved");
 }
