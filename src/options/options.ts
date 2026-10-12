@@ -15,7 +15,8 @@ import { localizeKnownText as lt, message, formatMessage } from "../shared/i18n"
  * `runtime.sendMessage` only. It stays in the current editor after Save so a later activation or
  * correction cannot silently replace it with an empty value.
  */
-import { BUILTIN_DIRECT_PROFILE_ID, describeProxy, type IdentityProfile } from "../profile/schema";
+import { BUILTIN_DIRECT_PROFILE_ID, type IdentityProfile } from "../profile/schema";
+import { localizedProxySummary } from "../shared/proxy-summary";
 import { GUIDE } from "../shared/onboarding";
 import { createProfileId } from "../profile/store";
 import { parseProfile } from "../profile/validation";
@@ -629,7 +630,7 @@ function renderProfileList(): void {
 
     const subtitle = isDirect
       ? "Browser / system routing · Automatic identity"
-      : `${describeProxy(profile.proxy)} · ${profile.identity.mode === "auto" ? message("automaticLabel") : message("manualLabel")} · WebRTC ${profile.webrtcPolicy}`;
+      : `${localizedProxySummary(profile.proxy)} · ${profile.identity.mode === "auto" ? message("automaticLabel") : message("manualLabel")} · WebRTC ${profile.webrtcPolicy}`;
 
     const item = el("li", {
       attrs: {

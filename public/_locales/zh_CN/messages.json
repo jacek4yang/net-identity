@@ -402,7 +402,7 @@
     "message": "两个输入框都留空会保留已保存的认证信息。修改认证时请填写完整账号密码。启用加密存储后，重启 Firefox 也能保留凭据。"
   },
   "clearCredentials": {
-    "message": "保存时清除凭据（点击“应用”后才从当前线路移除）"
+    "message": "保存时清除凭据；点击“保存并启用”后才从当前线路移除。"
   },
   "identityPrivacy": {
     "message": "身份与隐私"
@@ -1099,5 +1099,8 @@
   },
   "socksPasswordBytes": {
     "message": "SOCKS5 密码不能超过 255 个 UTF-8 字节"
+  },
+  "proxyAuthenticationSuffix": {
+    "message": " · 需要认证"
   }
 }

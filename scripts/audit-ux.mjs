@@ -17,6 +17,20 @@ export async function auditUx({
   light,
 }) {
   const axePath = require.resolve("axe-core/axe.min.js");
+  if (name === "options-auth-saved") {
+    const copy = await execute(`
+      return {summary:[...document.querySelectorAll(".meta")].map(e=>e.textContent).join("\\n"),
+        removal:document.querySelector('[data-i18n="clearCredentials"]').textContent,
+        enable:document.querySelector('[data-i18n="enableDraft"]').textContent};
+    `);
+    check(copy.removal.includes(copy.enable), "Credential removal names the visible enable action");
+    if (language === "zh_CN") {
+      check(
+        copy.summary.includes("需要认证") && !copy.summary.includes("with authentication"),
+        "Chinese authenticated-profile summaries contain no untranslated authentication suffix",
+      );
+    }
+  }
   const viewportMetrics = [];
   for (const width of [320, 500, 1280]) {
     await client.send("WebDriver:SetWindowRect", { width, height: 900 });

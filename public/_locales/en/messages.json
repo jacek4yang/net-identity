@@ -402,7 +402,7 @@
     "message": "Saved authentication is kept when both fields are blank. To replace it, enter both fields. Enable encrypted storage to retain credentials across Firefox restarts."
   },
   "clearCredentials": {
-    "message": "Clear credentials on Save (Apply to remove from the active route)"
+    "message": "Clear credentials on Save; use Save and enable to remove them from the active route."
   },
   "identityPrivacy": {
     "message": "Identity & Privacy"
@@ -1099,5 +1099,8 @@
   },
   "socksPasswordBytes": {
     "message": "SOCKS5 password must not exceed 255 UTF-8 bytes"
+  },
+  "proxyAuthenticationSuffix": {
+    "message": " with authentication"
   }
 }

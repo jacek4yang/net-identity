@@ -64,3 +64,38 @@ The UX audit preserves axe results (including reviewed incomplete findings), act
 The independent microsocks check uses mandatory synthetic username/password authentication, real Firefox options-editor actions and HTTP transfers. Negative credentials must fail before corrected credentials succeed. It covers concurrent requests, daemon outage/recovery, credential replacement and Unicode/whitespace. A separate native extension-menu popup check uses Firefox WebDriver key/click actions to exercise Save, scrolling, Back and reopening in the actual popup document. Temporary-addon evidence does not replace signed-install qualification.
 
 These gates cover the stated paths, not every possible human interaction. Release approval remains conditional on closing the required acceptance gaps above; a green workflow is not permission to relabel NOT RUN as PASS.
+
+## 2026-10-12 follow-up acceptance
+
+The owner delegated visual acceptance and requested publication after the remaining
+required checks pass. Review of the real Firefox screenshots found two gaps that
+an automatic accessibility scan did not detect: the Chinese profile summary used
+an English authentication suffix, and credential removal instructions named the
+obsolete Apply button. This revision localizes that suffix without changing user
+endpoint values and names the visible Save and enable action. Unit regressions and
+the real-Firefox UX audit now check these exact cases in both UI languages.
+
+The revised working tree passed the full local check (759 tests in 60 files) and
+both EN/ZH light/dark UX passes on Firefox 157.0.1. The reviewed screenshots show
+the corrected text. Keep the previous runtime evidence explicitly scoped: the
+parent c4437d3 passed independent mandatory-authentication microsocks checks,
+native-toolbar-popup operations and vault UI checks. A subsequent complete vault
+restart run on Firefox Developer Edition 158.0b5 passed locked traffic, wrong and
+correct unlock, configuration retention and zero ordinary direct-origin leakage.
+The earlier interrupted local run is superseded by that completed run, not counted
+as a product failure or a pass by itself.
+
+A separate disposable Developer Edition profile permanently installed the published
+Mozilla-signed v1.2.0, saved an authenticated fixture profile, enabled its encrypted
+vault, then installed this UI candidate packaged with a **test-only** 1.2.1 manifest.
+After explicit unlock, the profile list and credential markers matched and backup
+export remained encrypted. This establishes that tested candidate upgrade path;
+it is not proof of a future signed release, every historical migration or a remote
+proxy's reliability. The repository version remains unchanged until a release PR.
+
+Full screen-reader task review is still NOT RUN. No screen reader is installed in
+the available test environment, and no connected authorized desktop was available
+at this checkpoint. Keyboard samples and axe results do not replace that required
+review. Signed-candidate normal-Firefox installation remains a post-AMO gate.
+Do not publish based solely on the checks listed above; preserve the remaining
+acceptance and exact-head CI gates.
