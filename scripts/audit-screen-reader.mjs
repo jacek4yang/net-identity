@@ -45,6 +45,10 @@ export async function auditScreenReader({ client, execute, click, check, output,
     `return arguments[0].map(selector=>{const e=document.querySelector(selector);return e.labels?.[0]?.textContent.trim()||e.textContent.trim();});`,
     [[username, password, save]],
   );
+  // Stop Orca's automatic page read before editing, as a reader user would.
+  // During SayAll Orca deliberately keeps browse mode and consumes letter keys.
+  await nativeKeys("xdotool", ["key", "--clearmodifiers", "Control_L"]);
+  await new Promise((resolve) => setTimeout(resolve, 200));
   await observe("username label", () => click(username), labels[0]);
   await observe(
     "ordinary text key echo positive control",
