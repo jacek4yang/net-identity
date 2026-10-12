@@ -66,7 +66,7 @@ import {
   upsertProfile,
   type ProfileStore,
 } from "../profile/store";
-import { parseProfile } from "../profile/validation";
+import { parseCredentials, parseProfile } from "../profile/validation";
 import {
   ACTIVE_TARGET_SCHEMA_VERSION,
   type ActiveTargetSnapshot,
@@ -283,7 +283,8 @@ export class ActivationController {
       // cancel the request, not silently negotiate an anonymous connection.
       // Reuse the routing decision to preserve explicit bypasses and internal URLs.
       (this.target?.proxy.authenticationRequired === true &&
-        this.target.credentials === null &&
+        (this.target.credentials === null ||
+          !parseCredentials(this.target.credentials, this.target.proxy.type).ok) &&
         decideProxy(this.target, url).type !== "direct")
     );
   }

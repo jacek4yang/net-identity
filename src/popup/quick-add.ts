@@ -27,6 +27,13 @@ export function bindQuickAdd(deps: {
   const password = requireElement<HTMLInputElement>("#quick-password");
   const status = requireElement<HTMLElement>("#quick-status");
   let pending = false;
+  const endpointKey = () =>
+    JSON.stringify([protocol.value, host.value.trim().toLowerCase(), port.value]);
+  let credentialEndpoint: string | null = null;
+  for (const field of [username, password])
+    field.addEventListener("input", () => {
+      credentialEndpoint = endpointKey();
+    });
   const draftCheck = bindDraftCheck({
     fields: [protocol, host, port, username, password],
     status: requireElement<HTMLElement>("#quick-draft-status"),
@@ -42,9 +49,22 @@ export function bindQuickAdd(deps: {
       if (!endpoint.ok) return null;
       const credentials =
         username.value !== "" || password.value !== ""
-          ? parseCredentials({ username: username.value, password: password.value })
+          ? parseCredentials(
+              { username: username.value, password: password.value },
+              endpoint.value.type,
+            )
           : null;
       if (credentials && (!credentials.ok || endpoint.value.type === "socks4")) return null;
+      if (credentials?.ok && credentialEndpoint !== null && credentialEndpoint !== endpointKey())
+        return {
+          proxy: {
+            ...endpoint.value,
+            proxyDNS: true,
+            bypassHosts: [],
+            authenticationRequired: true,
+          },
+          credentials: null,
+        };
       return {
         proxy: { ...endpoint.value, proxyDNS: true, bypassHosts: [] },
         ...(credentials?.ok ? { credentials: credentials.value } : {}),
@@ -62,18 +82,28 @@ export function bindQuickAdd(deps: {
   });
   // Reuse an id after a partial write/transport error rather than creating duplicates on retry.
   let draftId: string | undefined;
-  toggle.addEventListener("click", () => {
+  requireElement<HTMLButtonElement>("#quick-new").addEventListener("click", () => {
     if (pending) return;
     draftCheck.cancel();
+    form.reset();
+    credentialEndpoint = null;
+    draftId = undefined;
+    show("");
+    host.focus();
+  });
+  toggle.addEventListener("click", () => {
+    if (pending) return;
+    // Back preserves a completed preview; an interrupted probe remains unchecked.
+    draftCheck.cancel(true);
     panel.hidden = !panel.hidden;
     document.body.dataset.view = panel.hidden ? "routes" : "add";
     toggle.dataset.i18n = panel.hidden ? "addProxy" : "backToRoutes";
     toggle.textContent = message(panel.hidden ? "addProxy" : "backToRoutes");
     toggle.setAttribute("aria-expanded", String(!panel.hidden));
+    draftCheck.refresh();
     if (!panel.hidden) host.focus();
     else {
-      username.value = "";
-      password.value = "";
+      // Returning to the route list must not erase an unfinished authentication draft.
       toggle.focus();
     }
   });
@@ -88,7 +118,10 @@ export function bindQuickAdd(deps: {
     }
     const credentials =
       username.value !== "" || password.value !== ""
-        ? parseCredentials({ username: username.value, password: password.value })
+        ? parseCredentials(
+            { username: username.value, password: password.value },
+            endpoint.value.type,
+          )
         : undefined;
     if (credentials && !credentials.ok) {
       show(credentials.errors);
@@ -114,7 +147,7 @@ export function bindQuickAdd(deps: {
       ? `[${endpoint.value.host}]`
       : endpoint.value.host;
     port.value = String(endpoint.value.port);
-    draftCheck.cancel();
+    draftCheck.cancel(true);
     pending = true;
     fields.disabled = true;
     toggle.disabled = true;
@@ -134,10 +167,9 @@ export function bindQuickAdd(deps: {
         return;
       }
       const id = draftId;
-      draftId = undefined;
-      form.reset();
-      username.value = "";
-      password.value = "";
+      credentialEndpoint = endpointKey();
+      // Keep this draft and id through Save/Enable, including failed activation.
+      // A second click updates the saved profile instead of creating a duplicate.
       await deps.reload();
       show("Saved. Saving does not verify connectivity or change the active route.");
       if (activate) {

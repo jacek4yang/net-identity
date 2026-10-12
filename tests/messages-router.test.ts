@@ -377,3 +377,17 @@ describe("default profile", () => {
     expect(profile.webrtcPolicy).toBe("default");
   });
 });
+
+it("refuses unusable SOCKS credentials before saving the profile", async () => {
+  const { handler, ui, harness } = setup();
+  const profile = { ...PROXIED_PROFILE, proxy: { ...PROXIED_PROFILE.proxy, type: "socks5" } };
+  const before = await harness.profileStore.load();
+  const result = parseMutationResponse(
+    await handler(
+      { type: "profiles:save", profile, credentials: { username: "", password: "secret" } },
+      ui,
+    ),
+  );
+  expect(result.ok && result.value.ok).toBe(false);
+  expect(await harness.profileStore.load()).toEqual(before);
+});

@@ -50,7 +50,7 @@ export function parseDraftRequest(value: unknown): Result<DraftRequest> {
   if (typeof input.profileId === "string") result.profileId = input.profileId;
   if (input.credentials === null) result.credentials = null;
   else if (input.credentials !== undefined) {
-    const credentials = parseCredentials(input.credentials);
+    const credentials = parseCredentials(input.credentials, proxy.value.type);
     if (!credentials.ok || proxy.value.type === "socks4") return fail("Invalid draft credentials");
     result.credentials = credentials.value;
   }

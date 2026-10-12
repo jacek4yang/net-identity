@@ -137,7 +137,7 @@
               <details>
                 <summary data-i18n="sessionAuth">Session-only authentication</summary>
                 <label for="quick-username" data-i18n="username">Username</label
-                ><input id="quick-username" autocomplete="off" maxlength="128" spellcheck="false" />
+                ><input id="quick-username" autocomplete="off" maxlength="255" spellcheck="false" />
                 <label for="quick-password" data-i18n="password">Password</label
                 ><input
                   id="quick-password"
@@ -165,6 +165,9 @@
                 Check again
               </button>
               <div class="quick-actions">
+                <button id="quick-new" class="btn" type="button" data-i18n="newProfile">
+                  New profile
+                </button>
                 <button id="quick-save" class="btn" type="submit" data-i18n="save">Save</button>
                 <button id="quick-save-activate" class="btn" type="submit" data-i18n="saveActivate">
                   Save &amp; Activate
